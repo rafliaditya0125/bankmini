@@ -1,0 +1,206 @@
+@import 'tailwindcss';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@theme {
+    --font-sans:
+    'Manrope', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --animate-fade-up: fade-up 0.7s ease-out;
+    --animate-float-slow: float-slow 18s ease-in-out infinite;
+    --animate-float-slow-alt: float-slow 24s ease-in-out infinite;
+
+    @keyframes fade-up {
+        0% {
+            opacity: 0;
+            transform: translate3d(0, 14px, 0);
+        }
+        100% {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+    }
+
+    @keyframes float-slow {
+        0%, 100% {
+            transform: translate3d(0, 0, 0);
+        }
+        50% {
+            transform: translate3d(0, -18px, 0);
+        }
+    }
+}
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  .dark {
+    color-scheme: dark;
+  }
+}
+
+/* Global Dark Mode Overrides for consistency across all unstyled components */
+.dark body {
+    background-color: var(--color-gray-950);
+    color: var(--color-gray-100);
+}
+
+/* Override all common light backgrounds including those with opacity modifiers */
+.dark [class*="bg-white"],
+.dark [class*="bg-gray-50"],
+.dark [class*="bg-slate-50"],
+.dark [class*="bg-emerald-50"],
+.dark [class*="bg-rose-50"],
+.dark [class*="bg-sky-50"],
+.dark [class*="bg-amber-50"],
+.dark [class*="bg-violet-50"],
+.dark [class*="bg-gray-100"],
+.dark [class*="bg-slate-100"],
+.dark [class*="bg-emerald-100"],
+.dark [class*="bg-rose-100"],
+.dark [class*="bg-gray-200"],
+.dark [class*="bg-slate-200"] {
+    background-color: var(--color-gray-800) !important;
+}
+
+/* Specifically target the outermost body-level white backgrounds to use deeper gray-900 */
+.dark body > div > .bg-white,
+.dark main .bg-white:not([class*="/"]) {
+    background-color: var(--color-gray-900) !important;
+}
+
+/* Eliminate gradient backgrounds on cards, converting them to solid dark colors */
+.dark [class*="from-emerald-50"],
+.dark [class*="from-rose-50"],
+.dark [class*="from-gray-50"],
+.dark [class*="from-slate-50"],
+.dark [class*="from-white"] {
+    background-image: none !important;
+    background-color: var(--color-gray-800) !important;
+}
+
+/* Text color overrides */
+.dark [class*="text-gray-900"],
+.dark [class*="text-slate-900"],
+.dark [class*="text-gray-800"],
+.dark [class*="text-slate-800"],
+.dark [class*="text-emerald-900"],
+.dark [class*="text-rose-900"] {
+    color: var(--color-white) !important;
+}
+
+.dark [class*="text-gray-700"],
+.dark [class*="text-slate-700"],
+.dark [class*="text-emerald-700"],
+.dark [class*="text-rose-700"],
+.dark [class*="text-sky-700"],
+.dark [class*="text-amber-700"],
+.dark [class*="text-violet-700"] {
+    color: var(--color-gray-200) !important;
+}
+
+.dark [class*="text-gray-600"],
+.dark [class*="text-gray-500"],
+.dark [class*="text-slate-600"],
+.dark [class*="text-slate-500"] {
+    color: var(--color-gray-400) !important;
+}
+
+/* Border overrides */
+.dark [class*="border-gray-100"],
+.dark [class*="border-gray-200"],
+.dark [class*="border-gray-300"],
+.dark [class*="border-slate-100"],
+.dark [class*="border-slate-200"],
+.dark [class*="border-slate-300"],
+.dark [class*="border-emerald-100"],
+.dark [class*="border-emerald-200"],
+.dark [class*="border-rose-100"],
+.dark [class*="border-sky-200"],
+.dark [class*="border-amber-200"],
+.dark [class*="border-violet-200"] {
+    border-color: var(--color-gray-700) !important;
+}
+
+/* Shadows and dividers */
+.dark .shadow-sm,
+.dark .shadow,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.8), 0 2px 4px -1px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dark [class*="divide-gray-100"] > :not([hidden]) ~ :not([hidden]),
+.dark [class*="divide-gray-200"] > :not([hidden]) ~ :not([hidden]),
+.dark [class*="divide-slate-100"] > :not([hidden]) ~ :not([hidden]),
+.dark [class*="divide-slate-200"] > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--color-gray-700) !important;
+}
+
+
+
+/* Custom Animations */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animation-delay-2000 {
+    animation-delay: 2s;
+}
+
+/* Print Styles for Receipts */
+@media print {
+    /* Hide the entire app by default and reset body */
+    html, body {
+        background: white !important;
+        height: auto !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    /* Show only the receipt and its internal content */
+    #receipt-print, #receipt-print * {
+        visibility: visible !important;
+    }
+
+    /* Position the receipt at the top of the physical page with fixed width */
+    #receipt-print {
+        position: fixed !important;
+        left: 50% !important;
+        top: 0 !important;
+        transform: translateX(-50%) !important;
+        width: 80mm !important; /* Standard thermal printer width */
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 5mm !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: white !important;
+        color: black !important;
+        display: block !important;
+        z-index: 9999 !important;
+    }
+
+    /* Extra safety: hide any buttons or modals that might still have presence */
+    .no-print, button, nav, aside, .modal-overlay, .modal-header, .modal-footer, [role="dialog"], .bg-black\/50 {
+        display: none !important;
+        opacity: 0 !important;
+    }
+
+    /* Reset page margins for physical printer */
+    @page {
+        margin: 0;
+        size: auto;
+    }
+}
