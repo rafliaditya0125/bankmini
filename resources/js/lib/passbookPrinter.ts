@@ -280,6 +280,7 @@ export async function printToPassbook(tx: PassbookTransaction): Promise<void> {
         }
         throw new Error('Gagal mencetak ke buku tabungan: ' + (error.message || error));
     }
+}
 
 export default {
     isSupported,
