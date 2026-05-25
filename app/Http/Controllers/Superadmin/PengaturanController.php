@@ -201,7 +201,23 @@ class PengaturanController extends Controller
             'api_rate_limit' => (int) Setting::get('api_rate_limit', 60),
             'api_token_expiry' => (int) Setting::get('api_token_expiry', 24),
             'maintenance_mode' => Setting::get('maintenance_mode', '0'),
-            'email_sender' => Setting::get('email_sender', '1'),
+
+            // NOTIFIKASI & OTP
+            'notification_email_active' => Setting::get('notification_email_active', '1'),
+            'notification_whatsapp_active' => Setting::get('notification_whatsapp_active', '0'),
+            'email_provider' => Setting::get('email_provider', 'resend'),
+            
+            // CONTOH RESEND
+            'resend_api_key' => Setting::get('resend_api_key', ''),
+            
+            // CONTOH SMTP
+            'smtp_host' => Setting::get('smtp_host', 'smtp.mailtrap.io'),
+            'smtp_port' => Setting::get('smtp_port', '2525'),
+            'smtp_username' => Setting::get('smtp_username', ''),
+            'smtp_password' => Setting::get('smtp_password', ''),
+            'smtp_encryption' => Setting::get('smtp_encryption', 'tls'),
+            'smtp_from_address' => Setting::get('smtp_from_address', 'hello@example.com'),
+            'smtp_from_name' => Setting::get('smtp_from_name', 'Bank Mini SMK'),
 
             // NASABAH
             'alumni_retention_years' => (int) Setting::get('alumni_retention_years', 3),

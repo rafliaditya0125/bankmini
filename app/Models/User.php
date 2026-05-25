@@ -100,7 +100,22 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getIsEmailVerifiedAttribute(): bool
     {
-        return !is_null($this->email_verified_at);
+        return !is_null($this->email_verified_at) || (
+            \App\Models\Setting::get('notification_email_active', '1') === '0' &&
+            \App\Models\Setting::get('notification_whatsapp_active', '0') === '0'
+        );
+    }
+
+    /**
+     * Determine if the user has verified their email address.
+     * Bypassed if all notifications are disabled.
+     */
+    public function hasVerifiedEmail()
+    {
+        return !is_null($this->email_verified_at) || (
+            \App\Models\Setting::get('notification_email_active', '1') === '0' &&
+            \App\Models\Setting::get('notification_whatsapp_active', '0') === '0'
+        );
     }
 
 

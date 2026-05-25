@@ -15,26 +15,53 @@ class OtpService
      */
     public static function send(?int $userId, string $target, string $type, ?string $channel = null): bool
     {
+        $emailActive = \App\Models\Setting::get('notification_email_active', '1') === '1';
+        $whatsappActive = \App\Models\Setting::get('notification_whatsapp_active', '0') === '1';
+
         $channel = $channel ?? config('otp.channel', env('OTP_CHANNEL', 'whatsapp'));
 
-        // If target looks like an email and channel is whatsapp, try to see if it's actually an email request
-        // or just validate the target based on channel
+        // Bypass if the specific channel is disabled
+        if (($channel === 'email' || $channel === 'resend') && !$emailActive) {
+            return true;
+        }
+        if ($channel === 'whatsapp' && !$whatsappActive) {
+            return true;
+        }
         
         $otp = self::generate($userId, $target, $type, $channel);
 
         if ($channel === 'email' || $channel === 'resend') {
             try {
-                $mailer = Mail::mailer($channel === 'resend' ? 'resend' : null);
+                $emailProvider = \App\Models\Setting::get('email_provider', 'resend');
+                
+                if ($emailProvider === 'smtp') {
+                    config([
+                        'mail.mailers.smtp.host' => \App\Models\Setting::get('smtp_host', env('MAIL_HOST')),
+                        'mail.mailers.smtp.port' => \App\Models\Setting::get('smtp_port', env('MAIL_PORT')),
+                        'mail.mailers.smtp.username' => \App\Models\Setting::get('smtp_username', env('MAIL_USERNAME')),
+                        'mail.mailers.smtp.password' => \App\Models\Setting::get('smtp_password', env('MAIL_PASSWORD')),
+                        'mail.mailers.smtp.encryption' => \App\Models\Setting::get('smtp_encryption', env('MAIL_ENCRYPTION')),
+                        'mail.from.address' => \App\Models\Setting::get('smtp_from_address', env('MAIL_FROM_ADDRESS')),
+                        'mail.from.name' => \App\Models\Setting::get('smtp_from_name', env('MAIL_FROM_NAME')),
+                    ]);
+                    $mailer = Mail::mailer('smtp');
+                } else {
+                    config([
+                        'resend.api_key' => \App\Models\Setting::get('resend_api_key', env('RESEND_API_KEY')),
+                    ]);
+                    $mailer = Mail::mailer('resend');
+                }
+                
                 $mailer->to($target)->send(new OtpMail($otp->otp));
                 return true;
             } catch (\Exception $e) {
-                Log::error($channel . ' OTP failed: ' . $e->getMessage());
+                Log::error('Email OTP failed: ' . $e->getMessage());
                 return false;
             }
         }
 
         // Default to WhatsApp/Fonnte
-        $appName = \App\Models\Setting::get('app_name', config('app.name'));
+        $appName = \App\Models\Setting::get('bank_name', config('app.name'));
         $message = "Kode OTP $appName Anda adalah: " . $otp->otp . ". Kode ini berlaku selama 15 menit. JANGAN BERIKAN KODE INI KEPADA SIAPAPUN.";
         return FonnteService::sendMessage($target, $message);
     }

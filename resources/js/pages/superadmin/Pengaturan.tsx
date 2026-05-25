@@ -19,7 +19,7 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
         { id: 'laporan', name: 'Laporan', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
         { id: 'database', name: 'Database', icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4', superadminOnly: true },
         { id: 'sistem', name: 'Sistem', icon: 'M13 10V3L4 14h7v7l9-11h-7z', superadminOnly: true },
-
+        { id: 'notifikasi', name: 'Notifikasi & OTP', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', superadminOnly: true },
     ];
 
     const categories = role === 'superadmin'
@@ -333,10 +333,6 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
                                         { value: '0', label: 'OFF (OPERASIONAL PENUH)' },
                                         { value: '1', label: 'ON (MODE PEMELIHARAAN)' }
                                     ])}
-                                    {renderSelect('email_sender', 'Pengiriman Email', [
-                                        { value: '1', label: 'AKTIF (MENGIRIM EMAIL)' },
-                                        { value: '0', label: 'NONAKTIF (TIDAK MENGIRIM EMAIL)' }
-                                    ])}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8 border-t border-gray-50">
                                         {renderInput('app_url', 'URL Utama Aplikasi', 'url')}
                                         {renderSelect('timezone', 'Zona Waktu Sistem', [
@@ -359,6 +355,60 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
                                         {renderInput('api_rate_limit', 'Batas Panggilan API (Permintaan/Menit)', 'number')}
                                         {renderInput('api_token_expiry', 'Masa Berlaku Token API (Jam)', 'number')}
                                     </div>
+                                </>
+                            )}
+                            
+                            {activeCategory === 'notifikasi' && (
+                                <>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                        {renderSelect('notification_email_active', 'Status Notifikasi Email', [
+                                            { value: '1', label: 'AKTIF' },
+                                            { value: '0', label: 'NONAKTIF' }
+                                        ])}
+                                        {renderSelect('notification_whatsapp_active', 'Status Notifikasi WhatsApp', [
+                                            { value: '1', label: 'AKTIF' },
+                                            { value: '0', label: 'NONAKTIF' }
+                                        ])}
+                                    </div>
+                                    
+                                    <div className="mt-2 mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+                                        <p className="text-xs text-emerald-600 font-medium">
+                                            <strong>Informasi:</strong> Jika semua notifikasi dinonaktifkan, maka proses yang membutuhkan pengiriman notifikasi/OTP seperti verifikasi email akan otomatis dilewati dan dianggap selesai secara sistem (bypass).
+                                        </p>
+                                    </div>
+
+                                    {data.notification_email_active === '1' && (
+                                        <div className="space-y-6 pt-8 border-t border-gray-50">
+                                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Pengaturan Email</h3>
+                                            
+                                            {renderSelect('email_provider', 'Provider Email', [
+                                                { value: 'resend', label: 'RESEND API' },
+                                                { value: 'smtp', label: 'SMTP SERVER' }
+                                            ])}
+
+                                            {data.email_provider === 'resend' ? (
+                                                <div className="mt-4">
+                                                    {renderInput('resend_api_key', 'Resend API Key', 'password', { placeholder: 're_...' })}
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                                    {renderInput('smtp_host', 'SMTP Host')}
+                                                    {renderInput('smtp_port', 'SMTP Port', 'number')}
+                                                    {renderInput('smtp_username', 'SMTP Username')}
+                                                    {renderInput('smtp_password', 'SMTP Password', 'password')}
+                                                    {renderSelect('smtp_encryption', 'Enkripsi', [
+                                                        { value: 'tls', label: 'TLS' },
+                                                        { value: 'ssl', label: 'SSL' },
+                                                        { value: '', label: 'NONE' }
+                                                    ])}
+                                                    <div className="col-span-2 grid grid-cols-2 gap-6">
+                                                        {renderInput('smtp_from_address', 'Alamat Pengirim (From Email)')}
+                                                        {renderInput('smtp_from_name', 'Nama Pengirim (From Name)')}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </>
                             )}
 
