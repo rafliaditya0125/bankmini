@@ -256,4 +256,78 @@ class JurusanController extends Controller
 
         return back()->with('success', 'Rombel berhasil dihapus');
     }
+
+    public function importRombel(Request $request, Jurusan $jurusan)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls'
+        ]);
+
+        $file = $request->file('file');
+        $spreadsheet = IOFactory::load($file->getRealPath());
+        $rows = $spreadsheet->getActiveSheet()->toArray();
+        array_shift($rows); // Skip header
+
+        $count = 0;
+        DB::transaction(function () use ($rows, &$count, $jurusan) {
+            foreach ($rows as $data) {
+                if (empty($data[0]) || empty($data[1]) || empty($data[2])) continue;
+
+                $tahunAjaran = trim($data[0]);
+                $tingkat = trim($data[1]);
+                $nomorRombel = trim($data[2]);
+                $nama = isset($data[3]) ? trim($data[3]) : null;
+
+                // Validate if combinations already exist
+                if (\App\Models\Rombel::where('jurusan_id', $jurusan->id)
+                    ->where('tahun_ajaran', $tahunAjaran)
+                    ->where('tingkat', $tingkat)
+                    ->where('nomor_rombel', $nomorRombel)
+                    ->exists()) continue;
+
+                \App\Models\Rombel::create([
+                    'jurusan_id' => $jurusan->id,
+                    'tahun_ajaran' => $tahunAjaran,
+                    'tingkat' => $tingkat,
+                    'nomor_rombel' => $nomorRombel,
+                    'nama' => $nama,
+                ]);
+
+                $count++;
+            }
+        });
+
+        AuditLog::logActivity(
+            'import_rombel',
+            "Import {$count} rombel baru untuk jurusan {$jurusan->nama} via Excel",
+            'success',
+            Auth::id(),
+            Auth::user()->name,
+            Auth::user()->role
+        );
+
+        return back()->with('success', "Berhasil mengimport {$count} rombel");
+    }
+
+    public function downloadRombelTemplate(Jurusan $jurusan)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Template Rombel');
+
+        // Header
+        $sheet->fromArray(['tahun_ajaran', 'tingkat', 'nomor_rombel', 'nama (opsional)'], null, 'A1');
+        
+        // Contoh data
+        $sheet->fromArray(['2025/2026', '10', '1', '10 ' . $jurusan->kode . ' 1'], null, 'A2');
+        $sheet->fromArray(['2025/2026', '10', '2', '10 ' . $jurusan->kode . ' 2'], null, 'A3');
+
+        $writer = new XlsxWriter($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, 'template_rombel_' . strtolower($jurusan->kode) . '.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
 }
