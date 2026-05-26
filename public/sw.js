@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bankmini-v3';
+const CACHE_NAME = 'bankmini-v4';
 const ASSETS_TO_CACHE = [
   '/images/bankmini-removebg-preview.png',
   '/manifest.json'
@@ -37,7 +37,11 @@ self.addEventListener('fetch', (event) => {
 
   // 2. Exclude specific paths that should always be real-time
   const excludedPaths = ['/api', '/broadcasting', '/vapor', '/forgot-password', '/reset-password', '/login', '/logout'];
-  if (excludedPaths.some(path => url.pathname.startsWith(path))) {
+  
+  // Bypass cache for Inertia XHR requests (page transitions/data fetching)
+  const isInertia = event.request.headers.has('X-Inertia');
+  
+  if (isInertia || excludedPaths.some(path => url.pathname.startsWith(path))) {
     return;
   }
 
