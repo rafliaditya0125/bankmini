@@ -1,8 +1,8 @@
-# 🏦 Bank Mini SMEACIS
+# 🏦 Bank Mini
 
 **Sistem Perbankan Digital Sekolah Terintegrasi**
 
-Bank Mini SMEACIS adalah platform perbankan digital modern yang dirancang khusus untuk memenuhi kebutuhan ekosistem keuangan di lingkungan SMK. Aplikasi ini mengintegrasikan manajemen data akademik (Jurusan & Rombel) dengan operasional perbankan harian yang aman, transparan, dan akuntabel.
+Bank Mini adalah platform perbankan digital modern yang dirancang khusus untuk memenuhi kebutuhan ekosistem keuangan di lingkungan SMK. Aplikasi ini mengintegrasikan manajemen data akademik (Jurusan & Rombel) dengan operasional perbankan harian yang aman, transparan, dan akuntabel.
 
 ---
 
@@ -38,6 +38,12 @@ Dokumentasi detail mengenai cara penggunaan, setup, dan daftar fitur spesifik da
 
 - 📰 [Daftar Lengkap Fitur (FEATURES.md)](./docs/FEATURES.md)
 - 🚀 [Panduan Instalasi & Quick Start (QUICK_START.md)](./docs/QUICK_START.md)
+
+## 👨‍💻 Tim Developer
+Aplikasi ini dibuat oleh:
+
+*   [Ihsan Sabana](https://github.com/ihsansabanaa)
+*   [Rafli Aditya](https://github.com/rafliaditya0125)
 
 ---
 *Dibuat untuk kebutuhan administrasi pendidikan dan perbankan ekosistem sekolah.*
