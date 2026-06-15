@@ -381,7 +381,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNas
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nomor Rekening</label>
-                            <input value={data.nomor_rekening} onChange={e => setData('nomor_rekening', e.target.value.replace(/\D/g, ''))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl font-mono font-black" />
+                            <input value={data.nomor_rekening} onChange={e => setData('nomor_rekening', e.target.value.replace(/[^a-zA-Z0-9]/g, ''))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl font-mono font-black" />
                             {errors.nomor_rekening && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{errors.nomor_rekening}</p>}
                         </div>
                         {data.user_type === 'siswa' && (

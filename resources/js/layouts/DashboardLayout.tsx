@@ -89,7 +89,7 @@ export default function DashboardLayout({ header, children }: DashboardLayoutPro
     };
 
     const isTransaksiActive = () => {
-        return currentUrl.startsWith(`/${rolePrefix}/setor`) || currentUrl.startsWith(`/${rolePrefix}/tarik`) || currentUrl.startsWith(`/${rolePrefix}/transfer`);
+        return currentUrl.startsWith(`/${rolePrefix}/setor`) || currentUrl.startsWith(`/${rolePrefix}/tarik`) || currentUrl.startsWith(`/${rolePrefix}/transfer`) || currentUrl.startsWith(`/${rolePrefix}/bayar`);
     };
 
     const isLaporanActive = () => {
@@ -121,6 +121,7 @@ export default function DashboardLayout({ header, children }: DashboardLayoutPro
                     { name: 'Setor', href: `/${rolePrefix}/setor` },
                     { name: 'Tarik', href: `/${rolePrefix}/tarik` },
                     { name: 'Transfer', href: `/${rolePrefix}/transfer` },
+                    { name: 'Bayar', href: `/${rolePrefix}/bayar` },
                 ]
             },
             {
@@ -151,6 +152,7 @@ export default function DashboardLayout({ header, children }: DashboardLayoutPro
                     { name: 'Setoran', href: '/teller/setor' },
                     { name: 'Penarikan', href: '/teller/tarik' },
                     { name: 'Transfer', href: '/teller/transfer' },
+                    { name: 'Pembayaran', href: '/teller/bayar' },
                 ]
             },
             { name: 'Riwayat Transaksi', href: '/teller/transaksi', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },

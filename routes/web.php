@@ -109,6 +109,10 @@ Route::middleware(['auth', 'role:teller', 'verified'])->prefix('teller')->name('
     Route::get('/transfer', [SharedTransactionController::class, 'transferIndex'])->name('transfer.index');
     Route::post('/transfer', [SharedTransactionController::class, 'transferStore'])->name('transfer.store')->middleware('log');
 
+    // Bayar Routes
+    Route::get('/bayar', [SharedTransactionController::class, 'bayarIndex'])->name('bayar.index');
+    Route::post('/bayar', [SharedTransactionController::class, 'bayarStore'])->name('bayar.store')->middleware('log');
+
     // Transaksi History Routes
     Route::get('/transaksi', [\App\Http\Controllers\Teller\TransaksiController::class, 'index'])->middleware('throttle:dynamic_transaction')->name('transaksi.index');
     Route::post('/transaksi/{id}/cancel', [SharedTransactionController::class, 'cancel'])->name('transaksi.cancel');
@@ -164,6 +168,10 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     // Transfer Routes
     Route::get('/transfer', [SharedTransactionController::class, 'transferIndex'])->name('transfer.index');
     Route::post('/transfer', [SharedTransactionController::class, 'transferStore'])->name('transfer.store')->middleware('log');
+
+    // Bayar Routes
+    Route::get('/bayar', [SharedTransactionController::class, 'bayarIndex'])->name('bayar.index');
+    Route::post('/bayar', [SharedTransactionController::class, 'bayarStore'])->name('bayar.store')->middleware('log');
 
     Route::get('/audit-trail', [SuperadminAuditTrailController::class, 'index'])->name('audit-trail.index');
     Route::get('/laporan', [\App\Http\Controllers\Superadmin\LaporanController::class, 'index'])->middleware('throttle:dynamic_transaction')->name('laporan.index');
@@ -228,6 +236,10 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     // Transfer Routes
     Route::get('/transfer', [SharedTransactionController::class, 'transferIndex'])->name('transfer.index');
     Route::post('/transfer', [SharedTransactionController::class, 'transferStore'])->name('transfer.store')->middleware('log');
+
+    // Bayar Routes
+    Route::get('/bayar', [SharedTransactionController::class, 'bayarIndex'])->name('bayar.index');
+    Route::post('/bayar', [SharedTransactionController::class, 'bayarStore'])->name('bayar.store')->middleware('log');
 
     // Audit Trail Routes
     Route::get('/audit-trail', [SuperadminAuditTrailController::class, 'index'])->name('audit-trail.index');

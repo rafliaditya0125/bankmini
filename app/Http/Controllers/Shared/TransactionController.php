@@ -62,7 +62,7 @@ class TransactionController extends Controller
         $minDenomination = (int) \App\Models\Setting::get('min_cash_denomination', 100);
 
         $rules = [
-            'nomor_rekening' => 'required|exists:nasabah,nomor_rekening|regex:/^[0-9]+$/',
+            'nomor_rekening' => 'required|exists:nasabah,nomor_rekening',
             'jumlah' => [
                 'required',
                 'numeric',
@@ -137,7 +137,7 @@ class TransactionController extends Controller
         $minWithdraw = (int) \App\Models\Setting::get('min_withdraw', 1000);
 
         $rules = [
-            'nomor_rekening' => 'required|exists:nasabah,nomor_rekening|regex:/^[0-9]+$/',
+            'nomor_rekening' => 'required|exists:nasabah,nomor_rekening',
             'jumlah' => [
                 'required',
                 'numeric',
@@ -203,8 +203,8 @@ class TransactionController extends Controller
         $minTransfer = (int) \App\Models\Setting::get('min_deposit', 1000);
 
         $rules = [
-            'pengirim_rekening' => 'required|exists:nasabah,nomor_rekening|regex:/^[0-9]+$/',
-            'penerima_rekening' => 'required|exists:nasabah,nomor_rekening|different:pengirim_rekening|regex:/^[0-9]+$/',
+            'pengirim_rekening' => 'required|exists:nasabah,nomor_rekening',
+            'penerima_rekening' => 'required|exists:nasabah,nomor_rekening|different:pengirim_rekening',
             'jumlah' => 'required|numeric|min:' . $minTransfer,
             'tanggal_transaksi' => 'required|date',
             'keterangan' => 'nullable|string|max:255',
@@ -223,6 +223,64 @@ class TransactionController extends Controller
             $result = $this->transactionService->transfer($validated, $this->getRole());
             return redirect()->route($this->getRolePrefix() . '.transfer.index')
                 ->with('success', 'Transfer sebesar Rp ' . number_format($validated['jumlah'], 0, ',', '.') . ' ke rekening ' . $validated['penerima_rekening'] . ' berhasil diproses')
+                ->with('transaction', $result);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal: ' . $e->getMessage());
+        }
+    }
+    /**
+     * Bayar Index
+     */
+    public function bayarIndex(Request $request)
+    {
+        $pengirim = null;
+        if ($request->has('pengirim_rekening') && $request->pengirim_rekening) {
+            $pengirim = Nasabah::with(['user', 'rombelRel'])->where('nomor_rekening', $request->pengirim_rekening)->first();
+        }
+
+        $pembayaranAccounts = Nasabah::with('user')
+            ->whereHas('user', function ($q) {
+                $q->where('user_type', 'pembayaran');
+            })
+            ->where('status', 'aktif')
+            ->get();
+
+        return Inertia::render('shared/Transaction/Bayar', [
+            'pengirim' => $pengirim,
+            'pembayaranAccounts' => $pembayaranAccounts,
+            'minBayar' => 1000,
+        ]);
+    }
+
+    /**
+     * Bayar Store
+     */
+    public function bayarStore(Request $request)
+    {
+        $minBayar = 1000;
+
+        $rules = [
+            'pengirim_rekening' => 'required|exists:nasabah,nomor_rekening',
+            'penerima_rekening' => 'required|exists:nasabah,nomor_rekening|different:pengirim_rekening',
+            'jumlah' => 'required|numeric|min:' . $minBayar,
+            'tanggal_transaksi' => 'required|date',
+            'keterangan' => 'nullable|string|max:255',
+            'nama_petugas' => 'required|string|max:255',
+        ];
+
+        $messages = [
+            'penerima_rekening.different' => 'Rekening tujuan tidak boleh sama dengan rekening pengirim.',
+        ];
+
+        $validated = $request->validate($rules, $messages);
+
+        $validated['kode_transaksi'] = $this->generateKodeTransaksi('BYR');
+
+        try {
+            $result = $this->transactionService->bayar($validated, $this->getRole());
+            $penerima = Nasabah::where('nomor_rekening', $validated['penerima_rekening'])->first();
+            return redirect()->route($this->getRolePrefix() . '.bayar.index')
+                ->with('success', 'Pembayaran sebesar Rp ' . number_format($validated['jumlah'], 0, ',', '.') . ' untuk ' . $penerima->user->name . ' berhasil diproses')
                 ->with('transaction', $result);
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal: ' . $e->getMessage());

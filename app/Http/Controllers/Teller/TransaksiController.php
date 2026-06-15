@@ -38,7 +38,7 @@ class TransaksiController extends Controller
             $data['tanggal'] = $tx->created_at->timezone($timezone)->format('d/m/Y H:i:s');
             $data['petugas_nama'] = $tx->nama_petugas ?? $tx->petugas?->name ?? 'SYSTEM';
 
-            if ($tx->jenis_transaksi === 'transfer') {
+            if ($tx->jenis_transaksi === 'transfer' || $tx->jenis_transaksi === 'bayar') {
                 $isDebit = $tx->saldo_sesudah < $tx->saldo_sebelum;
 
                 // Coba ambil dari relasi nasabahTujuan dulu (yang baru kita tambahkan di TransactionService)

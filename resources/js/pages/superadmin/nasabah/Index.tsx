@@ -705,7 +705,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nomor Rekening</label>
-                            <input type="text" value={data.nomor_rekening} onChange={e => setData('nomor_rekening', e.target.value.replace(/\D/g, ''))} maxLength={50} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-mono font-bold" required />
+                            <input type="text" value={data.nomor_rekening} onChange={e => setData('nomor_rekening', e.target.value.replace(/[^a-zA-Z0-9]/g, ''))} maxLength={50} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-mono font-bold" required />
                             {errors.nomor_rekening && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{errors.nomor_rekening}</p>}
                         </div>
                         {data.user_type === 'siswa' && (
@@ -815,7 +815,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nomor Rekening</label>
-                            <input type="text" value={editData.nomor_rekening} onChange={e => setEditData('nomor_rekening', e.target.value.replace(/\D/g, ''))} maxLength={50} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-mono font-bold" />
+                            <input type="text" value={editData.nomor_rekening} onChange={e => setEditData('nomor_rekening', e.target.value.replace(/[^a-zA-Z0-9]/g, ''))} maxLength={50} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-mono font-bold" />
                             {editErrors.nomor_rekening && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{editErrors.nomor_rekening}</p>}
                         </div>
                         {editData.user_type === 'siswa' && (

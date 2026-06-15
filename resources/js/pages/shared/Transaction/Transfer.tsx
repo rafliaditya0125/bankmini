@@ -171,7 +171,7 @@ export default function Transfer({ pengirim, minWithdraw }: PageProps) {
                                 <input
                                     type="text"
                                     value={searchAccount}
-                                    onChange={(e) => setSearchAccount(e.target.value.replace(/\D/g, ''))}
+                                    onChange={(e) => setSearchAccount(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
                                     placeholder="Nomor Rekening Pengirim..."
                                     maxLength={255}
                                     className="flex-1 px-4 py-3 bg-white border border-slate-200 border-r-0 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 rounded-l-2xl rounded-r-none outline-none transition-all font-bold text-[13px] h-12"
@@ -196,7 +196,7 @@ export default function Transfer({ pengirim, minWithdraw }: PageProps) {
                                         <input
                                             type="text"
                                             value={data.penerima_rekening}
-                                            onChange={e => setData('penerima_rekening', e.target.value.replace(/\D/g, ''))}
+                                            onChange={e => setData('penerima_rekening', e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
                                             placeholder="Masukkan No Rekening Tujuan"
                                             maxLength={255}
                                             className={`flex-1 px-4 py-3 bg-white border border-slate-200 border-r-0 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 rounded-l-2xl rounded-r-none outline-none transition-all font-bold text-[13px] h-12 uppercase ${errors.penerima_rekening ? 'border-red-500' : ''}`}

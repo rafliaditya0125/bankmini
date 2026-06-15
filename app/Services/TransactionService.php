@@ -235,6 +235,103 @@ class TransactionService
             ];
         });
     }
+
+    /**
+     * Process a payment (Bayar)
+     */
+    public function bayar(array $data, string $role)
+    {
+        return DB::transaction(function () use ($data, $role) {
+            $pembayar = Nasabah::where('nomor_rekening', $data['pengirim_rekening'])->firstOrFail();
+            $penerima = Nasabah::where('nomor_rekening', $data['penerima_rekening'])->firstOrFail(); // The 'pembayaran' account
+
+            if ($pembayar->nomor_rekening === $penerima->nomor_rekening) {
+                throw new \Exception('Pembayar dan penerima tidak boleh sama');
+            }
+
+            if ($pembayar->status !== 'aktif') throw new \Exception('Rekening pembayar tidak aktif');
+            if ($penerima->status !== 'aktif') throw new \Exception('Rekening penerima (pembayaran) tidak aktif');
+            if ($pembayar->saldo < $data['jumlah']) throw new \Exception('Saldo pembayar tidak mencukupi');
+
+            $jumlah = $data['jumlah'];
+
+            $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            // Using logic similar to transfer but generic enough
+            $kodeTransaksi = '4' . now($timezone)->format('YmdHis');
+
+            // Debit pembayar
+            $saldoSebelumPembayar = $pembayar->saldo;
+            $saldoSesudahPembayar = $saldoSebelumPembayar - $jumlah;
+
+            // Credit penerima
+            $saldoSebelumPenerima = $penerima->saldo;
+            $saldoSesudahPenerima = $saldoSebelumPenerima + $jumlah;
+
+            // Transaksi Pembayar
+            Transaksi::create([
+                'kode_transaksi' => $kodeTransaksi . '-S',
+                'nasabah_id' => $pembayar->id,
+                'user_id' => Auth::id(),
+                'jenis_transaksi' => 'bayar',
+                'jumlah' => $jumlah,
+                'saldo_sebelum' => $saldoSebelumPembayar,
+                'saldo_sesudah' => $saldoSesudahPembayar,
+                'tanggal_transaksi' => $data['tanggal_transaksi'],
+                'keterangan' => "Pembayaran: " . $penerima->user->name . ($data['keterangan'] ? " (" . $data['keterangan'] . ")" : ""),
+                'nama_petugas' => $data['nama_petugas'],
+                'nasabah_tujuan_id' => $penerima->id,
+            ]);
+
+            // Transaksi Penerima (Akun Pembayaran)
+            Transaksi::create([
+                'kode_transaksi' => $kodeTransaksi . '-R',
+                'nasabah_id' => $penerima->id,
+                'user_id' => Auth::id(),
+                'jenis_transaksi' => 'bayar',
+                'jumlah' => $jumlah,
+                'saldo_sebelum' => $saldoSebelumPenerima,
+                'saldo_sesudah' => $saldoSesudahPenerima,
+                'tanggal_transaksi' => $data['tanggal_transaksi'],
+                'keterangan' => "Menerima pembayaran dari " . $pembayar->nomor_rekening,
+                'nama_petugas' => $data['nama_petugas'],
+                'nasabah_tujuan_id' => $pembayar->id,
+            ]);
+
+            $pembayar->update(['saldo' => $saldoSesudahPembayar]);
+            $penerima->update(['saldo' => $saldoSesudahPenerima]);
+
+            $noUrut = Transaksi::whereDate('created_at', now($timezone)->toDateString())->distinct('kode_transaksi')->count('kode_transaksi') + 1;
+
+            AuditLog::logActivity(
+                'bayar',
+                "Pembayaran Rp " . number_format($jumlah, 0, ',', '.') . " dari " . $pembayar->nomor_rekening . " untuk " . $penerima->user->name,
+                'success',
+                Auth::id(),
+                Auth::user()->name,
+                $role
+            );
+
+            NotificationService::sendTransactionNotification($pembayar->user_id, 'transfer_out', $jumlah, $kodeTransaksi . '-S');
+            NotificationService::sendTransactionNotification($penerima->user_id, 'transfer_in', $jumlah, $kodeTransaksi . '-R');
+
+            return [
+                'kode_transaksi' => $kodeTransaksi,
+                'no_urut' => $noUrut,
+                'nasabah_name' => $pembayar->user->name,
+                'nasabah_norek' => $pembayar->nomor_rekening,
+                'pengirim_name' => $pembayar->user->name,
+                'pengirim_norek' => $pembayar->nomor_rekening,
+                'penerima_name' => $penerima->user->name,
+                'penerima_norek' => $penerima->nomor_rekening,
+                'jumlah' => $jumlah,
+                'saldo_sebelum' => $saldoSebelumPembayar,
+                'saldo_sesudah' => $saldoSesudahPembayar,
+                'jenis_transaksi' => 'bayar',
+                'tanggal' => now($timezone)->format('d/m/y H:i:s'),
+                'petugas' => $data['nama_petugas'],
+            ];
+        });
+    }
     /**
      * Cancel a transaction
      */
@@ -261,15 +358,14 @@ class TransactionService
                 $nasabah = Nasabah::findOrFail($transaksi->nasabah_id);
                 $nasabah->increment('saldo', (float) $jumlah);
                 $transaksi->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
-            } elseif ($jenis === 'transfer') {
-                // For transfers, we find both records (sender and receiver)
+            } elseif ($jenis === 'transfer' || $jenis === 'bayar') {
+                // For transfers and payments, we find both records (sender and receiver)
                 $relatedTransactions = Transaksi::where('kode_transaksi', $kodeTransaksi)->get();
 
                 foreach ($relatedTransactions as $tx) {
                     $nasabah = Nasabah::findOrFail($tx->nasabah_id);
 
                     // Logic to detect if this record is the sender or receiver
-                    // In our transfer implementation:
                     // Sender's amount is subtracted (saldo_sesudah < saldo_sebelum)
                     // Receiver's amount is added (saldo_sesudah > saldo_sebelum)
                     if ($tx->saldo_sesudah < $tx->saldo_sebelum) {
