@@ -285,16 +285,16 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                 </div>
             )}
 
-            {showPassbookPrint && !isWebUSBSupported() && (
-                <div className="mx-6 mb-6 p-4 bg-amber-50 border-2 border-amber-200 rounded-2xl">
+            {showPassbookPrint && (
+                <div className="mx-6 mb-6 p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl">
                     <div className="flex gap-3">
-                        <svg className="w-5 h-5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        <svg className="w-5 h-5 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div>
-                            <p className="text-[10px] font-black text-amber-900 uppercase tracking-[0.1em] mb-1">WebUSB Tidak Aktif</p>
-                            <p className="text-[9px] font-bold text-amber-700 leading-relaxed uppercase">
-                                Fitur cetak buku memerlukan koneksi aman (HTTPS) atau Localhost, dan browser Google Chrome / Edge terbaru.
+                            <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.1em] mb-1">Informasi Cetak Buku</p>
+                            <p className="text-[9px] font-bold text-slate-700 leading-relaxed uppercase">
+                                Pastikan aplikasi <b>Passbook Bridge</b> sudah aktif di komputer teller (localhost:3001) untuk mencetak langsung ke printer dot-matrix.
                             </p>
                         </div>
                     </div>
