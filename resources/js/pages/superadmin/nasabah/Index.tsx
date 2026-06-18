@@ -26,7 +26,7 @@ interface NasabahIndexProps {
     available_rombels: { id: number; nama: string; jurusan_id: number; tingkat: number }[];
 }
 
-type NasabahUserType = 'siswa' | 'kelas' | 'organisasi' | 'guru';
+type NasabahUserType = 'siswa' | 'kelas' | 'organisasi' | 'guru' | 'pembayaran';
 
 export default function NasabahIndex({ nasabah, filters, available_jurusan = [], available_rombels = [] }: NasabahIndexProps) {
     const { auth } = usePage<any>().props;
@@ -54,6 +54,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         kelas: 'Kelas',
         organisasi: 'Organisasi',
         guru: 'Guru',
+        pembayaran: 'Pembayaran',
     };
 
     const getIdentifier = (item: Nasabah & { user: User }) => {
@@ -324,7 +325,10 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         if (!editTarget) return;
         putEdit(`/${rolePrefix}/nasabah/${editTarget.id}`, {
             preserveScroll: true,
-            onSuccess: () => setEditOpen(false),
+            onSuccess: () => {
+                setEditOpen(false);
+                resetEdit();
+            },
         });
     };
 
@@ -811,6 +815,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                 <option value="kelas">Kelas</option>
                                 <option value="organisasi">Organisasi</option>
                                 <option value="guru">Guru</option>
+                                <option value="pembayaran">Pembayaran</option>
                             </select>
                         </div>
                         <div>
@@ -878,10 +883,12 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Reset Password (Opsional)</label>
                             <input type="password" value={editData.password} onChange={e => setEditData('password', e.target.value)} maxLength={100} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition-all font-black text-sm" placeholder="Kosongkan jika tidak diubah" />
+                            {editErrors.password && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{editErrors.password}</p>}
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Konfirmasi Password Baru</label>
                             <input type="password" value={editData.password_confirmation} onChange={e => setEditData('password_confirmation', e.target.value)} maxLength={100} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition-all font-black text-sm" />
+                            {editErrors.password_confirmation && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{editErrors.password_confirmation}</p>}
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status Rekening</label>

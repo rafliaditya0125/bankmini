@@ -196,7 +196,7 @@ class NasabahController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,' . $nasabah->user_id,
             'nomor_rekening' => 'required|string|max:50|unique:nasabah,nomor_rekening,' . $nasabah->id,
-            'user_type' => 'required|in:siswa,kelas,organisasi,guru',
+            'user_type' => 'required|in:siswa,kelas,organisasi,guru,pembayaran',
             'nis' => 'required_if:user_type,siswa|nullable|string|max:20|regex:/^[0-9]+$/|unique:users,nis,' . $nasabah->user_id,
             'nip' => 'required_if:user_type,guru|nullable|string|max:30|regex:/^[0-9]+$/|unique:users,nip,' . $nasabah->user_id,
             'phone' => 'nullable|string|max:20',
