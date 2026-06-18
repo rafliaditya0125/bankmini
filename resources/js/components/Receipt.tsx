@@ -34,6 +34,9 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
 
     if (!transaction) return null;
 
+    // Check if this is an incoming payment (penerima view)
+    const isIncomingPayment = (transaction as any).is_incoming_payment || false;
+
     const normalized: ReceiptData = {
         kode_transaksi: transaction.kode_transaksi,
         no_urut: transaction.no_urut || '-',
@@ -41,11 +44,11 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
             ? new Date(transaction.created_at).toLocaleString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':')
             : '- -'),
         jumlah: transaction.jumlah,
-        jenis_transaksi: transaction.jenis_transaksi,
-        nasabah_name: transaction.jenis_transaksi === 'transfer'
+        jenis_transaksi: (transaction as any).is_incoming_payment ? 'terima_bayar' : transaction.jenis_transaksi,
+        nasabah_name: (transaction.jenis_transaksi === 'transfer')
             ? ((transaction as any).pengirim_name || (transaction as any).nasabah?.user?.name || transaction.nasabah_name || '-')
             : (transaction.nasabah_name || (transaction as any).nasabah?.user?.name || '-'),
-        nasabah_norek: transaction.jenis_transaksi === 'transfer'
+        nasabah_norek: (transaction.jenis_transaksi === 'transfer')
             ? ((transaction as any).pengirim_norek || (transaction as any).nasabah?.nomor_rekening || transaction.nasabah_norek || '-')
             : (transaction.nasabah_norek || (transaction as any).nasabah?.nomor_rekening || '-'),
         penerima_name: (transaction as any).penerima_name || (transaction as any).nasabah_tujuan?.user?.name || (transaction as any).penerima?.user?.name || (transaction as any).nasabah_tujuan_name || '',
@@ -63,6 +66,8 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
             case 'setor': label = 'SETOR TUNAI'; break;
             case 'tarik': label = 'PENARIKAN TUNAI'; break;
             case 'transfer': label = 'TRANSFER DANA'; break;
+            case 'bayar': label = 'PEMBAYARAN'; break;
+            case 'terima_bayar': label = 'PENERIMAAN PEMBAYARAN'; break;
             case 'bunga': label = 'BUNGA TABUNGAN'; break;
             case 'biaya_admin': label = 'BIAYA ADMIN'; break;
             default: label = type.toUpperCase().replace('_', ' ');
@@ -80,6 +85,8 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
             case 'setor': return 'SETORAN';
             case 'tarik': return 'PENARIKAN';
             case 'transfer': return 'TRANSFER';
+            case 'bayar': return 'PEMBAYARAN';
+            case 'terima_bayar': return 'PENERIMAAN';
             case 'bunga': return 'BUNGA';
             case 'biaya_admin': return 'BIAYA ADMIN';
             default: return type.toUpperCase().replace('_', ' ');
@@ -92,6 +99,8 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
             case 'setor': return 'JUMLAH SETOR:RP';
             case 'tarik': return 'JUMLAH TARIK:RP';
             case 'transfer': return 'JUMLAH TRF:RP';
+            case 'bayar': return 'JUMLAH BAYAR:RP';
+            case 'terima_bayar': return 'JUMLAH TERIMA:RP';
             case 'bunga': return 'JUMLAH BUNGA:RP';
             case 'biaya_admin': return 'JUMLAH BIAYA:RP';
             default: return 'JUMLAH:RP';
@@ -156,7 +165,7 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                         <span className="w-24">JENIS TRANS</span>
                         <span>: {getTransactionTypeLabel(normalized.jenis_transaksi, normalized.sub_jenis_transaksi)}</span>
                     </div>
-                    {normalized.jenis_transaksi !== 'transfer' && (
+                    {normalized.jenis_transaksi !== 'transfer' && normalized.jenis_transaksi !== 'bayar' && (
                         <div className="flex">
                             <span className="w-24">PEMBAYARAN</span>
                             <span className="uppercase">: {normalized.sub_jenis_transaksi}</span>
@@ -169,23 +178,37 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                     </div>
 
                     <div className="flex">
-                        <span className="w-24">{normalized.jenis_transaksi === 'transfer' ? 'PENGIRIM' : 'NOREK'}</span>
+                        <span className="w-24">{normalized.jenis_transaksi === 'transfer' ? 'PENGIRIM' : normalized.jenis_transaksi === 'terima_bayar' ? 'DARI' : 'NOREK'}</span>
                         <span>: {normalized.nasabah_norek}</span>
                     </div>
                     <div className="flex">
                         <span className="w-24">NAMA</span>
                         <span>: {normalized.nasabah_name}</span>
                     </div>
-                    {normalized.jenis_transaksi === 'transfer' && normalized.penerima_norek && (
+                    {(normalized.jenis_transaksi === 'transfer' || normalized.jenis_transaksi === 'bayar' || normalized.jenis_transaksi === 'terima_bayar') && normalized.penerima_name && (
                         <>
-                            <div className="flex">
-                                <span className="w-24">PENERIMA</span>
-                                <span>: {normalized.penerima_norek}</span>
-                            </div>
-                            <div className="flex">
-                                <span className="w-24">NAMA</span>
-                                <span>: {normalized.penerima_name}</span>
-                            </div>
+                            {normalized.jenis_transaksi === 'terima_bayar' ? (
+                                // Untuk penerimaan pembayaran, tidak perlu tampilkan penerima lagi (sudah jelas ini akun penerima)
+                                null
+                            ) : normalized.jenis_transaksi === 'bayar' ? (
+                                // View dari pembayar: tampilkan jenis pembayaran
+                                <div className="flex">
+                                    <span className="w-24">JENIS BAYAR</span>
+                                    <span>: {normalized.penerima_name}</span>
+                                </div>
+                            ) : (
+                                // Transfer: tampilkan penerima lengkap
+                                <>
+                                    <div className="flex">
+                                        <span className="w-24">PENERIMA</span>
+                                        <span>: {normalized.penerima_norek}</span>
+                                    </div>
+                                    <div className="flex">
+                                        <span className="w-24">NAMA</span>
+                                        <span>: {normalized.penerima_name}</span>
+                                    </div>
+                                </>
+                            )}
                         </>
                     )}
                     <div className="flex">

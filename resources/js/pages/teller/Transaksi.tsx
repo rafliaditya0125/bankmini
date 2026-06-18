@@ -212,6 +212,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                                 <option value="setor">Setor</option>
                                 <option value="tarik">Tarik</option>
                                 <option value="transfer">Transfer</option>
+                                <option value="bayar">Bayar</option>
                             </select>
                         </div>
                         <div className="flex items-end gap-2">
@@ -289,6 +290,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-black border uppercase tracking-widest ${
                                                     transaction.jenis_transaksi === 'setor' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                                     transaction.jenis_transaksi === 'tarik' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                                    transaction.jenis_transaksi === 'bayar' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                                                     'bg-blue-50 text-blue-700 border-blue-200'
                                                 }`}>
                                                     {transaction.jenis_transaksi}

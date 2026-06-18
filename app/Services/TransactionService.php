@@ -238,6 +238,9 @@ class TransactionService
 
     /**
      * Process a payment (Bayar)
+     * Logic: Hanya membuat 1 transaksi di sisi pembayar saja,
+     * tetapi tetap update saldo penerima (akun pembayaran).
+     * Struk akan menampilkan jenis pembayaran (nama akun tujuan).
      */
     public function bayar(array $data, string $role)
     {
@@ -256,20 +259,20 @@ class TransactionService
             $jumlah = $data['jumlah'];
 
             $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
-            // Using logic similar to transfer but generic enough
-            $kodeTransaksi = '4' . now($timezone)->format('YmdHis');
+            $kodeTransaksi = '4' . now($timezone)->format('YmdHis') . strtoupper(Str::random(4));
 
             // Debit pembayar
             $saldoSebelumPembayar = $pembayar->saldo;
             $saldoSesudahPembayar = $saldoSebelumPembayar - $jumlah;
 
-            // Credit penerima
+            // Credit penerima (untuk update saldo)
             $saldoSebelumPenerima = $penerima->saldo;
             $saldoSesudahPenerima = $saldoSebelumPenerima + $jumlah;
 
-            // Transaksi Pembayar
+            // HANYA buat transaksi di sisi pembayar
+            // Riwayat hanya muncul 1 kali
             Transaksi::create([
-                'kode_transaksi' => $kodeTransaksi . '-S',
+                'kode_transaksi' => $kodeTransaksi,
                 'nasabah_id' => $pembayar->id,
                 'user_id' => Auth::id(),
                 'jenis_transaksi' => 'bayar',
@@ -279,24 +282,10 @@ class TransactionService
                 'tanggal_transaksi' => $data['tanggal_transaksi'],
                 'keterangan' => "Pembayaran: " . $penerima->user->name . ($data['keterangan'] ? " (" . $data['keterangan'] . ")" : ""),
                 'nama_petugas' => $data['nama_petugas'],
-                'nasabah_tujuan_id' => $penerima->id,
+                'nasabah_tujuan_id' => $penerima->id, // Simpan referensi untuk struk
             ]);
 
-            // Transaksi Penerima (Akun Pembayaran)
-            Transaksi::create([
-                'kode_transaksi' => $kodeTransaksi . '-R',
-                'nasabah_id' => $penerima->id,
-                'user_id' => Auth::id(),
-                'jenis_transaksi' => 'bayar',
-                'jumlah' => $jumlah,
-                'saldo_sebelum' => $saldoSebelumPenerima,
-                'saldo_sesudah' => $saldoSesudahPenerima,
-                'tanggal_transaksi' => $data['tanggal_transaksi'],
-                'keterangan' => "Menerima pembayaran dari " . $pembayar->nomor_rekening,
-                'nama_petugas' => $data['nama_petugas'],
-                'nasabah_tujuan_id' => $pembayar->id,
-            ]);
-
+            // Update saldo kedua belah pihak
             $pembayar->update(['saldo' => $saldoSesudahPembayar]);
             $penerima->update(['saldo' => $saldoSesudahPenerima]);
 
@@ -311,16 +300,15 @@ class TransactionService
                 $role
             );
 
-            NotificationService::sendTransactionNotification($pembayar->user_id, 'transfer_out', $jumlah, $kodeTransaksi . '-S');
-            NotificationService::sendTransactionNotification($penerima->user_id, 'transfer_in', $jumlah, $kodeTransaksi . '-R');
+            // Hanya kirim notifikasi ke pembayar (karena hanya dia yang punya transaksi)
+            NotificationService::sendTransactionNotification($pembayar->user_id, 'bayar', $jumlah, $kodeTransaksi);
 
             return [
                 'kode_transaksi' => $kodeTransaksi,
                 'no_urut' => $noUrut,
                 'nasabah_name' => $pembayar->user->name,
                 'nasabah_norek' => $pembayar->nomor_rekening,
-                'pengirim_name' => $pembayar->user->name,
-                'pengirim_norek' => $pembayar->nomor_rekening,
+                'jenis_pembayaran' => $penerima->user->name, // Jenis pembayaran
                 'penerima_name' => $penerima->user->name,
                 'penerima_norek' => $penerima->nomor_rekening,
                 'jumlah' => $jumlah,
@@ -358,8 +346,8 @@ class TransactionService
                 $nasabah = Nasabah::findOrFail($transaksi->nasabah_id);
                 $nasabah->increment('saldo', (float) $jumlah);
                 $transaksi->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
-            } elseif ($jenis === 'transfer' || $jenis === 'bayar') {
-                // For transfers and payments, we find both records (sender and receiver)
+            } elseif ($jenis === 'transfer') {
+                // For transfers, we find both records (sender and receiver)
                 $relatedTransactions = Transaksi::where('kode_transaksi', $kodeTransaksi)->get();
 
                 foreach ($relatedTransactions as $tx) {
@@ -378,6 +366,18 @@ class TransactionService
 
                     $tx->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
                 }
+            } elseif ($jenis === 'bayar') {
+                // For payments, only 1 transaction record exists (pembayar side)
+                // But we need to reverse both balances
+                $pembayar = Nasabah::findOrFail($transaksi->nasabah_id);
+                $penerima = Nasabah::findOrFail($transaksi->nasabah_tujuan_id);
+                
+                // Add money back to pembayar
+                $pembayar->increment('saldo', (float) $jumlah);
+                // Subtract from penerima
+                $penerima->decrement('saldo', (float) $jumlah);
+                
+                $transaksi->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
             }
 
             AuditLog::logActivity(

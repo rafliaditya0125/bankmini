@@ -38,10 +38,10 @@ class TransaksiController extends Controller
             $data['tanggal'] = $tx->created_at->timezone($timezone)->format('d/m/Y H:i:s');
             $data['petugas_nama'] = $tx->nama_petugas ?? $tx->petugas?->name ?? 'SYSTEM';
 
-            if ($tx->jenis_transaksi === 'transfer' || $tx->jenis_transaksi === 'bayar') {
+            if ($tx->jenis_transaksi === 'transfer') {
                 $isDebit = $tx->saldo_sesudah < $tx->saldo_sebelum;
 
-                // Coba ambil dari relasi nasabahTujuan dulu (yang baru kita tambahkan di TransactionService)
+                // Coba ambil dari relasi nasabahTujuan dulu
                 $relatedNasabah = $tx->nasabahTujuan ?: Transaksi::where('kode_transaksi', $tx->kode_transaksi)
                     ->where('nasabah_id', '!=', $tx->nasabah_id)
                     ->first()?->nasabah;
@@ -57,6 +57,13 @@ class TransaksiController extends Controller
                     $data['penerima_norek'] = $tx->nasabah?->nomor_rekening;
                     $data['penerima_name'] = $tx->nasabah?->user?->name;
                 }
+            }
+
+            // Untuk bayar: tampilkan info akun tujuan pembayaran
+            if ($tx->jenis_transaksi === 'bayar') {
+                $tujuan = $tx->nasabahTujuan;
+                $data['penerima_norek'] = $tujuan?->nomor_rekening;
+                $data['penerima_name'] = $tujuan?->user?->name;
             }
 
             return $data;

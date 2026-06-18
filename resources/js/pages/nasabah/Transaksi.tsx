@@ -197,7 +197,11 @@ export default function NasabahTransaksi({ transactions, filters }: NasabahTrans
                                         </td>
                                     </tr>
                                 ) : (
-                                    transactions.data.map((transaction) => (
+                                    transactions.data.map((transaction: any) => {
+                                        const isIncomingPayment = transaction.is_incoming_payment;
+                                        const isCreditTransaction = isIncomingPayment || (transaction.saldo_sesudah && Number(transaction.saldo_sesudah) >= Number(transaction.saldo_sebelum));
+                                        
+                                        return (
                                         <tr key={transaction.id} className="hover:bg-gray-50 transition-colors group">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-xs font-black text-gray-900 uppercase tracking-tight">
@@ -212,21 +216,28 @@ export default function NasabahTransaksi({ transactions, filters }: NasabahTrans
                                             </td>
                                             <td className="px-6 py-4 text-center whitespace-nowrap">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-black border uppercase tracking-widest ${
-                                                    Number(transaction.saldo_sesudah) >= Number(transaction.saldo_sebelum) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+                                                    isCreditTransaction ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
                                                 }`}>
-                                                    {transaction.jenis_transaksi.replace('_', ' ')}
+                                                    {isIncomingPayment ? 'Terima Bayar' : transaction.jenis_transaksi.replace('_', ' ')}
                                                 </span>
                                             </td>
                                             <td className={`px-6 py-4 text-right whitespace-nowrap text-sm font-black tracking-tighter ${
-                                                Number(transaction.saldo_sesudah) >= Number(transaction.saldo_sebelum) ? 'text-emerald-600' : 'text-rose-600'
+                                                isCreditTransaction ? 'text-emerald-600' : 'text-rose-600'
                                             }`}>
-                                                {Number(transaction.saldo_sesudah) >= Number(transaction.saldo_sebelum) ? '+' : '-'} {formatRupiah(transaction.jumlah)}
+                                                {isCreditTransaction ? '+' : '-'} {formatRupiah(transaction.jumlah)}
                                             </td>
                                             <td className="px-6 py-4 text-right whitespace-nowrap text-sm font-black text-gray-900 tracking-tighter">
-                                                {formatRupiah(transaction.saldo_sesudah)}
+                                                {transaction.saldo_sesudah ? formatRupiah(transaction.saldo_sesudah) : '-'}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight line-clamp-1 max-w-48">{transaction.keterangan || '-'}</p>
+                                                {isIncomingPayment ? (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-gray-700 uppercase tracking-tight">Dari: {transaction.nasabah_name}</p>
+                                                        <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-tight mt-0.5">{transaction.nasabah_norek}</p>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight line-clamp-1 max-w-48">{transaction.keterangan || '-'}</p>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-center">
                                                 <button
@@ -240,7 +251,7 @@ export default function NasabahTransaksi({ transactions, filters }: NasabahTrans
                                                 </button>
                                             </td>
                                         </tr>
-                                    ))
+                                    )})
                                 )}
                             </tbody>
                         </table>
