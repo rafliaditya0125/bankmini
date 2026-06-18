@@ -10,6 +10,7 @@ interface TellerDashboardProps {
         total_setor: number;
         total_tarik: number;
         total_transfer: number;
+        total_bayar: number;
     };
     recent_transactions: Transaksi[];
     transaction_chart_data: Array<{
@@ -244,6 +245,21 @@ export default function TellerDashboard(props: TellerDashboardProps) {
                                 <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Total Transfer</p>
                                 <p className="mt-1 text-3xl font-bold text-gray-900">{formatRupiah(stats.total_transfer)}</p>
                                 <p className="mt-1 text-xs text-emerald-600 font-medium">Hari Ini</p>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Card: Total Pembayaran */}
+                    <div className="rounded-xl bg-linear-to-br from-amber-50 to-white p-5 border border-amber-100 shadow flex flex-col gap-2">
+                        <div className="flex items-center gap-3">
+                            <div className="h-12 w-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                                <svg className="h-7 w-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Total Pembayaran</p>
+                                <p className="mt-1 text-3xl font-bold text-gray-900">{formatRupiah(stats.total_bayar)}</p>
+                                <p className="mt-1 text-xs text-amber-600 font-medium">Hari Ini</p>
                             </div>
                         </div>
                     </div>

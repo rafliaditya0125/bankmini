@@ -13,6 +13,7 @@ interface SuperadminDashboardProps {
         total_setor: number;
         total_tarik: number;
         total_transfer: number;
+        total_bayar: number;
     };
     recent_transactions: Transaksi[];
     recent_nasabah: (Nasabah & { user: UserType })[];
@@ -447,7 +448,7 @@ export default function SuperadminDashboard({
                 {/* Transaction Breakdown */}
                 <div className="rounded-2xl bg-white/95 p-4 border border-slate-200/70 shadow-sm">
                     <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">Statistik Transaksi Hari Ini</h2>
-                    <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="grid gap-2 sm:grid-cols-4">
                         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100 flex gap-2 items-center">
                             <div className="flex items-center gap-3">
                                 <div className="h-10 w-10 bg-emerald-100 rounded-lg flex items-center justify-center">
@@ -486,6 +487,20 @@ export default function SuperadminDashboard({
                                 <div>
                                     <p className="text-xs font-medium text-emerald-600 uppercase">Transfer</p>
                                     <p className="text-xl font-bold text-emerald-900">{formatRupiah(stats.total_transfer)}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 flex gap-2 items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                                    <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-amber-600 uppercase">Pembayaran</p>
+                                    <p className="text-xl font-bold text-amber-900">{formatRupiah(stats.total_bayar)}</p>
                                 </div>
                             </div>
                         </div>

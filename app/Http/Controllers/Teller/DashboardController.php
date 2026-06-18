@@ -32,6 +32,10 @@ class DashboardController extends Controller
                 ->where('jenis_transaksi', 'transfer')
                 ->whereDate('created_at', today())
                 ->sum('jumlah'),
+            'total_bayar' => (float)Transaksi::where('user_id', $userId)
+                ->where('jenis_transaksi', 'bayar')
+                ->whereDate('created_at', today())
+                ->sum('jumlah'),
         ];
 
         // Recent Transactions

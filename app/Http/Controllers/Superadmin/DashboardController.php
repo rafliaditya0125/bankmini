@@ -30,6 +30,9 @@ class DashboardController extends Controller
             'total_transfer' => (float)Transaksi::where('jenis_transaksi', 'transfer')
                 ->whereDate('created_at', today())
                 ->sum('jumlah'),
+            'total_bayar' => (float)Transaksi::where('jenis_transaksi', 'bayar')
+                ->whereDate('created_at', today())
+                ->sum('jumlah'),
             'total_nasabah' => (int)Nasabah::count(),
             'total_saldo' => (float)Nasabah::sum('saldo'),
         ];
@@ -154,6 +157,7 @@ class DashboardController extends Controller
                 'total_setor' => (float)$stats['total_setor'],
                 'total_tarik' => (float)$stats['total_tarik'],
                 'total_transfer' => (float)$stats['total_transfer'],
+                'total_bayar' => (float)$stats['total_bayar'],
             ],
         ]);
     }
