@@ -206,7 +206,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
     const [confirmModal, setConfirmModal] = useState<{show: boolean; title: string; message: string; variant: 'danger'|'warning'|'info'|'success'; onConfirm: () => void}>({show: false, title: '', message: '', variant: 'info', onConfirm: () => {}});
 
     const { data: importData, setData: setImportData, post: postImport, processing: importProcessing } = useForm({
-        file: null as File | null,
+        files: [] as File[],
     });
 
     const handleToggleStatus = (id: number, name: string, currentStatus: string) => {
@@ -274,7 +274,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         postImport(`/${rolePrefix}/nasabah/import`, {
             onSuccess: () => {
                 setImportModalOpen(false);
-                setImportData('file', null);
+                setImportData('files', []);
             },
         });
     };
@@ -1032,8 +1032,9 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                 type="file"
                                 className="hidden"
                                 accept=".xlsx,.xls"
+                                multiple
                                 ref={fileInputRef}
-                                onChange={(e) => setImportData('file', e.target.files ? e.target.files[0] : null)}
+                                onChange={(e) => setImportData('files', e.target.files ? Array.from(e.target.files) : [])}
                             />
                             <div onClick={() => fileInputRef.current?.click()} className="cursor-pointer">
                                 <div className="mx-auto h-16 w-16 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4 shadow-sm shadow-emerald-100">
@@ -1042,22 +1043,24 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                     </svg>
                                 </div>
                                 <p className="text-xs font-black text-gray-700 uppercase tracking-widest">
-                                    {importData.file ? importData.file.name : 'Klik untuk pilih berkas Excel (.xlsx)'}
+                                    {importData.files.length > 0
+                                        ? `${importData.files.length} berkas dipilih (${importData.files.map(f => f.name).join(', ')})`
+                                        : 'Klik untuk pilih berkas Excel (.xlsx)'}
                                 </p>
-                                <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-tight">Ukuran file maksimal 2MB</p>
+                                <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-tight">Dapat memilih lebih dari 1 file Excel (Maks 2MB per file)</p>
                             </div>
                         </div>
                         <div className="md:col-span-2 space-y-3">
                             <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Kolom Wajib</p>
                                 <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-[9px] font-mono text-slate-600">
-                                    name,nis_or_nip,user_type,rombel_id,phone,alamat,saldo_awal
+                                    name,nis_or_nip,norek,user_type,rombel_id,phone,alamat,saldo_awal
                                 </div>
                             </div>
                             <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Contoh Baris</p>
                                 <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-[9px] font-mono text-slate-600">
-                                    "Budi",12345,siswa,5,0812345,"Jl. Merdeka",50000
+                                    "Budi",12345,100012345,siswa,5,0812345,"Jl. Merdeka",50000
                                 </div>
                             </div>
                         </div>
@@ -1072,7 +1075,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                         <button type="button" onClick={() => setImportModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">Batal</button>
                         <button
                             type="submit"
-                            disabled={importProcessing || !importData.file}
+                            disabled={importProcessing || importData.files.length === 0}
                             className="px-8 py-2.5 bg-emerald-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:bg-emerald-400"
                         >
                             {importProcessing ? 'Mengimport...' : 'Mulai Import'}

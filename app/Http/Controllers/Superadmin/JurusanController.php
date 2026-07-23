@@ -97,30 +97,46 @@ class JurusanController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls'
+            'files'   => 'nullable|array',
+            'files.*' => 'mimes:xlsx,xls',
+            'file'    => 'nullable|mimes:xlsx,xls',
         ]);
 
-        $file = $request->file('file');
-        $spreadsheet = IOFactory::load($file->getRealPath());
-        $rows = $spreadsheet->getActiveSheet()->toArray();
-        array_shift($rows); // Skip header
+        $uploadedFiles = [];
+        if ($request->hasFile('files')) {
+            $rawFiles = $request->file('files');
+            $uploadedFiles = is_array($rawFiles) ? $rawFiles : [$rawFiles];
+        } elseif ($request->hasFile('file')) {
+            $rawFile = $request->file('file');
+            $uploadedFiles = is_array($rawFile) ? $rawFile : [$rawFile];
+        }
+
+        if (empty($uploadedFiles)) {
+            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+        }
 
         $count = 0;
-        DB::transaction(function () use ($rows, &$count) {
-            foreach ($rows as $data) {
-                if (empty($data[0]) || empty($data[1])) continue;
+        DB::transaction(function () use ($uploadedFiles, &$count) {
+            foreach ($uploadedFiles as $file) {
+                $spreadsheet = IOFactory::load($file->getRealPath());
+                $rows = $spreadsheet->getActiveSheet()->toArray();
+                array_shift($rows); // Skip header
 
-                $kode = strtoupper(trim($data[0]));
-                $nama = trim($data[1]);
+                foreach ($rows as $data) {
+                    if (empty($data[0]) || empty($data[1])) continue;
 
-                if (Jurusan::where('kode', $kode)->exists()) continue;
+                    $kode = strtoupper(trim($data[0]));
+                    $nama = trim($data[1]);
 
-                Jurusan::create([
-                    'kode' => $kode,
-                    'nama' => $nama,
-                ]);
+                    if (Jurusan::where('kode', $kode)->exists()) continue;
 
-                $count++;
+                    Jurusan::create([
+                        'kode' => $kode,
+                        'nama' => $nama,
+                    ]);
+
+                    $count++;
+                }
             }
         });
 
@@ -260,40 +276,56 @@ class JurusanController extends Controller
     public function importRombel(Request $request, Jurusan $jurusan)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls'
+            'files'   => 'nullable|array',
+            'files.*' => 'mimes:xlsx,xls',
+            'file'    => 'nullable|mimes:xlsx,xls',
         ]);
 
-        $file = $request->file('file');
-        $spreadsheet = IOFactory::load($file->getRealPath());
-        $rows = $spreadsheet->getActiveSheet()->toArray();
-        array_shift($rows); // Skip header
+        $uploadedFiles = [];
+        if ($request->hasFile('files')) {
+            $rawFiles = $request->file('files');
+            $uploadedFiles = is_array($rawFiles) ? $rawFiles : [$rawFiles];
+        } elseif ($request->hasFile('file')) {
+            $rawFile = $request->file('file');
+            $uploadedFiles = is_array($rawFile) ? $rawFile : [$rawFile];
+        }
+
+        if (empty($uploadedFiles)) {
+            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+        }
 
         $count = 0;
-        DB::transaction(function () use ($rows, &$count, $jurusan) {
-            foreach ($rows as $data) {
-                if (empty($data[0]) || empty($data[1]) || empty($data[2])) continue;
+        DB::transaction(function () use ($uploadedFiles, &$count, $jurusan) {
+            foreach ($uploadedFiles as $file) {
+                $spreadsheet = IOFactory::load($file->getRealPath());
+                $rows = $spreadsheet->getActiveSheet()->toArray();
+                array_shift($rows); // Skip header
 
-                $tahunAjaran = trim($data[0]);
-                $tingkat = trim($data[1]);
-                $nomorRombel = trim($data[2]);
-                $nama = isset($data[3]) ? trim($data[3]) : null;
+                foreach ($rows as $data) {
+                    if (empty($data[0]) || empty($data[1]) || empty($data[2])) continue;
 
-                // Validate if combinations already exist
-                if (\App\Models\Rombel::where('jurusan_id', $jurusan->id)
-                    ->where('tahun_ajaran', $tahunAjaran)
-                    ->where('tingkat', $tingkat)
-                    ->where('nomor_rombel', $nomorRombel)
-                    ->exists()) continue;
+                    $tahunAjaran = trim($data[0]);
+                    $tingkat = trim($data[1]);
+                    $nomorRombel = trim($data[2]);
+                    $nama = isset($data[3]) ? trim($data[3]) : null;
 
-                \App\Models\Rombel::create([
-                    'jurusan_id' => $jurusan->id,
-                    'tahun_ajaran' => $tahunAjaran,
-                    'tingkat' => $tingkat,
-                    'nomor_rombel' => $nomorRombel,
-                    'nama' => $nama,
-                ]);
+                    // Validate if combinations already exist
+                    if (\App\Models\Rombel::where('jurusan_id', $jurusan->id)
+                        ->where('tahun_ajaran', $tahunAjaran)
+                        ->where('tingkat', $tingkat)
+                        ->where('nomor_rombel', $nomorRombel)
+                        ->exists()) continue;
 
-                $count++;
+                    \App\Models\Rombel::create([
+                        'jurusan_id' => $jurusan->id,
+                        'tahun_ajaran' => $tahunAjaran,
+                        'tingkat' => $tingkat,
+                        'nomor_rombel' => $nomorRombel,
+                        'nama' => $nama,
+                    ]);
+
+                    $count++;
+                }
             }
         });
 

@@ -91,7 +91,7 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
     });
 
     const { data: importData, setData: setImportData, post: postImport, processing: importProcessing } = useForm({
-        file: null as File | null,
+        files: [] as File[],
     });
 
     const handleToggleStatus = (id: number, email: string, status: string) => {
@@ -108,7 +108,7 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
         postImport(`/${rolePrefix}/petugas/import`, {
             onSuccess: () => {
                 setImportModalOpen(false);
-                setImportData('file', null);
+                setImportData('files', []);
             },
         });
     };
@@ -560,8 +560,9 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
                                 type="file"
                                 className="hidden"
                                 accept=".xlsx,.xls"
+                                multiple
                                 ref={fileInputRef}
-                                onChange={(e) => setImportData('file', e.target.files ? e.target.files[0] : null)}
+                                onChange={(e) => setImportData('files', e.target.files ? Array.from(e.target.files) : [])}
                             />
                             <div onClick={() => fileInputRef.current?.click()} className="cursor-pointer">
                                 <div className="mx-auto h-16 w-16 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4 shadow-sm shadow-emerald-100">
@@ -570,9 +571,11 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
                                     </svg>
                                 </div>
                                 <p className="text-xs font-black text-gray-700 uppercase tracking-widest">
-                                    {importData.file ? importData.file.name : 'Klik untuk pilih berkas Excel (.xlsx)'}
+                                    {importData.files.length > 0
+                                        ? `${importData.files.length} berkas dipilih (${importData.files.map(f => f.name).join(', ')})`
+                                        : 'Klik untuk pilih berkas Excel (.xlsx)'}
                                 </p>
-                                <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-tight">Ukuran file maksimal 2MB</p>
+                                <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-tight">Dapat memilih lebih dari 1 file Excel (Maks 2MB per file)</p>
                             </div>
                         </div>
                         <div className="md:col-span-2 space-y-3">
@@ -600,7 +603,7 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
                         <button type="button" onClick={() => setImportModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">Batal</button>
                         <button
                             type="submit"
-                            disabled={importProcessing || !importData.file}
+                            disabled={importProcessing || importData.files.length === 0}
                             className="px-8 py-2.5 bg-emerald-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:bg-emerald-400"
                         >
                             {importProcessing ? 'Mengimport...' : 'Mulai Import'}

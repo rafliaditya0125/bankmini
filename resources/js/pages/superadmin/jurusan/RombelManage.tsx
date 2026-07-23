@@ -80,8 +80,8 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
         nama: '',
     });
 
-    const importForm = useForm<{ file: File | null }>({
-        file: null,
+    const importForm = useForm<{ files: File[] }>({
+        files: [],
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -387,16 +387,20 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                         </div>
 
                         <div className="mt-6">
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">File Excel (.xlsx, .xls)</label>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">File Excel (.xlsx, .xls) - Bisa pilih lebih dari 1 file</label>
                             <input
                                 type="file"
                                 accept=".xlsx,.xls"
-                                onChange={e => importForm.setData('file', e.target.files?.[0] || null)}
+                                multiple
+                                onChange={e => importForm.setData('files', e.target.files ? Array.from(e.target.files) : [])}
                                 className="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:uppercase file:tracking-widest file:font-black file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 transition-all cursor-pointer border border-slate-200 rounded-xl bg-white"
                                 required
                             />
-                            {importForm.errors.file && (
-                                <p className="text-[10px] text-red-500 mt-2 font-black uppercase tracking-widest">{importForm.errors.file}</p>
+                            {importForm.errors.files && (
+                                <p className="text-[10px] text-red-500 mt-2 font-black uppercase tracking-widest">{importForm.errors.files}</p>
+                            )}
+                            {(importForm.errors as any).file && (
+                                <p className="text-[10px] text-red-500 mt-2 font-black uppercase tracking-widest">{(importForm.errors as any).file}</p>
                             )}
                         </div>
                     </div>
@@ -411,7 +415,7 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                         </button>
                         <button
                             type="submit"
-                            disabled={importForm.processing || !importForm.data.file}
+                            disabled={importForm.processing || importForm.data.files.length === 0}
                             className="px-8 py-2.5 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:bg-emerald-400 disabled:shadow-none flex items-center gap-2"
                         >
                             {importForm.processing && (

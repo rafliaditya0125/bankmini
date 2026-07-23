@@ -441,66 +441,88 @@ class NasabahController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls'
+            'files'   => 'nullable|array',
+            'files.*' => 'mimes:xlsx,xls',
+            'file'    => 'nullable|mimes:xlsx,xls',
         ]);
 
-        $file = $request->file('file');
-        $spreadsheet = IOFactory::load($file->getRealPath());
-        $rows = $spreadsheet->getActiveSheet()->toArray();
-        array_shift($rows); // Skip header
+        $uploadedFiles = [];
+        if ($request->hasFile('files')) {
+            $rawFiles = $request->file('files');
+            $uploadedFiles = is_array($rawFiles) ? $rawFiles : [$rawFiles];
+        } elseif ($request->hasFile('file')) {
+            $rawFile = $request->file('file');
+            $uploadedFiles = is_array($rawFile) ? $rawFile : [$rawFile];
+        }
+
+        if (empty($uploadedFiles)) {
+            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+        }
 
         $count = 0;
-        DB::transaction(function () use ($rows, &$count) {
-            foreach ($rows as $data) {
-                if (empty($data[0]) || empty($data[1])) continue;
+        DB::transaction(function () use ($uploadedFiles, &$count) {
+            foreach ($uploadedFiles as $file) {
+                $spreadsheet = IOFactory::load($file->getRealPath());
+                $rows = $spreadsheet->getActiveSheet()->toArray();
+                array_shift($rows); // Skip header
 
-                $name       = trim($data[0]);
-                $identifier = trim($data[1]);
-                $user_type  = trim($data[2] ?? 'siswa');
-                $rombelId   = $data[3] ?: null;
-                $phone      = $data[4] ?: null;
-                $alamat     = $data[5] ?: null;
-                $saldo_awal = $data[6] ?? 0;
+                foreach ($rows as $data) {
+                    if (empty($data[0]) || empty($data[1])) continue;
 
-                $nis = $user_type === 'siswa' ? $identifier : null;
-                $nip = $user_type === 'guru'  ? $identifier : null;
+                    $name       = trim($data[0]);
+                    $identifier = trim($data[1]);
+                    $norekInput = isset($data[2]) && trim((string)$data[2]) !== '' ? trim((string)$data[2]) : null;
+                    $user_type  = trim($data[3] ?? 'siswa');
+                    $rombelId   = $data[4] ?: null;
+                    $phone      = $data[5] ?: null;
+                    $alamat     = $data[6] ?: null;
+                    $saldo_awal = $data[7] ?? 0;
 
-                if (User::where('nis', $identifier)->orWhere('nip', $identifier)->exists())
-                    continue;
+                    $norek = $norekInput ?: $identifier;
 
-                $user = User::create([
-                    'name'      => $name,
-                    'username'  => $identifier,
-                    'email'     => $identifier . '@bankmini.smk',
-                    'password'  => $identifier,
-                    'role'      => 'nasabah',
-                    'phone'     => $phone,
-                    'user_type' => $user_type,
-                    'nis'       => $nis,
-                    'nip'       => $nip,
-                    'status'    => 'active',
-                ]);
+                    $nis = $user_type === 'siswa' ? $identifier : null;
+                    $nip = $user_type === 'guru'  ? $identifier : null;
 
-                // Get jurusan_id from rombel
-                $jurusanId = null;
-                if ($rombelId) {
-                    $rombel    = \App\Models\Rombel::find($rombelId);
-                    $jurusanId = $rombel ? $rombel->jurusan_id : null;
+                    if (User::where('nis', $identifier)->orWhere('nip', $identifier)->exists())
+                        continue;
+
+                    if (Nasabah::where('nomor_rekening', $norek)->exists())
+                        continue;
+
+                    $user = User::create([
+                        'name'      => $name,
+                        'username'  => $identifier,
+                        'email'     => $identifier . '@bankmini.smk',
+                        'password'  => $identifier,
+                        'role'      => 'nasabah',
+                        'phone'     => $phone,
+                        'user_type' => $user_type,
+                        'nis'       => $nis,
+                        'nip'       => $nip,
+                        'status'    => 'active',
+                    ]);
+
+                    // Get jurusan_id from rombel
+                    $jurusanId = null;
+                    if ($rombelId) {
+                        $rombel    = \App\Models\Rombel::find($rombelId);
+                        $jurusanId = $rombel ? $rombel->jurusan_id : null;
+                    }
+
+                    Nasabah::create([
+                        'user_id'         => $user->id,
+                        'nomor_rekening'  => $norek,
+                        'saldo'           => $saldo_awal,
+                        'saldo_minimum'   => 10000,
+                        'jurusan_id'      => $jurusanId,
+                        'rombel_id'       => $rombelId,
+                        'alamat'          => $alamat,
+                        'tanggal_buka'    => now(),
+                        'status'          => 'aktif',
+                    ]);
+
+                    $count++;
                 }
-
-                Nasabah::create([
-                    'user_id'         => $user->id,
-                    'nomor_rekening'  => $identifier,
-                    'saldo'           => $saldo_awal,
-                    'saldo_minimum'   => 10000,
-                    'jurusan_id'      => $jurusanId,
-                    'rombel_id'       => $rombelId,
-                    'alamat'          => $alamat,
-                    'tanggal_buka'    => now(),
-                    'status'          => 'aktif',
-                ]);
-
-                $count++;
             }
         });
 
@@ -516,10 +538,10 @@ class NasabahController extends Controller
         $sheet->setTitle('Template Nasabah');
 
         // Header
-        $sheet->fromArray(['name', 'nis_or_nip', 'user_type', 'rombel_id', 'phone', 'alamat', 'saldo_awal'], null, 'A1');
+        $sheet->fromArray(['name', 'nis_or_nip', 'norek', 'user_type', 'rombel_id', 'phone', 'alamat', 'saldo_awal'], null, 'A1');
         // Contoh data
-        $sheet->fromArray(['Budi Santoso', '2024001', 'siswa', '5', '08123456789', 'Jl. Merdeka No. 1', 50000], null, 'A2');
-        $sheet->fromArray(['Siti Aminah', '2024002', 'siswa', '8', '08987654321', 'Jl. Sudirman No. 10', 100000], null, 'A3');
+        $sheet->fromArray(['Budi Santoso', '2024001', '10002024001', 'siswa', '5', '08123456789', 'Jl. Merdeka No. 1', 50000], null, 'A2');
+        $sheet->fromArray(['Siti Aminah', '2024002', '10002024002', 'siswa', '8', '08987654321', 'Jl. Sudirman No. 10', 100000], null, 'A3');
 
         $writer = new XlsxWriter($spreadsheet);
 
