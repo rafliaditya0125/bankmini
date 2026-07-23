@@ -234,39 +234,55 @@ class PetugasController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls'
+            'files'   => 'nullable|array',
+            'files.*' => 'mimes:xlsx,xls',
+            'file'    => 'nullable|mimes:xlsx,xls',
         ]);
 
-        $file = $request->file('file');
-        $spreadsheet = IOFactory::load($file->getRealPath());
-        $rows = $spreadsheet->getActiveSheet()->toArray();
-        array_shift($rows); // Skip header
+        $uploadedFiles = [];
+        if ($request->hasFile('files')) {
+            $rawFiles = $request->file('files');
+            $uploadedFiles = is_array($rawFiles) ? $rawFiles : [$rawFiles];
+        } elseif ($request->hasFile('file')) {
+            $rawFile = $request->file('file');
+            $uploadedFiles = is_array($rawFile) ? $rawFile : [$rawFile];
+        }
+
+        if (empty($uploadedFiles)) {
+            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+        }
 
         $count = 0;
-        DB::transaction(function () use ($rows, &$count) {
-            foreach ($rows as $data) {
-                if (count(array_filter($data, fn($v) => $v !== null)) < 5) continue;
+        DB::transaction(function () use ($uploadedFiles, &$count) {
+            foreach ($uploadedFiles as $file) {
+                $spreadsheet = IOFactory::load($file->getRealPath());
+                $rows = $spreadsheet->getActiveSheet()->toArray();
+                array_shift($rows); // Skip header
 
-                $name     = trim($data[0] ?? '');
-                $email    = trim($data[1] ?? '');
-                $role     = trim($data[2] ?? '');
-                $password = trim($data[3] ?? '');
-                $phone    = trim($data[4] ?? '');
+                foreach ($rows as $data) {
+                    if (count(array_filter($data, fn($v) => $v !== null)) < 5) continue;
 
-                if (empty($email) || empty($password)) continue;
-                if (User::where('email', $email)->exists()) continue;
+                    $name     = trim($data[0] ?? '');
+                    $email    = trim($data[1] ?? '');
+                    $role     = trim($data[2] ?? '');
+                    $password = trim($data[3] ?? '');
+                    $phone    = trim($data[4] ?? '');
 
-                User::create([
-                    'name'     => $name,
-                    'username' => explode('@', $email)[0],
-                    'email'    => $email,
-                    'role'     => in_array($role, ['admin', 'teller']) ? $role : 'teller',
-                    'password' => Hash::make($password),
-                    'phone'    => $phone ?: null,
-                    'status'   => 'active',
-                ]);
+                    if (empty($email) || empty($password)) continue;
+                    if (User::where('email', $email)->exists()) continue;
 
-                $count++;
+                    User::create([
+                        'name'     => $name,
+                        'username' => explode('@', $email)[0],
+                        'email'    => $email,
+                        'role'     => in_array($role, ['admin', 'teller']) ? $role : 'teller',
+                        'password' => Hash::make($password),
+                        'phone'    => $phone ?: null,
+                        'status'   => 'active',
+                    ]);
+
+                    $count++;
+                }
             }
         });
 
