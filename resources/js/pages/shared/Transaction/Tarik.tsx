@@ -473,7 +473,7 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
                                         <p className="text-[9px] font-black text-rose-100 uppercase tracking-widest mb-1">Kelas</p>
                                         <p className="text-[9px] font-black text-white uppercase tracking-widest">
                                             {nasabah.rombel_rel?.nama_kelas || 
-                                             (nasabah.rombel_rel ? `${nasabah.rombel_rel.tingkat} ${nasabah.rombel_rel.jurusan?.kode || ''} ${nasabah.rombel_rel.nomor_rombel}`.trim() : '-')}
+                                             (nasabah.rombel_rel ? nasabah.rombel_rel.nama_kelas || `${nasabah.rombel_rel.tingkat} ${nasabah.rombel_rel.jurusan?.kode || ''}`.trim() : '-')}
                                         </p>
                                     </div>
                                 </div>

@@ -15,7 +15,7 @@ class RombelController extends Controller
     {
         $jurusanId = $request->jurusan_id;
         
-        $query = Rombel::with('jurusan');
+        $query = Rombel::with('jurusan')->withCount('nasabah');
         
         if ($jurusanId) {
             $query->where('jurusan_id', $jurusanId);

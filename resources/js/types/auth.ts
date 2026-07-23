@@ -44,7 +44,7 @@ export type Nasabah = {
     jurusan_id?: number;
     rombel_id?: number;
     jurusan_rel?: { id: number; nama: string; kode: string };
-    rombel_rel?: { id: number; nama: string; jurusan_id: number; nama_kelas?: string; tingkat?: number; nomor_rombel?: number; jurusan?: { kode: string } };
+    rombel_rel?: { id: number; nama: string; jurusan_id: number; nama_kelas?: string; tingkat?: number; jurusan?: { kode: string } };
     created_at: string;
     updated_at: string;
     user: User;

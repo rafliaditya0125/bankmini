@@ -9,9 +9,9 @@ interface Rombel {
     jurusan_id: number;
     tahun_ajaran: string;
     tingkat: number;
-    nomor_rombel: number;
     nama?: string;
     nama_kelas?: string;
+    nasabah_count: number;
     created_at: string;
     jurusan?: Jurusan;
 }
@@ -232,13 +232,14 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Jurusan</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Tahun Ajaran</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Tingkat</th>
+                                    <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Total Siswa</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {rombels.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
+                                        <td colSpan={7} className="px-6 py-12 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
                                             Tidak ada kelas ditemukan
                                         </td>
                                     </tr>
@@ -263,6 +264,14 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                                             </td>
                                             <td className="px-6 py-4 text-center whitespace-nowrap">
                                                 <p className="text-sm font-semibold text-slate-900">{item.tingkat}</p>
+                                            </td>
+                                            <td className="px-6 py-4 text-center whitespace-nowrap">
+                                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-semibold border bg-blue-50 text-blue-700 border-blue-200/70 uppercase tracking-[0.2em]">
+                                                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                    {item.nasabah_count}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-center">
                                                 <div className="flex items-center justify-center gap-2">

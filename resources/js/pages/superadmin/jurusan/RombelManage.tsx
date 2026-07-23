@@ -9,7 +9,6 @@ interface Rombel {
     jurusan_id: number;
     tahun_ajaran: string;
     tingkat: number;
-    nomor_rombel: number;
     nama?: string;
     created_at: string;
 }
@@ -62,7 +61,6 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
     const { data, setData, post, processing, errors, reset } = useForm({
         tahun_ajaran: '',
         tingkat: '10',
-        nomor_rombel: '1',
         nama: '',
     });
 
@@ -76,7 +74,6 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
     } = useForm({
         tahun_ajaran: '',
         tingkat: '10',
-        nomor_rombel: '1',
         nama: '',
     });
 
@@ -118,14 +115,13 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
         setEditTarget(rombel);
         setEditData('tahun_ajaran', rombel.tahun_ajaran);
         setEditData('tingkat', rombel.tingkat.toString());
-        setEditData('nomor_rombel', rombel.nomor_rombel.toString());
         setEditData('nama', rombel.nama || '');
         setEditOpen(true);
         setOpenDropdownId(null);
     };
 
     const handleDelete = (rombel: Rombel) => {
-        if (confirm(`Hapus rombel ${rombel.nama || `${rombel.tingkat} ${jurusan.kode} ${rombel.nomor_rombel}`}?`)) {
+        if (confirm(`Hapus rombel ${getRombelName(rombel)}?`)) {
             router.delete(`/${rolePrefix}/jurusan/${jurusan.id}/rombel/${rombel.id}`, {
                 preserveScroll: true,
             });
@@ -133,7 +129,7 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
     };
 
     const getRombelName = (rombel: Rombel) => {
-        return rombel.nama || `${rombel.tingkat} ${jurusan.kode} ${rombel.nomor_rombel}`;
+        return rombel.nama || `${rombel.tingkat} ${jurusan.kode}`;
     };
 
     // Group rombels by tahun_ajaran
@@ -206,7 +202,7 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                                             <div>
                                                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">{getRombelName(rombel)}</h3>
                                                 <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-1">
-                                                    Tingkat {rombel.tingkat} • Rombel {rombel.nomor_rombel}
+                                                    Tingkat {rombel.tingkat}
                                                 </p>
                                             </div>
                                             <div className="relative">
@@ -281,14 +277,9 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                                 <option value="12">12</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nomor Rombel</label>
-                            <input type="number" value={data.nomor_rombel} onChange={e => setData('nomor_rombel', e.target.value)} min="1" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-sm" required />
-                            {errors.nomor_rombel && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{errors.nomor_rombel}</p>}
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nama Rombel (Opsional)</label>
-                            <input type="text" value={data.nama} onChange={e => setData('nama', e.target.value)} maxLength={255} placeholder="Misal: 11 RPL 1" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-sm" />
+                        <div className="md:col-span-2">
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nama Rombel</label>
+                            <input type="text" value={data.nama} onChange={e => setData('nama', e.target.value)} maxLength={255} placeholder="Misal: 11 RPL 1" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-sm" required />
                             {errors.nama && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{errors.nama}</p>}
                         </div>
                     </div>
@@ -332,14 +323,9 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                                 <option value="12">12</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nomor Rombel</label>
-                            <input type="number" value={editData.nomor_rombel} onChange={e => setEditData('nomor_rombel', e.target.value)} min="1" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-black text-sm" />
-                            {editErrors.nomor_rombel && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{editErrors.nomor_rombel}</p>}
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nama Rombel (Opsional)</label>
-                            <input type="text" value={editData.nama} onChange={e => setEditData('nama', e.target.value)} maxLength={255} placeholder="Misal: 11 RPL 1" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-black text-sm" />
+                        <div className="md:col-span-2">
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nama Rombel</label>
+                            <input type="text" value={editData.nama} onChange={e => setEditData('nama', e.target.value)} maxLength={255} placeholder="Misal: 11 RPL 1" className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-black text-sm" required />
                             {editErrors.nama && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{editErrors.nama}</p>}
                         </div>
                     </div>
@@ -370,7 +356,7 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                             </div>
                             <div className="text-center">
                                 <h3 className="text-sm font-bold text-slate-800">Format Data Excel</h3>
-                                <p className="text-xs text-slate-500 mt-1 mb-3">Kolom: tahun_ajaran, tingkat, nomor_rombel, nama (opsional)</p>
+                                <p className="text-xs text-slate-500 mt-1 mb-3">Kolom: tahun_ajaran, tingkat, nama</p>
                                 <a
                                     href={`/${rolePrefix}/jurusan/${jurusan.id}/rombel/template`}
                                     className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl transition-colors"
