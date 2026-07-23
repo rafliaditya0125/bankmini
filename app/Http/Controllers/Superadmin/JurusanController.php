@@ -199,12 +199,14 @@ class JurusanController extends Controller
             'nama' => 'nullable|string|max:255',
         ]);
 
+        $nama = $request->nama ?: trim("{$request->tingkat} {$jurusan->kode} {$request->nomor_rombel}");
+
         \App\Models\Rombel::create([
             'jurusan_id' => $jurusan->id,
             'tahun_ajaran' => $request->tahun_ajaran,
             'tingkat' => $request->tingkat,
             'nomor_rombel' => $request->nomor_rombel,
-            'nama' => $request->nama,
+            'nama' => $nama,
         ]);
 
         AuditLog::logActivity(
@@ -231,11 +233,13 @@ class JurusanController extends Controller
             'nama' => 'nullable|string|max:255',
         ]);
 
+        $nama = $request->nama ?: trim("{$request->tingkat} {$jurusan->kode} {$request->nomor_rombel}");
+
         $rombel->update([
             'tahun_ajaran' => $request->tahun_ajaran,
             'tingkat' => $request->tingkat,
             'nomor_rombel' => $request->nomor_rombel,
-            'nama' => $request->nama,
+            'nama' => $nama,
         ]);
 
         AuditLog::logActivity(
@@ -307,7 +311,8 @@ class JurusanController extends Controller
                     $tahunAjaran = trim($data[0]);
                     $tingkat = trim($data[1]);
                     $nomorRombel = trim($data[2]);
-                    $nama = isset($data[3]) ? trim($data[3]) : null;
+                    $namaInput = isset($data[3]) && trim((string)$data[3]) !== '' ? trim((string)$data[3]) : null;
+                    $nama = $namaInput ?: trim("{$tingkat} {$jurusan->kode} {$nomorRombel}");
 
                     // Validate if combinations already exist
                     if (\App\Models\Rombel::where('jurusan_id', $jurusan->id)

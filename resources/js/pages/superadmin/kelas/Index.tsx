@@ -160,7 +160,7 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
     const isEditFormValid = editData.jurusan_id && editData.tahun_ajaran && editData.tingkat && editData.nomor_rombel;
 
     const getRombelDisplayName = (rombel: Rombel) => {
-        return rombel.nama_kelas || `${rombel.tingkat} ${rombel.jurusan?.kode || ''} ${rombel.nomor_rombel}`.trim();
+        return rombel.nama || rombel.nama_kelas || `${rombel.tingkat} ${rombel.jurusan?.kode || ''} ${rombel.nomor_rombel}`.trim();
     };
 
     return (
