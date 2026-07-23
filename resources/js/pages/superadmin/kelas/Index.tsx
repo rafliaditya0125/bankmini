@@ -76,7 +76,7 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
         jurusan_id: '',
         tahun_ajaran: '',
         tingkat: '10',
-        nomor_rombel: '1',
+        nama: '',
     });
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -147,7 +147,7 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
         setEditData('jurusan_id', item.jurusan_id.toString());
         setEditData('tahun_ajaran', item.tahun_ajaran);
         setEditData('tingkat', item.tingkat.toString());
-        setEditData('nomor_rombel', item.nomor_rombel.toString());
+        setEditData('nama', getRombelDisplayName(item));
         setEditOpen(true);
     };
 
@@ -157,10 +157,10 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
     };
 
     const isFormValid = data.jurusan_id && data.tahun_ajaran && data.tingkat && data.jumlah_rombel;
-    const isEditFormValid = editData.jurusan_id && editData.tahun_ajaran && editData.tingkat && editData.nomor_rombel;
+    const isEditFormValid = editData.jurusan_id && editData.tahun_ajaran && editData.tingkat && editData.nama;
 
     const getRombelDisplayName = (rombel: Rombel) => {
-        return rombel.nama || rombel.nama_kelas || `${rombel.tingkat} ${rombel.jurusan?.kode || ''} ${rombel.nomor_rombel}`.trim();
+        return rombel.nama || rombel.nama_kelas || `${rombel.tingkat} ${rombel.jurusan?.kode || ''}`.trim();
     };
 
     return (
@@ -232,14 +232,13 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Jurusan</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Tahun Ajaran</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Tingkat</th>
-                                    <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">No. Kelas</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {rombels.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-12 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
+                                        <td colSpan={6} className="px-6 py-12 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
                                             Tidak ada kelas ditemukan
                                         </td>
                                     </tr>
@@ -264,9 +263,6 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                                             </td>
                                             <td className="px-6 py-4 text-center whitespace-nowrap">
                                                 <p className="text-sm font-semibold text-slate-900">{item.tingkat}</p>
-                                            </td>
-                                            <td className="px-6 py-4 text-center whitespace-nowrap">
-                                                <p className="text-sm font-semibold text-slate-900">{item.nomor_rombel}</p>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-center">
                                                 <div className="flex items-center justify-center gap-2">
@@ -453,17 +449,18 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                                 <option value="12">12</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nomor Kelas</label>
+                        <div className="md:col-span-2">
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nama Kelas</label>
                             <input
-                                type="number"
-                                value={editData.nomor_rombel}
-                                onChange={e => setEditData('nomor_rombel', e.target.value)}
-                                min="1"
+                                type="text"
+                                value={editData.nama}
+                                onChange={e => setEditData('nama', e.target.value)}
+                                placeholder="Contoh: 11 RPL 1"
+                                maxLength={255}
                                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-sm"
                                 required
                             />
-                            {editErrors.nomor_rombel && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{editErrors.nomor_rombel}</p>}
+                            {editErrors.nama && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{editErrors.nama}</p>}
                         </div>
                     </div>
                     <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">

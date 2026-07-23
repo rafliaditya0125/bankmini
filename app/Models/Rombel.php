@@ -10,7 +10,6 @@ class Rombel extends Model
         'jurusan_id',
         'tahun_ajaran',
         'tingkat',
-        'nomor_rombel',
         'nama',
     ];
 
@@ -42,7 +41,7 @@ class Rombel extends Model
         }
 
         $jurusanKode = $this->jurusan?->kode ?? '';
-        return trim("{$this->tingkat} {$jurusanKode} {$this->nomor_rombel}");
+        return trim("{$this->tingkat} {$jurusanKode}");
     }
 
     /**
