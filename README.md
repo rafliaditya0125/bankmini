@@ -1,49 +1,145 @@
-# 🏦 Bank Mini
+# 🏦 Bank Mini - School Digital Banking System
 
-**Sistem Perbankan Digital Sekolah Terintegrasi**
-
-Bank Mini adalah platform perbankan digital modern yang dirancang khusus untuk memenuhi kebutuhan ekosistem keuangan di lingkungan SMK. Aplikasi ini mengintegrasikan manajemen data akademik (Jurusan & Rombel) dengan operasional perbankan harian yang aman, transparan, dan akuntabel.
+**🌐 Language:** English | [Bahasa Indonesia](./README_ID.md)
 
 ---
 
-## 🎯 Tujuan Project
-Project ini bertujuan untuk menyediakan sistem pengelolaan bank mini sekolah yang modern, paperless, dan memiliki tingkat keamanan serta pelacakan dana (audit trail) yang tinggi.
+### Overview
 
-## 🌟 Fitur Utama yang Diimplementasikan
+**Bank Mini** is a modern digital banking platform specifically designed to meet the financial ecosystem needs in vocational high schools (SMK). This application integrates academic data management (Departments & Classes) with secure, transparent, and accountable daily banking operations.
 
-*   **Manajemen Akun Terpusat**: Pengelolaan untuk berbagai role seperti Superadmin, Admin, Teller, dan Nasabah (terdiri dari tipe Siswa, Guru, Kelas, dan Organisasi).
-*   **Transaksi Finansial Lengkap**: 
-    *   Setor tunai
-    *   Tarik tunai
-    *   Transfer antar rekening
-    *   Pencatuman biaya admin dan bunga secara terekam
-*   **Keamanan Ekstra (MFA & OTP)**: Verifikasi Email dan WhatsApp untuk segala bentuk pembaruan data kredensial, perubahan email, tipe dual-authentication untuk mengganti email (verifikasi OTP lama & baru).
-*   **Manajemen Rombel/Kelas Otomatis**: Integrasi manajemen siswa dengan sistem akademik, fitur naik kelas rombongan belajar secara masif (batch promotion).
-*   **Audit Trail Inmutable & Laporan**: Seluruh aksi sensitif yang dilakukan oleh admin atau teller akan tercatat secara paten dalam sistem audit yang tidak dapat dihapus, disertai fitur pelaporan PDF dan Export.
-*   **Pembukuan**: Laporan mutasi, buku besar (ledger), dan transaksi secara detail.
+### 🎯 Project Goals
 
-## 🛠️ Tools & Teknologi (Tech Stack)
+This project aims to provide a modern, paperless school mini-bank management system with high levels of security and fund tracking (audit trail).
 
-Aplikasi dibangun dengan arsitektur Monolith modern menggunakan ekosistem framework terkemuka:
-*   **Backend**: Laravel 11.x (PHP 8.2+)
-*   **Frontend**: React 18 & TypeScript
-*   **Routing & State Bridge**: Inertia.js (Bridges Laravel & React seamless)
-*   **Styling**: Tailwind CSS
-*   **Database**: MariaDB / MySQL
-*   **Authentication**: Laravel Sanctum & Session Auth
+### ✨ Key Features
 
-## 📚 Dokumentasi Lebih Lanjut
+**Account Management**
+- Multi-role access control (Superadmin, Admin, Teller, Customer)
+- Customer types: Student, Teacher, Class, Organization, Payment
+- Unique account number generation
+- Account status management
 
-Dokumentasi detail mengenai cara penggunaan, setup, dan daftar fitur spesifik dapat ditemukan di direktori `docs/`:
+**Financial Transactions**
+- Cash deposits (Setor)
+- Cash withdrawals (Tarik)
+- Inter-account transfers
+- Payment system with single-transaction architecture ⭐ NEW
+- Real-time balance updates
+- Transaction fee and interest tracking
 
-- 📰 [Daftar Lengkap Fitur (FEATURES.md)](./docs/FEATURES.md)
-- 🚀 [Panduan Instalasi & Quick Start (QUICK_START.md)](./docs/QUICK_START.md)
+**Security & Authentication**
+- Multi-factor authentication (MFA & OTP)
+- Email and WhatsApp verification
+- Dual-step authentication for email changes
+- Role-based access control (RBAC)
+- Brute force protection
 
-## 👨‍💻 Tim Developer
-Aplikasi ini dibuat oleh:
+**Academic Integration**
+- Department (Jurusan) management
+- Class (Rombel) structure integration
+- Automatic grade promotion
+- Batch class promotion
+- Alumni status tracking
 
-*   [Ihsan Sabana](https://github.com/ihsansabanaa)
-*   [Rafli Aditya](https://github.com/rafliaditya0125)
+**Audit & Reporting**
+- Immutable audit trail
+- Comprehensive financial reports
+- Transaction history with filters
+- PDF and Excel export
+- General ledger and mutation reports
+
+**Additional Features**
+- Responsive dashboard with analytics
+- Real-time notifications
+- Receipt printing (thermal & passbook)
+- Data import/export (Excel)
+- Maintenance mode
+- Profile management with photo upload
+
+### 🛠️ Technology Stack
+
+Built with modern monolithic architecture using industry-leading frameworks:
+
+- **Backend**: Laravel 11.x (PHP 8.2+)
+- **Frontend**: React 18 & TypeScript
+- **Bridge**: Inertia.js (Seamless Laravel & React integration)
+- **Styling**: Tailwind CSS
+- **Database**: MariaDB / MySQL
+- **Authentication**: Laravel Sanctum & Session Auth
+- **Build Tools**: Vite
+
+### 📦 Requirements
+
+- PHP 8.2 or higher
+- Composer
+- Node.js 18+ & npm
+- MySQL 8.0+ or MariaDB 10.4+
+- Apache/Nginx web server
+
+### 🚀 Quick Start
+
+```bash
+# Clone repository
+git clone https://github.com/yourusername/bankmini.git
+cd bankmini
+
+# Install dependencies
+composer install
+npm install
+
+# Setup environment
+cp .env.example .env
+php artisan key:generate
+
+# Configure database in .env
+# DB_DATABASE=bankmini_smk
+
+# Run migrations and seeders
+php artisan migrate --seed
+
+# Build frontend
+npm run build
+
+# Start development servers
+php artisan serve          # Terminal 1
+npm run dev               # Terminal 2 (optional)
+```
+
+Access the application at `http://localhost:8000`
+
+### 📚 Documentation
+
+Detailed documentation about usage, setup, and specific features:
+
+- 📖 [Complete Feature List](./docs/FEATURES.md)
+- 🚀 [Installation & Quick Start Guide](./docs/QUICK_START.md)
+- 💳 [Payment System Documentation](./docs/PAYMENT_SYSTEM.md)
+
+### 🔑 Default Credentials
+
+**Testing Accounts:**
+
+| Role | Username/Email | Password |
+|------|----------------|----------|
+| Superadmin | admin@bankmini.smk | superadmin |
+| Admin | admin2@bankmini.smk | admin |
+| Teller | teller1@bankmini.smk | teller123 |
+| Customer (Student) | 2023001 | 2023001 |
+
+⚠️ **Security Warning:** Change all default passwords in production!
+
+### 👥 Development Team
+
+This application was created by:
+- [Ihsan Sabana](https://github.com/ihsansabanaa)
+- [Rafli Aditya](https://github.com/rafliaditya0125)
+
+### 📄 License
+
+This project is developed for educational administration and school banking ecosystem needs.
 
 ---
-*Dibuat untuk kebutuhan administrasi pendidikan dan perbankan ekosistem sekolah.*
+
+**📅 Last Updated:** 18 June 2026  
+**📝 Version:** 1.0.0

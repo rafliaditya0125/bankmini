@@ -329,6 +329,11 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                 setEditOpen(false);
                 resetEdit();
             },
+            onError: (errors) => {
+                // Errors are automatically set in editErrors by Inertia
+                // Just log for debugging
+                console.error('Validation errors:', errors);
+            },
         });
     };
 
@@ -783,6 +788,27 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                 maxWidth="4xl"
             >
                 <form onSubmit={handleEditSubmit} className="space-y-6">
+                    {/* Error Alert */}
+                    {Object.keys(editErrors).length > 0 && (
+                        <div className="rounded-xl bg-rose-50 border border-rose-200 p-4">
+                            <div className="flex gap-3">
+                                <div className="shrink-0">
+                                    <svg className="h-5 w-5 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-[10px] font-black text-rose-800 uppercase tracking-widest">Terjadi Kesalahan</h3>
+                                    <ul className="mt-2 space-y-1">
+                                        {Object.entries(editErrors).map(([field, message]) => (
+                                            <li key={field} className="text-xs text-rose-700">• {message}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nama Lengkap</label>

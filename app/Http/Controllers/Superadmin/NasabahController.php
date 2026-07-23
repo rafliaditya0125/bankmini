@@ -192,7 +192,8 @@ class NasabahController extends Controller
 
     public function update(Request $request, Nasabah $nasabah)
     {
-        $request->validate([
+        // Only validate password if it's provided
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,' . $nasabah->user_id,
             'nomor_rekening' => 'required|string|max:50|unique:nasabah,nomor_rekening,' . $nasabah->id,
@@ -204,8 +205,14 @@ class NasabahController extends Controller
             'rombel_id' => 'required_if:user_type,siswa,kelas|nullable|exists:rombels,id',
             'alamat' => 'nullable|string|max:255',
             'status' => 'required|in:aktif,nonaktif',
-            'password' => 'nullable|string|max:100|min:8|confirmed',
-        ]);
+        ];
+        
+        // Only add password validation if password field is filled
+        if ($request->filled('password')) {
+            $rules['password'] = 'required|string|max:100|min:8|confirmed';
+        }
+        
+        $request->validate($rules);
 
         $userType = $request->user_type;
         $isStudentType = in_array($userType, ['siswa', 'kelas'], true);
