@@ -10,6 +10,7 @@ interface Rombel {
     tahun_ajaran: string;
     tingkat: number;
     nama?: string;
+    nasabah_count: number;
     created_at: string;
 }
 
@@ -204,6 +205,14 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                                                 <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-1">
                                                     Tingkat {rombel.tingkat}
                                                 </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/70">
+                                                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                    {rombel.nasabah_count} siswa
+                                                </span>
                                             </div>
                                             <div className="relative">
                                                 <button

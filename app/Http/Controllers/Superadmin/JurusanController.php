@@ -178,7 +178,7 @@ class JurusanController extends Controller
      */
     public function showRombel(Jurusan $jurusan)
     {
-        $rombels = $jurusan->rombel()->orderBy('tahun_ajaran')->orderBy('tingkat')->orderBy('nama')->get();
+        $rombels = $jurusan->rombel()->withCount('nasabah')->orderBy('tahun_ajaran')->orderBy('tingkat')->orderBy('nama')->get();
         
         return Inertia::render('superadmin/jurusan/RombelManage', [
             'jurusan' => $jurusan,
