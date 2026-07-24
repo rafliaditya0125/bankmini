@@ -2,6 +2,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import Modal from '@/components/Modal';
+import Dropdown, { DropdownItem } from '@/components/Dropdown';
 import ConfirmModal from '@/components/ConfirmModal';
 import type { Nasabah, User } from '@/types';
 import { formatRupiah, formatNumber, parseNumber } from '@/lib/utils';
@@ -44,7 +45,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<(Nasabah & { user: User }) | null>(null);
-    const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Helper for input masking
@@ -312,7 +313,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         setEditData('password_confirmation', '');
         
         setEditOpen(true);
-        setOpenDropdownId(null);
+
     };
 
     const closeEditModal = () => {
@@ -578,62 +579,62 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center justify-center">
-                                                    <div className="relative">
-                                                        <button
-                                                            onClick={() => setOpenDropdownId(openDropdownId === item.id ? null : item.id)}
-                                                            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+                                                    <Dropdown
+                                                        trigger={
+                                                            <button className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all">
+                                                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                                                </svg>
+                                                            </button>
+                                                        }
+                                                    >
+                                                        <DropdownItem
+                                                            href={`/${rolePrefix}/nasabah/${item.id}`}
+                                                            className="text-gray-500 hover:text-blue-600"
+                                                            icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>}
                                                         >
-                                                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                                                            </svg>
-                                                        </button>
-                                                        {openDropdownId === item.id && (
-                                                            <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-sm z-50 overflow-hidden border border-slate-200" onMouseLeave={() => setOpenDropdownId(null)}>
-                                                                <div className="py-1">
-                                                                    <Link href={`/${rolePrefix}/nasabah/${item.id}`} className="flex items-center gap-3 px-4 py-2.5 text-[10px] font-black text-gray-500 uppercase tracking-widest hover:bg-gray-50 hover:text-blue-600 transition-colors">
-                                                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                                                        Profil Akun
-                                                                    </Link>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => openEditModal(item)}
-                                                                        className="flex w-full items-center gap-3 px-4 py-2.5 text-[10px] font-black text-gray-500 uppercase tracking-widest hover:bg-gray-50 hover:text-amber-600 transition-colors"
+                                                            <span className="font-black text-[10px] uppercase tracking-widest">Profil Akun</span>
+                                                        </DropdownItem>
+                                                        <DropdownItem
+                                                            onClick={() => openEditModal(item)}
+                                                            className="text-gray-500 hover:text-amber-600"
+                                                            icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>}
+                                                        >
+                                                            <span className="font-black text-[10px] uppercase tracking-widest">Edit Data</span>
+                                                        </DropdownItem>
+
+                                                        {item.status !== 'nonaktif' && (
+                                                            <>
+                                                                {item.user.user_type === 'siswa' && (
+                                                                    <DropdownItem
+                                                                        onClick={() => handlePromote(item.id, item.user.name)}
+                                                                        className="border-t border-gray-50 text-gray-500 hover:text-indigo-600"
+                                                                        icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>}
                                                                     >
-                                                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                                        Edit Data
-                                                                    </button>
+                                                                        <span className="font-black text-[10px] uppercase tracking-widest">Naik Kelas</span>
+                                                                    </DropdownItem>
+                                                                )}
 
-                                                                    {item.status !== 'nonaktif' && (
-                                                                        <>
-                                                                            {item.user.user_type === 'siswa' && (
-                                                                                <button onClick={() => handlePromote(item.id, item.user.name)} className="flex items-center gap-3 w-full px-4 py-2.5 text-[10px] font-black text-gray-500 uppercase tracking-widest hover:bg-gray-50 hover:text-indigo-600 transition-colors border-t border-gray-50">
-                                                                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                                                                                    Naik Kelas
-                                                                                </button>
-                                                                            )}
+                                                                <DropdownItem
+                                                                    onClick={() => handleToggleStatus(item.id, item.user.name, item.status)}
+                                                                    className={item.status === 'aktif' ? "text-rose-600 hover:bg-rose-50" : "text-emerald-600 hover:bg-emerald-50"}
+                                                                    icon={item.status === 'aktif'
+                                                                        ? <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                                                        : <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                                                                >
+                                                                    <span className="font-black text-[10px] uppercase tracking-widest">{item.status === 'aktif' ? 'Nonaktifkan' : 'Aktifkan Akun'}</span>
+                                                                </DropdownItem>
 
-                                                                            {item.status === 'aktif' ? (
-                                                                                <button onClick={() => handleToggleStatus(item.id, item.user.name, item.status)} className="flex items-center gap-3 w-full px-4 py-2.5 text-[10px] font-black text-rose-600 uppercase tracking-widest hover:bg-rose-50 transition-colors">
-                                                                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                                                                                    Nonaktifkan
-                                                                                </button>
-                                                                            ) : (
-                                                                                <button onClick={() => handleToggleStatus(item.id, item.user.name, item.status)} className="flex items-center gap-3 w-full px-4 py-2.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:bg-emerald-50 transition-colors">
-                                                                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                                                    Aktifkan Akun
-                                                                                </button>
-                                                                            )}
-
-                                                                            <button onClick={() => handleDeleteRekening(item.id, item.user.name, Number(item.saldo))} className="flex items-center gap-3 w-full px-4 py-2.5 text-[10px] font-black text-gray-900 uppercase tracking-widest hover:bg-gray-900 hover:text-white transition-all border-t border-gray-100">
-                                                                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                                                Hapus Rekening
-                                                                            </button>
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            </div>
+                                                                <DropdownItem
+                                                                    onClick={() => handleDeleteRekening(item.id, item.user.name, Number(item.saldo))}
+                                                                    className="border-t border-gray-100 text-gray-900 hover:bg-gray-900 hover:text-white"
+                                                                    icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}
+                                                                >
+                                                                    <span className="font-black text-[10px] uppercase tracking-widest">Hapus Rekening</span>
+                                                                </DropdownItem>
+                                                            </>
                                                         )}
-                                                    </div>
+                                                    </Dropdown>
                                                 </div>
                                             </td>
                                         </tr>
