@@ -2,6 +2,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import Modal from '@/components/Modal';
+import Dropdown, { DropdownItem } from '@/components/Dropdown';
 import type { Jurusan } from '@/types';
 
 interface Rombel {
@@ -27,7 +28,7 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
     const [importOpen, setImportOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<Rombel | null>(null);
-    const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
 
     const handleTahunAjaranChange = (value: string) => {
         // Remove non-digits
@@ -214,38 +215,34 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                                                     {rombel.nasabah_count} siswa
                                                 </span>
                                             </div>
-                                            <div className="relative">
-                                                <button
-                                                    onClick={() => setOpenDropdownId(openDropdownId === rombel.id ? null : rombel.id)}
-                                                    className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+                                            <Dropdown
+                                                trigger={
+                                                    <button className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all">
+                                                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                                        </svg>
+                                                    </button>
+                                                }
+                                            >
+                                                <DropdownItem
+                                                    onClick={() => openEditModal(rombel)}
+                                                    className="text-gray-500 hover:text-amber-600"
+                                                    icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>}
                                                 >
-                                                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                                                    </svg>
-                                                </button>
-                                                {openDropdownId === rombel.id && (
-                                                    <div className="absolute right-0 mt-2 w-48 rounded-xl bg-white shadow-sm z-50 overflow-hidden border border-slate-200" onMouseLeave={() => setOpenDropdownId(null)}>
-                                                        <button
-                                                            onClick={() => openEditModal(rombel)}
-                                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-[10px] font-black text-gray-500 uppercase tracking-widest hover:bg-gray-50 hover:text-amber-600 transition-colors"
-                                                        >
-                                                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                            </svg>
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(rombel)}
-                                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-[10px] font-black text-rose-600 uppercase tracking-widest hover:bg-rose-50 transition-colors border-t border-gray-100"
-                                                        >
-                                                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                            Hapus
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
+                                                    <span className="font-black text-[10px] uppercase tracking-widest">Edit</span>
+                                                </DropdownItem>
+                                                <DropdownItem
+                                                    onClick={() => handleDelete(rombel)}
+                                                    className="text-rose-600 hover:bg-rose-50 border-t border-gray-100"
+                                                    icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>}
+                                                >
+                                                    <span className="font-black text-[10px] uppercase tracking-widest">Hapus</span>
+                                                </DropdownItem>
+                                            </Dropdown>
                                         </div>
                                     </div>
                                 ))}
