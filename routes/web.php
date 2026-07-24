@@ -151,6 +151,10 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::resource('jurusan', SuperadminJurusanController::class);
     
     // Rombel management per jurusan
+    // Rombel import for all jurusan (with jurusan_id)
+    Route::post('/jurusan/rombel/import-all', [SuperadminJurusanController::class, 'importRombelAll'])->name('jurusan.rombel.import-all');
+    Route::get('/jurusan/rombel/template-all', [SuperadminJurusanController::class, 'downloadRombelTemplateAll'])->name('jurusan.rombel.template-all');
+
     Route::post('/jurusan/{jurusan}/rombel/import', [SuperadminJurusanController::class, 'importRombel'])->name('jurusan.rombel.import');
     Route::get('/jurusan/{jurusan}/rombel/template', [SuperadminJurusanController::class, 'downloadRombelTemplate'])->name('jurusan.rombel.template');
     Route::get('/jurusan/{jurusan}/rombel', [SuperadminJurusanController::class, 'showRombel'])->name('jurusan.rombel.show');
@@ -218,6 +222,10 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     Route::resource('jurusan', SuperadminJurusanController::class);
     
     // Rombel management per jurusan
+    // Rombel import for all jurusan (with jurusan_id)
+    Route::post('/jurusan/rombel/import-all', [SuperadminJurusanController::class, 'importRombelAll'])->name('jurusan.rombel.import-all');
+    Route::get('/jurusan/rombel/template-all', [SuperadminJurusanController::class, 'downloadRombelTemplateAll'])->name('jurusan.rombel.template-all');
+
     Route::post('/jurusan/{jurusan}/rombel/import', [SuperadminJurusanController::class, 'importRombel'])->name('jurusan.rombel.import');
     Route::get('/jurusan/{jurusan}/rombel/template', [SuperadminJurusanController::class, 'downloadRombelTemplate'])->name('jurusan.rombel.template');
     Route::get('/jurusan/{jurusan}/rombel', [SuperadminJurusanController::class, 'showRombel'])->name('jurusan.rombel.show');

@@ -29,7 +29,9 @@ export default function Index({ jurusans }: Props) {
     const [jurusanToDelete, setJurusanToDelete] = useState<Jurusan | null>(null);
     const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
     const [importModalOpen, setImportModalOpen] = useState(false);
+    const [importRombelModalOpen, setImportRombelModalOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const rombelFileInputRef = useRef<HTMLInputElement>(null);
 
     const { data, setData, post, put, delete: destroy, processing, errors, reset, clearErrors } = useForm({
         nama: '',
@@ -37,6 +39,10 @@ export default function Index({ jurusans }: Props) {
     });
 
     const { data: importData, setData: setImportData, post: postImport, processing: importProcessing } = useForm({
+        files: [] as File[],
+    });
+
+    const { data: importRombelData, setData: setImportRombelData, post: postImportRombel, processing: importRombelProcessing } = useForm({
         files: [] as File[],
     });
 
@@ -98,6 +104,16 @@ export default function Index({ jurusans }: Props) {
         });
     };
 
+    const handleImportRombelSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        postImportRombel(`/${rolePrefix}/jurusan/rombel/import-all`, {
+            onSuccess: () => {
+                setImportRombelModalOpen(false);
+                setImportRombelData('files', []);
+            },
+        });
+    };
+
     return (
         <DashboardLayout
             header={
@@ -108,13 +124,22 @@ export default function Index({ jurusans }: Props) {
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <button
+                            onClick={() => setImportRombelModalOpen(true)}
+                            className="inline-flex items-center gap-2 rounded-full bg-purple-50/70 text-purple-700 border border-purple-200/70 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] hover:bg-purple-100/80 transition-all"
+                        >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                            Import Rombel
+                        </button>
+                        <button
                             onClick={() => setImportModalOpen(true)}
                             className="inline-flex items-center gap-2 rounded-full bg-emerald-50/70 text-emerald-700 border border-emerald-200/70 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] hover:bg-emerald-100/80 transition-all"
                         >
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                             </svg>
-                            Import Excel
+                            Import Jurusan
                         </button>
                         <button
                             onClick={handleOpenAddModal}
@@ -409,6 +434,90 @@ export default function Index({ jurusans }: Props) {
                             className="px-8 py-2.5 bg-emerald-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:bg-emerald-400"
                         >
                             {importProcessing ? 'Mengimport...' : 'Mulai Import'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Modal Import Rombel */}
+            <Modal
+                show={importRombelModalOpen}
+                onClose={() => setImportRombelModalOpen(false)}
+                title="Import Rombel via Excel"
+                description="Tambah rombel massal untuk semua jurusan melalui berkas Excel"
+                maxWidth="2xl"
+            >
+                <form onSubmit={handleImportRombelSubmit} className="space-y-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Template & Format</p>
+                            <p className="text-sm font-semibold text-slate-900">Gunakan format Excel yang disediakan.</p>
+                        </div>
+                        <a
+                            href={`/${rolePrefix}/jurusan/rombel/template-all`}
+                            className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 text-[10px] font-black uppercase tracking-widest transition-colors"
+                        >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download Template Excel
+                        </a>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div className="md:col-span-3 bg-purple-50 border-2 border-dashed border-purple-200 rounded-2xl p-8 text-center">
+                            <input
+                                type="file"
+                                className="hidden"
+                                accept=".xlsx,.xls"
+                                multiple
+                                ref={rombelFileInputRef}
+                                onChange={(e) => setImportRombelData('files', e.target.files ? Array.from(e.target.files) : [])}
+                            />
+                            <div onClick={() => rombelFileInputRef.current?.click()} className="cursor-pointer">
+                                <div className="mx-auto h-16 w-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-4 shadow-sm shadow-purple-100">
+                                    <svg className="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                </div>
+                                <p className="text-xs font-black text-gray-700 uppercase tracking-widest">
+                                    {importRombelData.files.length > 0
+                                        ? `${importRombelData.files.length} berkas dipilih (${importRombelData.files.map(f => f.name).join(', ')})`
+                                        : 'Klik untuk pilih berkas Excel (.xlsx)'}
+                                </p>
+                                <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-tight">Dapat memilih lebih dari 1 file Excel (Maks 2MB per file)</p>
+                            </div>
+                        </div>
+                        <div className="md:col-span-2 space-y-3">
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Kolom Wajib</p>
+                                <div className="mt-2 rounded-xl border border-purple-200 bg-white p-3 text-[9px] font-mono text-slate-600">
+                                    jurusan_id,tahun_ajaran,tingkat,nama
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Contoh Baris</p>
+                                <div className="mt-2 rounded-xl border border-purple-200 bg-white p-3 text-[9px] font-mono text-slate-600">
+                                    1,2025/2026,10,10 RPL 1<br/>
+                                    1,2025/2026,10,10 RPL 2<br/>
+                                    2,2025/2026,10,10 TKJ 1
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="rounded-2xl border border-purple-200 bg-purple-50/70 p-4">
+                        <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest">⚠️ Penting!</p>
+                        <p className="mt-1 text-xs text-slate-600">
+                            <strong>jurusan_id</strong> harus sesuai dengan ID jurusan yang ada di sistem. Tingkat harus 10, 11, atau 12.
+                        </p>
+                    </div>
+                    <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
+                        <button type="button" onClick={() => setImportRombelModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">Batal</button>
+                        <button
+                            type="submit"
+                            disabled={importRombelProcessing || importRombelData.files.length === 0}
+                            className="px-8 py-2.5 bg-purple-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-200 disabled:bg-purple-400"
+                        >
+                            {importRombelProcessing ? 'Mengimport...' : 'Mulai Import'}
                         </button>
                     </div>
                 </form>
