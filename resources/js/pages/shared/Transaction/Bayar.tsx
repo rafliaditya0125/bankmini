@@ -323,7 +323,7 @@ export default function Bayar({ pengirim, pembayaranAccounts, minBayar }: PagePr
                                         <div className="p-2 rounded-lg bg-white/5 border border-white/10">
                                             <p className="text-[8px] font-bold text-gray-300 uppercase mb-0.5">Kelas</p>
                                             <p className="text-[10px] font-black text-white uppercase tracking-tighter truncate" title={pengirim.rombel_rel?.nama_kelas || '-'}>
-                                                {pengirim.rombel_rel?.nama_kelas || (pengirim.rombel_rel ? `${pengirim.rombel_rel.tingkat} ${pengirim.rombel_rel.jurusan?.kode || ''} ${pengirim.rombel_rel.nomor_rombel}`.trim() : '-')}
+                                                {pengirim.rombel_rel?.nama_kelas || (pengirim.rombel_rel ? pengirim.rombel_rel.nama_kelas || `${pengirim.rombel_rel.tingkat} ${pengirim.rombel_rel.jurusan?.kode || ''}`.trim() : '-')}
                                             </p>
                                         </div>
                                     </div>

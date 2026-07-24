@@ -70,7 +70,7 @@ class NasabahController extends Controller
 
         // Get filter options
         $available_jurusan = Jurusan::orderBy('nama')->get();
-        $available_rombels = \App\Models\Rombel::with('jurusan')->orderBy('tingkat')->orderBy('nomor_rombel')->get()->map(function ($rombel) {
+        $available_rombels = \App\Models\Rombel::with('jurusan')->orderBy('tingkat')->orderBy('nama')->get()->map(function ($rombel) {
             return [
                 'id' => $rombel->id,
                 'nama' => $rombel->nama_kelas,
@@ -364,10 +364,9 @@ class NasabahController extends Controller
                     // Optional: keep rombel_id but it's now alumni
                 ]);
             } else {
-                // Find rombel in the next level with same jurusan and nomor
+                // Find rombel in the next level with same jurusan and name pattern
                 $nextRombel = Rombel::where('jurusan_id', $nasabah->jurusan_id)
                     ->where('tingkat', $newTingkat)
-                    ->where('nomor_rombel', $nasabah->rombelRel->nomor_rombel)
                     ->first();
 
                 if ($nextRombel) {
@@ -559,12 +558,12 @@ class NasabahController extends Controller
         $sheet->setTitle('Daftar Rombel');
 
         // Header
-        $sheet->fromArray(['id', 'angkatan', 'tingkat', 'no_rombel', 'nama_kelas', 'jurusan'], null, 'A1');
+        $sheet->fromArray(['id', 'angkatan', 'tingkat', 'nama_kelas', 'jurusan'], null, 'A1');
 
         $rombels = \App\Models\Rombel::with('jurusan')
             ->orderBy('tahun_ajaran')
             ->orderBy('tingkat')
-            ->orderBy('nomor_rombel')
+            ->orderBy('nama')
             ->get();
 
         $row = 2;
@@ -573,7 +572,6 @@ class NasabahController extends Controller
                 $rombel->id,
                 $rombel->tahun_ajaran,
                 $rombel->tingkat,
-                $rombel->nomor_rombel,
                 $rombel->nama_kelas,
                 $rombel->jurusan?->nama ?? '-',
             ], null, "A{$row}");

@@ -286,7 +286,7 @@
                         $groupName = $tingkat ? "Siswa Tingkat {$tingkat}" : "Siswa (Lainnya)";
                         
                         // For identity display, still show full class
-                        $identityClass = $rombel ? trim("{$rombel->tingkat} {$rombel->jurusan?->kode} {$rombel->nomor_rombel}") : '';
+                        $identityClass = $rombel ? trim("{$rombel->nama_kelas}") : '';
                     } else {
                         $groupName = match($userType) {
                             'guru' => 'Guru / Karyawan',

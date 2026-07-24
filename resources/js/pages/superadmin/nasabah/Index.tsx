@@ -553,7 +553,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                                 {((item as any).rombel_rel || (item as any).rombelRel) ? (
                                                     <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200/70 uppercase tracking-[0.2em]">
                                                         {((item as any).rombel_rel || (item as any).rombelRel).nama_kelas || 
-                                                         `${((item as any).rombel_rel || (item as any).rombelRel).tingkat} ${((item as any).rombel_rel || (item as any).rombelRel).jurusan?.kode || ((item as any).rombel_rel || (item as any).rombelRel).jurusan_rel?.kode || ''} ${((item as any).rombel_rel || (item as any).rombelRel).nomor_rombel}`.trim()}
+                                                         `${((item as any).rombel_rel || (item as any).rombelRel).nama_kelas || ((item as any).rombel_rel || (item as any).rombelRel).tingkat + ' ' + (((item as any).rombel_rel || (item as any).rombelRel).jurusan?.kode || ((item as any).rombel_rel || (item as any).rombelRel).jurusan_rel?.kode || '')}`.trim()}
                                                     </span>
                                                 ) : (
                                                     ((item as any).jurusan_rel || (item as any).jurusanRel) ? (

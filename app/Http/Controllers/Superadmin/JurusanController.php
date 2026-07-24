@@ -178,7 +178,7 @@ class JurusanController extends Controller
      */
     public function showRombel(Jurusan $jurusan)
     {
-        $rombels = $jurusan->rombel()->orderBy('tahun_ajaran')->orderBy('tingkat')->orderBy('nomor_rombel')->get();
+        $rombels = $jurusan->rombel()->withCount('nasabah')->orderBy('tahun_ajaran')->orderBy('tingkat')->orderBy('nama')->get();
         
         return Inertia::render('superadmin/jurusan/RombelManage', [
             'jurusan' => $jurusan,
@@ -195,15 +195,13 @@ class JurusanController extends Controller
         $request->validate([
             'tahun_ajaran' => 'required|string|max:9',
             'tingkat' => 'required|in:10,11,12',
-            'nomor_rombel' => 'required|integer|min:1',
-            'nama' => 'nullable|string|max:255',
+            'nama' => 'required|string|max:255',
         ]);
 
         \App\Models\Rombel::create([
             'jurusan_id' => $jurusan->id,
             'tahun_ajaran' => $request->tahun_ajaran,
             'tingkat' => $request->tingkat,
-            'nomor_rombel' => $request->nomor_rombel,
             'nama' => $request->nama,
         ]);
 
@@ -227,14 +225,12 @@ class JurusanController extends Controller
         $request->validate([
             'tahun_ajaran' => 'required|string|max:9',
             'tingkat' => 'required|in:10,11,12',
-            'nomor_rombel' => 'required|integer|min:1',
-            'nama' => 'nullable|string|max:255',
+            'nama' => 'required|string|max:255',
         ]);
 
         $rombel->update([
             'tahun_ajaran' => $request->tahun_ajaran,
             'tingkat' => $request->tingkat,
-            'nomor_rombel' => $request->nomor_rombel,
             'nama' => $request->nama,
         ]);
 
@@ -306,21 +302,20 @@ class JurusanController extends Controller
 
                     $tahunAjaran = trim($data[0]);
                     $tingkat = trim($data[1]);
-                    $nomorRombel = trim($data[2]);
-                    $nama = isset($data[3]) ? trim($data[3]) : null;
+                    $namaInput = isset($data[2]) && trim((string)$data[2]) !== '' ? trim((string)$data[2]) : null;
+                    $nama = $namaInput ?: trim("{$tingkat} {$jurusan->kode}");
 
                     // Validate if combinations already exist
                     if (\App\Models\Rombel::where('jurusan_id', $jurusan->id)
                         ->where('tahun_ajaran', $tahunAjaran)
                         ->where('tingkat', $tingkat)
-                        ->where('nomor_rombel', $nomorRombel)
+                        ->where('nama', $nama)
                         ->exists()) continue;
 
                     \App\Models\Rombel::create([
                         'jurusan_id' => $jurusan->id,
                         'tahun_ajaran' => $tahunAjaran,
                         'tingkat' => $tingkat,
-                        'nomor_rombel' => $nomorRombel,
                         'nama' => $nama,
                     ]);
 
@@ -348,11 +343,11 @@ class JurusanController extends Controller
         $sheet->setTitle('Template Rombel');
 
         // Header
-        $sheet->fromArray(['tahun_ajaran', 'tingkat', 'nomor_rombel', 'nama (opsional)'], null, 'A1');
+        $sheet->fromArray(['tahun_ajaran', 'tingkat', 'nama'], null, 'A1');
         
         // Contoh data
-        $sheet->fromArray(['2025/2026', '10', '1', '10 ' . $jurusan->kode . ' 1'], null, 'A2');
-        $sheet->fromArray(['2025/2026', '10', '2', '10 ' . $jurusan->kode . ' 2'], null, 'A3');
+        $sheet->fromArray(['2025/2026', '10', '10 ' . $jurusan->kode . ' 1'], null, 'A2');
+        $sheet->fromArray(['2025/2026', '10', '10 ' . $jurusan->kode . ' 2'], null, 'A3');
 
         $writer = new XlsxWriter($spreadsheet);
 

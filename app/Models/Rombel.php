@@ -10,7 +10,6 @@ class Rombel extends Model
         'jurusan_id',
         'tahun_ajaran',
         'tingkat',
-        'nomor_rombel',
         'nama',
     ];
 
@@ -33,12 +32,16 @@ class Rombel extends Model
     }
 
     /**
-     * Get auto-generated class name (e.g., "10 RPL 1")
+     * Get class name (reads from 'nama' column in database, or falls back to generated string if empty)
      */
     public function getNamaKelasAttribute()
     {
+        if (!empty($this->attributes['nama'])) {
+            return $this->attributes['nama'];
+        }
+
         $jurusanKode = $this->jurusan?->kode ?? '';
-        return trim("{$this->tingkat} {$jurusanKode} {$this->nomor_rombel}");
+        return trim("{$this->tingkat} {$jurusanKode}");
     }
 
     /**

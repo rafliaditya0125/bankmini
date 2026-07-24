@@ -15,7 +15,7 @@ class RombelController extends Controller
     {
         $jurusanId = $request->jurusan_id;
         
-        $query = Rombel::with('jurusan');
+        $query = Rombel::with('jurusan')->withCount('nasabah');
         
         if ($jurusanId) {
             $query->where('jurusan_id', $jurusanId);
@@ -48,12 +48,15 @@ class RombelController extends Controller
         $createdCount = 0;
 
         DB::transaction(function () use ($request, $jumlahRombel, &$createdCount) {
+            $jurusan = Jurusan::find($request->jurusan_id);
+            $jurusanKode = $jurusan?->kode ?? '';
+
             for ($i = 1; $i <= $jumlahRombel; $i++) {
                 Rombel::create([
                     'jurusan_id' => $request->jurusan_id,
                     'tahun_ajaran' => $request->tahun_ajaran,
                     'tingkat' => $request->tingkat,
-                    'nomor_rombel' => $i,
+                    'nama' => trim("{$request->tingkat} {$jurusanKode} {$i}"),
                 ]);
                 $createdCount++;
             }
@@ -68,14 +71,14 @@ class RombelController extends Controller
             'jurusan_id' => 'required|exists:jurusans,id',
             'tahun_ajaran' => 'required|string|max:9',
             'tingkat' => 'required|in:10,11,12',
-            'nomor_rombel' => 'required|integer|min:1',
+            'nama' => 'required|string|max:255',
         ]);
 
         $rombel->update([
             'jurusan_id' => $request->jurusan_id,
             'tahun_ajaran' => $request->tahun_ajaran,
             'tingkat' => $request->tingkat,
-            'nomor_rombel' => $request->nomor_rombel,
+            'nama' => $request->nama,
         ]);
 
         return redirect()->back()->with('success', 'Kelas berhasil diperbarui');
