@@ -16,4 +16,24 @@ class NasabahLookupController extends Controller
         }
         return response()->json($nasabah);
     }
+    public function search(Request $request)
+    {
+        $q = $request->query('q');
+        if (empty($q) || strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $nasabahs = Nasabah::with(['user'])
+            ->where('status', 'aktif')
+            ->where(function ($query) use ($q) {
+                $query->where('nomor_rekening', 'like', "%{$q}%")
+                      ->orWhereHas('user', function ($qUser) use ($q) {
+                          $qUser->where('name', 'like', "%{$q}%");
+                      });
+            })
+            ->take(10)
+            ->get();
+
+        return response()->json($nasabahs);
+    }
 }

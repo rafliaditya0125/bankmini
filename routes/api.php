@@ -7,5 +7,6 @@ use App\Http\Controllers\Api\TransactionCodeController;
 
 Route::middleware('api')->group(function () {
     Route::get('/nasabah/by-rekening/{rekening}', [NasabahLookupController::class, 'show']);
+    Route::get('/nasabah/search', [NasabahLookupController::class, 'search']);
     Route::get('/kode-transaksi/check', [TransactionCodeController::class, 'check']);
 });
