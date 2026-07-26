@@ -63,12 +63,14 @@ class TransactionService
                 'no_urut' => $noUrut,
                 'nasabah_name' => $nasabah->user->name,
                 'nasabah_norek' => $nasabah->nomor_rekening,
+                'nasabah' => $nasabah->load(['user', 'rombelRel.jurusan']),
                 'jumlah' => $jumlah,
                 'saldo_sebelum' => $saldoSebelum,
                 'saldo_sesudah' => $saldoSesudah,
                 'jenis_transaksi' => 'setor',
                 'sub_jenis_transaksi' => $data['jenis_transaksi'] ?? null,
                 'tanggal' => now($timezone)->format('d/m/y H:i:s'),
+                'created_at' => now($timezone)->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
         });
@@ -129,12 +131,14 @@ class TransactionService
                 'no_urut' => $noUrut,
                 'nasabah_name' => $nasabah->user->name,
                 'nasabah_norek' => $nasabah->nomor_rekening,
+                'nasabah' => $nasabah->load(['user', 'rombelRel.jurusan']),
                 'jumlah' => $jumlah,
                 'saldo_sebelum' => $saldoSebelum,
                 'saldo_sesudah' => $saldoSesudah,
                 'jenis_transaksi' => 'tarik',
                 'sub_jenis_transaksi' => $data['jenis_transaksi'] ?? null,
                 'tanggal' => now($timezone)->format('d/m/y H:i:s'),
+                'created_at' => now($timezone)->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
         });
@@ -222,6 +226,7 @@ class TransactionService
                 'no_urut' => $noUrut,
                 'nasabah_name' => $pengirim->user->name,
                 'nasabah_norek' => $pengirim->nomor_rekening,
+                'nasabah' => $pengirim->load(['user', 'rombelRel.jurusan']),
                 'pengirim_name' => $pengirim->user->name,
                 'pengirim_norek' => $pengirim->nomor_rekening,
                 'penerima_name' => $penerima->user->name,
@@ -231,6 +236,7 @@ class TransactionService
                 'saldo_sesudah' => $saldoSesudahPengirim,
                 'jenis_transaksi' => 'transfer',
                 'tanggal' => now($timezone)->format('d/m/y H:i:s'),
+                'created_at' => now($timezone)->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
         });
@@ -308,6 +314,7 @@ class TransactionService
                 'no_urut' => $noUrut,
                 'nasabah_name' => $pembayar->user->name,
                 'nasabah_norek' => $pembayar->nomor_rekening,
+                'nasabah' => $pembayar->load(['user', 'rombelRel.jurusan']),
                 'jenis_pembayaran' => $penerima->user->name, // Jenis pembayaran
                 'penerima_name' => $penerima->user->name,
                 'penerima_norek' => $penerima->nomor_rekening,
@@ -316,6 +323,7 @@ class TransactionService
                 'saldo_sesudah' => $saldoSesudahPembayar,
                 'jenis_transaksi' => 'bayar',
                 'tanggal' => now($timezone)->format('d/m/y H:i:s'),
+                'created_at' => now($timezone)->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
         });

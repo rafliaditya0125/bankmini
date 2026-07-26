@@ -28,7 +28,7 @@ interface ReceiptProps {
 }
 
 export default function Receipt({ name, transaction, showPrint = true, showPassbookPrint = false, onPrint, onClose }: ReceiptProps) {
-    const { bank_city } = usePage<any>().props;
+    const { bank_city, bank_address, bank_phone } = usePage<any>().props;
     const [passbookStatus, setPassbookStatus] = useState<'idle' | 'printing' | 'success' | 'error'>('idle');
     const [passbookError, setPassbookError] = useState<string | null>(null);
 
@@ -140,92 +140,196 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
         ? normalized.tanggal.split(' ')
         : [normalized.tanggal, ''];
 
+    // Format tanggal: DD/MM/YYYY HH:MM:SS
+    const formatTanggal = (tanggal: string) => {
+        const date = new Date(tanggal);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    };
+
+    // Helper untuk mengambil kelas nasabah
+    const getKelasNasabah = () => {
+        const nasabah = (transaction as any).nasabah;
+        if (!nasabah) return '-';
+        
+        // Jika ada rombel_rel
+        if (nasabah.rombel_rel) {
+            return nasabah.rombel_rel.nama_kelas || `${nasabah.rombel_rel.tingkat} ${nasabah.rombel_rel.jurusan?.kode || ''}`.trim() || '-';
+        }
+        
+        // Jika user_type ada, tampilkan
+        if (nasabah.user?.user_type) {
+            return nasabah.user.user_type.toUpperCase();
+        }
+        
+        return '-';
+    };
+
+    // Helper untuk konversi angka ke terbilang
+    const numberToWords = (num: number): string => {
+        const ones = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan'];
+        const teens = ['Sepuluh', 'Sebelas', 'Dua Belas', 'Tiga Belas', 'Empat Belas', 'Lima Belas', 'Enam Belas', 'Tujuh Belas', 'Delapan Belas', 'Sembilan Belas'];
+        const tens = ['', '', 'Dua Puluh', 'Tiga Puluh', 'Empat Puluh', 'Lima Puluh', 'Enam Puluh', 'Tujuh Puluh', 'Delapan Puluh', 'Sembilan Puluh'];
+        
+        if (num === 0) return 'Nol';
+        
+        const convertHundreds = (n: number): string => {
+            if (n === 0) return '';
+            if (n < 10) return ones[n];
+            if (n >= 10 && n < 20) return teens[n - 10];
+            if (n < 100) {
+                const ten = Math.floor(n / 10);
+                const one = n % 10;
+                return tens[ten] + (one > 0 ? ' ' + ones[one] : '');
+            }
+            const hundred = Math.floor(n / 100);
+            const rest = n % 100;
+            return (hundred === 1 ? 'Seratus' : ones[hundred] + ' Ratus') + (rest > 0 ? ' ' + convertHundreds(rest) : '');
+        };
+        
+        if (num < 1000) return convertHundreds(num);
+        if (num < 1000000) {
+            const thousand = Math.floor(num / 1000);
+            const rest = num % 1000;
+            return (thousand === 1 ? 'Seribu' : convertHundreds(thousand) + ' Ribu') + (rest > 0 ? ' ' + convertHundreds(rest) : '');
+        }
+        if (num < 1000000000) {
+            const million = Math.floor(num / 1000000);
+            const rest = num % 1000000;
+            return convertHundreds(million) + ' Juta' + (rest > 0 ? ' ' + numberToWords(rest) : '');
+        }
+        return 'Terlalu Besar';
+    };
+
+    // Determine transaction type for header (KREDIT/DEBIT)
+    const getTransactionHeader = (type: string) => {
+        if (!type) return 'TRANSAKSI';
+        switch (type.toLowerCase()) {
+            case 'setor': 
+            case 'terima_bayar':
+            case 'bunga':
+                return 'TRANSAKSI KREDIT';
+            case 'tarik': 
+            case 'transfer':
+            case 'bayar':
+            case 'biaya_admin':
+                return 'TRANSAKSI DEBIT';
+            default: 
+                return 'TRANSAKSI';
+        }
+    };
+
+    // Format nominal dengan pemisah ribuan titik dan desimal koma
+    const formatNominal = (value: number | string): string => {
+        const num = typeof value === 'string' ? parseFloat(value) : value;
+        return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\./g, ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+    };
+
     return (
         <div>
-            <div id="receipt-print" className="bg-white p-6 space-y-4 font-mono text-[10px] text-gray-800 border border-gray-100 shadow-sm leading-tight">
-                {/* Logo header */}
-                <div className="flex justify-between items-start border-b border-gray-100 pb-4 mb-4">
-                    <div className="flex flex-col">
-                        <span className="font-black text-lg tracking-tighter uppercase">{name}</span>
-                        <span className="text-[8px] font-bold">TRANSAKSI {getTransactionActionLabel(normalized.jenis_transaksi)}</span>
-                    </div>
-                    <div className="text-right uppercase">
-                        <p>{tanggalParts[0]}</p>
-                        <p>{tanggalParts[1]}</p>
-                        <p>{bank_city}</p>
+            <div id="receipt-print" className="bg-white p-6 space-y-3 font-mono text-[11px] text-gray-800 border border-gray-100 shadow-sm leading-tight">
+                {/* Header Bank */}
+                <div className="text-center border-b border-dashed border-gray-300 pb-3 mb-3">
+                    <div className="font-black text-base tracking-tight uppercase">{name}</div>
+                    <div className="text-[10px] font-bold uppercase mt-0.5">SMK NEGERI 1 CIAMIS</div>
+                    <div className="text-[10px] font-bold uppercase">KABUPATEN {bank_city?.toUpperCase() || 'CIAMIS'}</div>
+                    <div className="text-[10px] font-bold">{bank_phone || '(0265) 771204'}</div>
+                </div>
+
+                {/* Date and horizontal line */}
+                <div className="text-center border-b border-gray-300 pb-1 mb-2">
+                    <div className="text-[9px] font-bold">
+                        {formatTanggal(normalized.tanggal || new Date().toISOString())}
                     </div>
                 </div>
 
-                <div className="space-y-1 uppercase">
-                    <div className="flex">
-                        <span className="w-24">NO URUT</span>
-                        <span>: {normalized.no_urut}</span>
+                {/* Transaction Type */}
+                <div className="text-center border-b border-dashed border-gray-300 pb-2 mb-3">
+                    <div className="font-black text-sm uppercase tracking-wide">
+                        {getTransactionHeader(normalized.jenis_transaksi)}
                     </div>
-                    <div className="flex">
-                        <span className="w-24">JENIS TRANS</span>
-                        <span>: {getTransactionTypeLabel(normalized.jenis_transaksi, normalized.sub_jenis_transaksi)}</span>
-                    </div>
-                    {normalized.jenis_transaksi !== 'transfer' && normalized.jenis_transaksi !== 'bayar' && (
-                        <div className="flex">
-                            <span className="w-24">PEMBAYARAN</span>
-                            <span className="uppercase">: {normalized.sub_jenis_transaksi}</span>
-                        </div>
-                    )}
-                    <div className="font-bold">{getTransactionActionLabel(normalized.jenis_transaksi)}</div>
-                    <div className="flex justify-between font-bold border-b border-gray-100 pb-2 mb-2">
-                        <span>{getJumlahLabel(normalized.jenis_transaksi)}</span>
-                        <span>{Number(normalized.jumlah).toLocaleString('id-ID', { minimumFractionDigits: 2 })}</span>
-                    </div>
+                </div>
 
+                {/* Nasabah Info */}
+                <div className="space-y-0.5 border-b border-dashed border-gray-300 pb-3 mb-3">
                     <div className="flex">
-                        <span className="w-24">{normalized.jenis_transaksi === 'transfer' ? 'PENGIRIM' : normalized.jenis_transaksi === 'terima_bayar' ? 'DARI' : 'NOREK'}</span>
+                        <span className="w-24 font-bold">Rekening</span>
                         <span>: {normalized.nasabah_norek}</span>
                     </div>
                     <div className="flex">
-                        <span className="w-24">NAMA</span>
-                        <span>: {normalized.nasabah_name}</span>
+                        <span className="w-24 font-bold">Nama</span>
+                        <span>: {normalized.nasabah_name.toUpperCase()}</span>
                     </div>
-                    {(normalized.jenis_transaksi === 'transfer' || normalized.jenis_transaksi === 'bayar' || normalized.jenis_transaksi === 'terima_bayar') && normalized.penerima_name && (
-                        <>
-                            {normalized.jenis_transaksi === 'terima_bayar' ? (
-                                // Untuk penerimaan pembayaran, tidak perlu tampilkan penerima lagi (sudah jelas ini akun penerima)
-                                null
-                            ) : normalized.jenis_transaksi === 'bayar' ? (
-                                // View dari pembayar: tampilkan jenis pembayaran
-                                <div className="flex">
-                                    <span className="w-24">JENIS BAYAR</span>
-                                    <span>: {normalized.penerima_name}</span>
-                                </div>
-                            ) : (
-                                // Transfer: tampilkan penerima lengkap
-                                <>
-                                    <div className="flex">
-                                        <span className="w-24">PENERIMA</span>
-                                        <span>: {normalized.penerima_norek}</span>
-                                    </div>
-                                    <div className="flex">
-                                        <span className="w-24">NAMA</span>
-                                        <span>: {normalized.penerima_name}</span>
-                                    </div>
-                                </>
-                            )}
-                        </>
-                    )}
                     <div className="flex">
-                        <span className="w-24">
-                            No. Bukti
-                        </span>
+                        <span className="w-24 font-bold">Kelas</span>
+                        <span>: {getKelasNasabah()}</span>
+                    </div>
+                </div>
+
+                {/* Transaction Details */}
+                <div className="space-y-0.5">
+                    <div className="flex">
+                        <span className="w-24 font-bold">No. Trans</span>
+                        <span>: {normalized.no_urut}</span>
+                    </div>
+                    <div className="flex">
+                        <span className="w-24 font-bold">No BKK/BKM</span>
                         <span>: {normalized.kode_transaksi}</span>
+                    </div>
+                    <div className="flex">
+                        <span className="w-24 font-bold">Jenis Trans</span>
+                        <span>: {getTransactionTypeLabel(normalized.jenis_transaksi, normalized.sub_jenis_transaksi).toUpperCase()}</span>
+                    </div>
+                    <div className="flex">
+                        <span className="w-24 font-bold">Nominal</span>
+                        <span>: Rp {formatNominal(normalized.jumlah)}</span>
+                    </div>
+                    {/* Terbilang */}
+                    <div className="pl-24 text-[9px] italic">
+                        {numberToWords(Math.floor(Number(normalized.jumlah)))} Rupiah
+                    </div>
+                    <div className="flex mt-1">
+                        <span className="w-24 font-bold">Saldo Awal</span>
+                        <span>: Rp {formatNominal(normalized.saldo_sebelum || 0)}</span>
+                    </div>
+                    <div className="flex">
+                        <span className="w-24 font-bold">Saldo sekarang</span>
+                        <span>: Rp {formatNominal(normalized.saldo_sesudah || 0)}</span>
                     </div>
                     {normalized.petugas && (
                         <div className="flex">
-                            <span className="w-24 uppercase">PETUGAS</span>
-                            <span className="uppercase">: {normalized.petugas}</span>
+                            <span className="w-24 font-bold">Petugas</span>
+                            <span>: {normalized.petugas.toUpperCase()}</span>
                         </div>
                     )}
                 </div>
 
-                <div className="pt-8 text-center text-[9px] font-bold border-t border-gray-100 mt-4">
+                {/* Penerima Info (untuk transfer/bayar) */}
+                {(normalized.jenis_transaksi === 'transfer' || normalized.jenis_transaksi === 'bayar') && normalized.penerima_name && (
+                    <div className="space-y-0.5 border-t border-dashed border-gray-300 pt-3 mt-3">
+                        <div className="font-bold text-[10px] mb-1">
+                            {normalized.jenis_transaksi === 'bayar' ? 'JENIS PEMBAYARAN:' : 'PENERIMA:'}
+                        </div>
+                        {normalized.jenis_transaksi === 'transfer' && (
+                            <div className="flex">
+                                <span className="w-24 font-bold">Rekening</span>
+                                <span>: {normalized.penerima_norek}</span>
+                            </div>
+                        )}
+                        <div className="flex">
+                            <span className="w-24 font-bold">Nama</span>
+                            <span>: {normalized.penerima_name.toUpperCase()}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Footer */}
+                <div className="pt-3 text-center text-[9px] font-bold border-t border-gray-300 mt-4">
                     STRUK INI ADALAH BUKTI<br />TRANSAKSI YANG SAH
                 </div>
             </div>
