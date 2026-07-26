@@ -16,6 +16,7 @@ class SettingSeeder extends Seeder
         $settings = [
             // UMUM
             'bank_name' => 'Ebank School',
+            'school_name' => 'SMK NEGERI 1 CIAMIS',
             'address' => 'Jl. Jend. Sudirman No. 269, Ciamis',
             'bank_city' => 'CIAMIS',
             'phone' => '(0265) 771204',
