@@ -11,11 +11,12 @@ Struk transaksi telah diperbarui dengan format yang lebih detail dan sesuai deng
 │        EBANK SCHOOL                │
 │     SMK NEGERI 1 CIAMIS            │
 │     CIAMIS                         │
+│  Jl. Jend. Sudirman No. 269        │
 │        (0265) 771204               │
 ├────────────────────────────────────┤
 │   23/07/2026 13:35:41              │
 ├────────────────────────────────────┤
-│      TRANSAKSI KREDIT              │
+│      TRANSAKSI SETOR               │
 ├────────────────────────────────────┤
 │ Rekening    : 2111T67              │
 │ Nama        : DRS. DENNI KUSDENNI  │
@@ -42,6 +43,7 @@ Struk transaksi telah diperbarui dengan format yang lebih detail dan sesuai deng
 - **Nama Sekolah**: Diambil dari setting `school_name`
 - **Kota/Kabupaten**: Diambil dari setting `bank_city` (tanpa kata "KABUPATEN" otomatis)
   - Anda bisa isi: "CIAMIS", "KOTA TASIKMALAYA", "KABUPATEN BANDUNG", dll
+- **Alamat**: Diambil dari setting `address` (alamat lengkap)
 - **No Telepon**: Diambil dari setting `phone`
 
 #### 2. Tanggal Transaksi
@@ -49,8 +51,13 @@ Struk transaksi telah diperbarui dengan format yang lebih detail dan sesuai deng
 - Contoh: `23/07/2026 13:35:41`
 
 #### 3. Tipe Transaksi
-- **TRANSAKSI KREDIT**: Untuk setor, terima pembayaran, bunga
-- **TRANSAKSI DEBIT**: Untuk tarik, transfer, bayar, biaya admin
+- **TRANSAKSI SETOR**: Untuk setoran/deposit
+- **TRANSAKSI TARIK**: Untuk penarikan
+- **TRANSAKSI TRANSFER**: Untuk transfer antar rekening
+- **TRANSAKSI BAYAR**: Untuk pembayaran
+- **TRANSAKSI PENERIMAAN**: Untuk penerimaan pembayaran
+- **TRANSAKSI BUNGA**: Untuk bunga tabungan bulanan
+- **TRANSAKSI BIAYA ADMIN**: Untuk biaya administrasi bulanan
 
 #### 4. Informasi Nasabah
 - **Rekening**: Nomor rekening nasabah
@@ -93,16 +100,15 @@ Aplikasi secara otomatis mengkonversi nominal ke terbilang:
 
 ### Klasifikasi Transaksi
 
-| Jenis Transaksi | Klasifikasi | Keterangan |
-|----------------|-------------|------------|
-| Setor | KREDIT | Penambahan saldo |
-| Tarik | DEBIT | Pengurangan saldo |
-| Transfer (Pengirim) | DEBIT | Pengurangan saldo pengirim |
-| Transfer (Penerima) | KREDIT | Penambahan saldo penerima |
-| Bayar | DEBIT | Pembayaran ke akun pembayaran |
-| Terima Bayar | KREDIT | Penerimaan pembayaran |
-| Bunga | KREDIT | Bunga tabungan bulanan |
-| Biaya Admin | DEBIT | Biaya administrasi bulanan |
+| Jenis Transaksi | Header Struk | Keterangan |
+|----------------|--------------|------------|
+| Setor | TRANSAKSI SETOR | Penambahan saldo |
+| Tarik | TRANSAKSI TARIK | Pengurangan saldo |
+| Transfer | TRANSAKSI TRANSFER | Transfer antar rekening |
+| Bayar | TRANSAKSI BAYAR | Pembayaran ke akun pembayaran |
+| Terima Bayar | TRANSAKSI PENERIMAAN | Penerimaan pembayaran |
+| Bunga | TRANSAKSI BUNGA | Bunga tabungan bulanan |
+| Biaya Admin | TRANSAKSI BIAYA ADMIN | Biaya administrasi bulanan |
 
 ### Kustomisasi
 
