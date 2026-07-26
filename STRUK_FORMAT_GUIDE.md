@@ -10,7 +10,7 @@ Struk transaksi telah diperbarui dengan format yang lebih detail dan sesuai deng
 ┌────────────────────────────────────┐
 │        EBANK SCHOOL                │
 │     SMK NEGERI 1 CIAMIS            │
-│     KABUPATEN CIAMIS               │
+│     CIAMIS                         │
 │        (0265) 771204               │
 ├────────────────────────────────────┤
 │   23/07/2026 13:35:41              │
@@ -39,8 +39,9 @@ Struk transaksi telah diperbarui dengan format yang lebih detail dan sesuai deng
 
 #### 1. Header Bank
 - **Nama Bank**: Diambil dari setting `bank_name`
-- **Nama Sekolah**: SMK NEGERI 1 CIAMIS (hardcoded sesuai kebutuhan)
-- **Kabupaten**: Diambil dari setting `bank_city`
+- **Nama Sekolah**: Diambil dari setting `school_name`
+- **Kota/Kabupaten**: Diambil dari setting `bank_city` (tanpa kata "KABUPATEN" otomatis)
+  - Anda bisa isi: "CIAMIS", "KOTA TASIKMALAYA", "KABUPATEN BANDUNG", dll
 - **No Telepon**: Diambil dari setting `phone`
 
 #### 2. Tanggal Transaksi
@@ -109,10 +110,28 @@ Untuk mengubah informasi bank di header struk:
 1. Login sebagai Superadmin
 2. Buka menu **Pengaturan**
 3. Edit bagian **UMUM**:
-   - **Nama Bank**: Nama bank yang akan ditampilkan
+   - **Nama Bank**: Nama bank yang akan ditampilkan (contoh: "Ebank School")
+   - **Nama Sekolah**: Nama lengkap sekolah (contoh: "SMK NEGERI 1 CIAMIS")
+   - **Kota**: Nama kota/kabupaten (contoh: "CIAMIS", "KOTA TASIKMALAYA", "KABUPATEN BANDUNG")
    - **Alamat**: Alamat lengkap bank
-   - **Kota**: Nama kota/kabupaten
    - **No Telepon**: Nomor telepon bank
+
+**Contoh Konfigurasi:**
+
+**SMK di Ciamis:**
+- Nama Bank: Ebank School
+- Nama Sekolah: SMK NEGERI 1 CIAMIS
+- Kota: CIAMIS
+
+**SMK di Kota Tasikmalaya:**
+- Nama Bank: Bank Mini SMKN 5
+- Nama Sekolah: SMK NEGERI 5 TASIKMALAYA
+- Kota: KOTA TASIKMALAYA
+
+**SMK di Kabupaten:**
+- Nama Bank: Bank Mini SMKN 2
+- Nama Sekolah: SMK NEGERI 2 SOREANG
+- Kota: KABUPATEN BANDUNG
 
 Perubahan akan langsung terlihat di struk transaksi berikutnya.
 

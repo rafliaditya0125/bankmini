@@ -28,7 +28,7 @@ interface ReceiptProps {
 }
 
 export default function Receipt({ name, transaction, showPrint = true, showPassbookPrint = false, onPrint, onClose }: ReceiptProps) {
-    const { bank_city, bank_address, bank_phone } = usePage<any>().props;
+    const { school_name, bank_city, bank_address, bank_phone } = usePage<any>().props;
     const [passbookStatus, setPassbookStatus] = useState<'idle' | 'printing' | 'success' | 'error'>('idle');
     const [passbookError, setPassbookError] = useState<string | null>(null);
 
@@ -247,8 +247,8 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                 {/* Header Bank */}
                 <div className="text-center border-b border-dashed border-gray-300 pb-3 mb-3">
                     <div className="font-black text-base tracking-tight uppercase">{name}</div>
-                    <div className="text-[10px] font-bold uppercase mt-0.5">SMK NEGERI 1 CIAMIS</div>
-                    <div className="text-[10px] font-bold uppercase">KABUPATEN {bank_city?.toUpperCase() || 'CIAMIS'}</div>
+                    <div className="text-[10px] font-bold uppercase mt-0.5">{school_name || 'SMK NEGERI 1 CIAMIS'}</div>
+                    <div className="text-[10px] font-bold uppercase">{bank_city?.toUpperCase() || 'CIAMIS'}</div>
                     <div className="text-[10px] font-bold">{bank_phone || '(0265) 771204'}</div>
                 </div>
 

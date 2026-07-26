@@ -41,6 +41,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => Setting::get('bank_name', config('app.name')),
+            'school_name' => Setting::get('school_name', 'SMK NEGERI 1 CIAMIS'),
             'bank_city' => Setting::get('bank_city', 'Tasikmalaya'),
             'bank_address' => Setting::get('address', 'Jl. Pendidikan No. 123'),
             'bank_phone' => Setting::get('phone', '(021) 1234-5678'),
