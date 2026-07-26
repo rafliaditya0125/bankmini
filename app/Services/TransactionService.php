@@ -13,6 +13,43 @@ use Illuminate\Support\Str;
 class TransactionService
 {
     /**
+     * Generate BKM/BKK number based on monthly cycle
+     * Reset every 1st of the month
+     * Find the smallest available number (including cancelled ones)
+     */
+    private function generateBkkBkm(string $prefix): string
+    {
+        $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+        $currentMonth = now($timezone)->format('Ym'); // Format: 202607 for July 2026
+        
+        // Find all used numbers for this month
+        $usedNumbers = Transaksi::where('kode_transaksi', 'like', $prefix . '%')
+            ->whereYear('created_at', now($timezone)->year)
+            ->whereMonth('created_at', now($timezone)->month)
+            ->where('status', '!=', 'cancelled')
+            ->pluck('kode_transaksi')
+            ->map(function($kode) use ($prefix) {
+                // Extract number from BKM001, BKK002, etc
+                return (int) str_replace($prefix, '', $kode);
+            })
+            ->sort()
+            ->values()
+            ->toArray();
+        
+        // Find the smallest available number starting from 1
+        $nextNumber = 1;
+        foreach ($usedNumbers as $num) {
+            if ($num == $nextNumber) {
+                $nextNumber++;
+            } else {
+                break;
+            }
+        }
+        
+        return $prefix . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
      * Process a deposit (Setoran)
      */
     public function setor(array $data, string $role)
@@ -29,7 +66,14 @@ class TransactionService
             $saldoSesudah = $saldoSebelum + $jumlah;
 
             $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
-            $kodeTransaksi = $data['kode_transaksi'] ?? ('1' . now($timezone)->format('YmdHis') . strtoupper(Str::random(4)));
+            
+            // Generate kode transaksi based on mode
+            $bkkBkmMode = \App\Models\Setting::get('bkk_bkm_mode', 'manual');
+            if ($bkkBkmMode === 'manual') {
+                $kodeTransaksi = $data['kode_transaksi']; // Already validated and prefixed by controller
+            } else {
+                $kodeTransaksi = $this->generateBkkBkm('BKM');
+            }
 
             $transaksi = Transaksi::create([
                 'kode_transaksi' => $kodeTransaksi,
@@ -96,7 +140,14 @@ class TransactionService
             $saldoSesudah = $saldoSebelum - $jumlah;
 
             $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
-            $kodeTransaksi = $data['kode_transaksi'] ?? ('2' . now($timezone)->format('YmdHis') . strtoupper(Str::random(4)));
+            
+            // Generate kode transaksi based on mode
+            $bkkBkmMode = \App\Models\Setting::get('bkk_bkm_mode', 'manual');
+            if ($bkkBkmMode === 'manual') {
+                $kodeTransaksi = $data['kode_transaksi']; // Already validated and prefixed by controller
+            } else {
+                $kodeTransaksi = $this->generateBkkBkm('BKK');
+            }
 
             $transaksi = Transaksi::create([
                 'kode_transaksi' => $kodeTransaksi,
@@ -323,24 +374,6 @@ class TransactionService
                 'created_at' => $transaksi->created_at->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
-
-            return [
-                'kode_transaksi' => $kodeTransaksi,
-                'no_urut' => $noUrut,
-                'nasabah_name' => $pembayar->user->name,
-                'nasabah_norek' => $pembayar->nomor_rekening,
-                'nasabah' => $pembayar->load(['user', 'rombelRel.jurusan']),
-                'jenis_pembayaran' => $penerima->user->name, // Jenis pembayaran
-                'penerima_name' => $penerima->user->name,
-                'penerima_norek' => $penerima->nomor_rekening,
-                'jumlah' => $jumlah,
-                'saldo_sebelum' => $saldoSebelumPembayar,
-                'saldo_sesudah' => $saldoSesudahPembayar,
-                'jenis_transaksi' => 'bayar',
-                'tanggal' => now($timezone)->format('d/m/y H:i:s'),
-                'created_at' => now($timezone)->toDateTimeString(),
-                'petugas' => $data['nama_petugas'],
-            ];
         });
     }
     /**
@@ -364,11 +397,21 @@ class TransactionService
             if ($jenis === 'setor') {
                 $nasabah = Nasabah::findOrFail($transaksi->nasabah_id);
                 $nasabah->decrement('saldo', (float) $jumlah);
-                $transaksi->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
+                // Kosongkan kode_transaksi agar nomor BKM bisa dipakai lagi
+                $transaksi->update([
+                    'status' => 'cancelled', 
+                    'cancel_reason' => $reason,
+                    'kode_transaksi' => 'CANCELLED-' . $kodeTransaksi // Prefix agar tidak conflict
+                ]);
             } elseif ($jenis === 'tarik') {
                 $nasabah = Nasabah::findOrFail($transaksi->nasabah_id);
                 $nasabah->increment('saldo', (float) $jumlah);
-                $transaksi->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
+                // Kosongkan kode_transaksi agar nomor BKK bisa dipakai lagi
+                $transaksi->update([
+                    'status' => 'cancelled', 
+                    'cancel_reason' => $reason,
+                    'kode_transaksi' => 'CANCELLED-' . $kodeTransaksi
+                ]);
             } elseif ($jenis === 'transfer') {
                 // For transfers, we find both records (sender and receiver)
                 $relatedTransactions = Transaksi::where('kode_transaksi', $kodeTransaksi)->get();
@@ -387,6 +430,7 @@ class TransactionService
                         $nasabah->decrement('saldo', (float) $jumlah);
                     }
 
+                    // Transfer tidak menggunakan BKK/BKM, jadi tidak perlu kosongkan
                     $tx->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
                 }
             } elseif ($jenis === 'bayar') {
@@ -400,6 +444,7 @@ class TransactionService
                 // Subtract from penerima
                 $penerima->decrement('saldo', (float) $jumlah);
                 
+                // Pembayaran tidak menggunakan BKK/BKM, jadi tidak perlu kosongkan
                 $transaksi->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
             }
 
