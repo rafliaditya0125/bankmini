@@ -29,7 +29,6 @@ class TransactionService
             $saldoSesudah = $saldoSebelum + $jumlah;
 
             $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
-            $noUrut = Transaksi::whereDate('created_at', now($timezone)->toDateString())->count() + 1;
             $kodeTransaksi = $data['kode_transaksi'] ?? ('1' . now($timezone)->format('YmdHis') . strtoupper(Str::random(4)));
 
             $transaksi = Transaksi::create([
@@ -60,7 +59,7 @@ class TransactionService
 
             return [
                 'kode_transaksi' => $kodeTransaksi,
-                'no_urut' => $noUrut,
+                'no_urut' => $transaksi->id,
                 'nasabah_name' => $nasabah->user->name,
                 'nasabah_norek' => $nasabah->nomor_rekening,
                 'nasabah' => $nasabah->load(['user', 'rombelRel.jurusan']),
@@ -69,8 +68,8 @@ class TransactionService
                 'saldo_sesudah' => $saldoSesudah,
                 'jenis_transaksi' => 'setor',
                 'sub_jenis_transaksi' => $data['jenis_transaksi'] ?? null,
-                'tanggal' => now($timezone)->format('d/m/y H:i:s'),
-                'created_at' => now($timezone)->toDateTimeString(),
+                'tanggal' => $transaksi->created_at->format('Y-m-d H:i:s'),
+                'created_at' => $transaksi->created_at->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
         });
@@ -97,7 +96,6 @@ class TransactionService
             $saldoSesudah = $saldoSebelum - $jumlah;
 
             $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
-            $noUrut = Transaksi::whereDate('created_at', now($timezone)->toDateString())->count() + 1;
             $kodeTransaksi = $data['kode_transaksi'] ?? ('2' . now($timezone)->format('YmdHis') . strtoupper(Str::random(4)));
 
             $transaksi = Transaksi::create([
@@ -128,7 +126,7 @@ class TransactionService
 
             return [
                 'kode_transaksi' => $kodeTransaksi,
-                'no_urut' => $noUrut,
+                'no_urut' => $transaksi->id,
                 'nasabah_name' => $nasabah->user->name,
                 'nasabah_norek' => $nasabah->nomor_rekening,
                 'nasabah' => $nasabah->load(['user', 'rombelRel.jurusan']),
@@ -137,8 +135,8 @@ class TransactionService
                 'saldo_sesudah' => $saldoSesudah,
                 'jenis_transaksi' => 'tarik',
                 'sub_jenis_transaksi' => $data['jenis_transaksi'] ?? null,
-                'tanggal' => now($timezone)->format('d/m/y H:i:s'),
-                'created_at' => now($timezone)->toDateTimeString(),
+                'tanggal' => $transaksi->created_at->format('Y-m-d H:i:s'),
+                'created_at' => $transaksi->created_at->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
         });
@@ -207,8 +205,6 @@ class TransactionService
             $pengirim->update(['saldo' => $saldoSesudahPengirim]);
             $penerima->update(['saldo' => $saldoSesudahPenerima]);
 
-            $noUrut = Transaksi::whereDate('created_at', now($timezone)->toDateString())->distinct('kode_transaksi')->count('kode_transaksi') + 1;
-
             AuditLog::logActivity(
                 'transfer',
                 "Transfer Rp " . number_format($jumlah, 0, ',', '.') . " dari " . $pengirim->nomor_rekening . " ke " . $penerima->nomor_rekening,
@@ -221,9 +217,12 @@ class TransactionService
             NotificationService::sendTransactionNotification($pengirim->user_id, 'transfer_out', $jumlah, $kodeTransaksi . '-S');
             NotificationService::sendTransactionNotification($penerima->user_id, 'transfer_in', $jumlah, $kodeTransaksi . '-R');
 
+            // Ambil transaksi yang baru dibuat untuk mendapatkan ID
+            $transaksiPengirim = Transaksi::where('kode_transaksi', $kodeTransaksi . '-S')->first();
+
             return [
                 'kode_transaksi' => $kodeTransaksi,
-                'no_urut' => $noUrut,
+                'no_urut' => $transaksiPengirim->id,
                 'nasabah_name' => $pengirim->user->name,
                 'nasabah_norek' => $pengirim->nomor_rekening,
                 'nasabah' => $pengirim->load(['user', 'rombelRel.jurusan']),
@@ -235,8 +234,8 @@ class TransactionService
                 'saldo_sebelum' => $saldoSebelumPengirim,
                 'saldo_sesudah' => $saldoSesudahPengirim,
                 'jenis_transaksi' => 'transfer',
-                'tanggal' => now($timezone)->format('d/m/y H:i:s'),
-                'created_at' => now($timezone)->toDateTimeString(),
+                'tanggal' => $transaksiPengirim->created_at->format('Y-m-d H:i:s'),
+                'created_at' => $transaksiPengirim->created_at->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
         });
@@ -277,7 +276,7 @@ class TransactionService
 
             // HANYA buat transaksi di sisi pembayar
             // Riwayat hanya muncul 1 kali
-            Transaksi::create([
+            $transaksi = Transaksi::create([
                 'kode_transaksi' => $kodeTransaksi,
                 'nasabah_id' => $pembayar->id,
                 'user_id' => Auth::id(),
@@ -295,8 +294,6 @@ class TransactionService
             $pembayar->update(['saldo' => $saldoSesudahPembayar]);
             $penerima->update(['saldo' => $saldoSesudahPenerima]);
 
-            $noUrut = Transaksi::whereDate('created_at', now($timezone)->toDateString())->distinct('kode_transaksi')->count('kode_transaksi') + 1;
-
             AuditLog::logActivity(
                 'bayar',
                 "Pembayaran Rp " . number_format($jumlah, 0, ',', '.') . " dari " . $pembayar->nomor_rekening . " untuk " . $penerima->user->name,
@@ -308,6 +305,24 @@ class TransactionService
 
             // Hanya kirim notifikasi ke pembayar (karena hanya dia yang punya transaksi)
             NotificationService::sendTransactionNotification($pembayar->user_id, 'bayar', $jumlah, $kodeTransaksi);
+
+            return [
+                'kode_transaksi' => $kodeTransaksi,
+                'no_urut' => $transaksi->id,
+                'nasabah_name' => $pembayar->user->name,
+                'nasabah_norek' => $pembayar->nomor_rekening,
+                'nasabah' => $pembayar->load(['user', 'rombelRel.jurusan']),
+                'jenis_pembayaran' => $penerima->user->name, // Jenis pembayaran
+                'penerima_name' => $penerima->user->name,
+                'penerima_norek' => $penerima->nomor_rekening,
+                'jumlah' => $jumlah,
+                'saldo_sebelum' => $saldoSebelumPembayar,
+                'saldo_sesudah' => $saldoSesudahPembayar,
+                'jenis_transaksi' => 'bayar',
+                'tanggal' => $transaksi->created_at->format('Y-m-d H:i:s'),
+                'created_at' => $transaksi->created_at->toDateTimeString(),
+                'petugas' => $data['nama_petugas'],
+            ];
 
             return [
                 'kode_transaksi' => $kodeTransaksi,

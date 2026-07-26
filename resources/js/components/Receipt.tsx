@@ -39,10 +39,8 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
 
     const normalized: ReceiptData = {
         kode_transaksi: transaction.kode_transaksi,
-        no_urut: transaction.no_urut || '-',
-        tanggal: transaction.tanggal || (transaction.created_at
-            ? new Date(transaction.created_at).toLocaleString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':')
-            : '- -'),
+        no_urut: transaction.no_urut || transaction.id || '-',
+        tanggal: transaction.tanggal || transaction.created_at || new Date().toISOString(),
         jumlah: transaction.jumlah,
         jenis_transaksi: (transaction as any).is_incoming_payment ? 'terima_bayar' : transaction.jenis_transaksi,
         nasabah_name: (transaction.jenis_transaksi === 'transfer')
@@ -142,14 +140,27 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
 
     // Format tanggal: DD/MM/YYYY HH:MM:SS
     const formatTanggal = (tanggal: string) => {
-        const date = new Date(tanggal);
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+        if (!tanggal) return '-';
+        
+        try {
+            // Parse tanggal dari format Y-m-d H:i:s atau ISO string
+            const date = new Date(tanggal);
+            
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                return tanggal; // Return original if cannot parse
+            }
+            
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+        } catch (error) {
+            return tanggal;
+        }
     };
 
     // Helper untuk mengambil kelas nasabah

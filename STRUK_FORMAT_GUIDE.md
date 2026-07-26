@@ -59,7 +59,9 @@ Struk transaksi telah diperbarui dengan format yang lebih detail dan sesuai deng
   - Untuk lainnya: Menampilkan tipe user (contoh: "GURU", "KARYAWAN", "ORGANISASI")
 
 #### 5. Detail Transaksi
-- **No. Trans**: Nomor urut transaksi dalam hari tersebut
+- **No. Trans**: Nomor urut transaksi dari awal aplikasi berjalan (menggunakan ID auto-increment database)
+  - Contoh: 260723133541 (transaksi ke-260723133541 sejak aplikasi dimulai)
+  - **Tidak pernah reset**, terus bertambah setiap ada transaksi baru
 - **No BKK/BKM**: Kode unik transaksi
 - **Jenis Trans**: Jenis transaksi (SETOR TUNAI, PENARIKAN TUNAI, dll)
 - **Nominal**: Jumlah transaksi dalam format Rp X.XXX.XXX,XX
