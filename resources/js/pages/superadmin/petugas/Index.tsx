@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import Modal from '@/components/Modal';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
+import Pagination from '@/components/Pagination';
 import type { User } from '@/types';
 
 interface PetugasIndexProps {
@@ -359,32 +360,18 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
                         </table>
                     </div>
                     {/* Pagination */}
-                    <div className="px-6 py-4 border-t border-slate-200/70 bg-slate-50/70 flex items-center justify-between">
-                        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">
-                            Total {petugas.total} Petugas
-                        </div>
-                        <div className="flex gap-2">
-                            {petugas.current_page > 1 && (
-                                <Link
-                                    href={`/${rolePrefix}/petugas?page=${petugas.current_page - 1}&search=${search}&role=${roleFilter}&status=${statusFilter}`}
-                                    className="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                                >
-                                    Prev
-                                </Link>
-                            )}
-                            <div className="px-4 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-xl">
-                                {petugas.current_page}
-                            </div>
-                            {petugas.current_page < petugas.last_page && (
-                                <Link
-                                    href={`/${rolePrefix}/petugas?page=${petugas.current_page + 1}&search=${search}&role=${roleFilter}&status=${statusFilter}`}
-                                    className="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                                >
-                                    Next
-                                </Link>
-                            )}
-                        </div>
-                    </div>
+                    <Pagination
+                        currentPage={petugas.current_page}
+                        lastPage={petugas.last_page}
+                        total={petugas.total}
+                        url={`/${rolePrefix}/petugas`}
+                        filters={{
+                            search,
+                            role: roleFilter,
+                            status: statusFilter,
+                        }}
+                        itemLabel="Petugas"
+                    />
                 </div>
             </div>
 

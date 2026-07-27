@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
+import Pagination from '@/components/Pagination';
 
 interface Notification {
     id: number;
@@ -110,24 +111,16 @@ export default function Notifications({ notifications }: NotificationsProps) {
                     ))
                 )}
 
-                {/* Pagination (Simple) */}
-                {notifications.last_page > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-8 pb-12">
-                        {Array.from({ length: notifications.last_page }, (_, i) => i + 1).map((page) => (
-                            <button
-                                key={page}
-                                onClick={() => router.get(`/nasabah/notifications?page=${page}`)}
-                                className={`h-10 w-10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    notifications.current_page === page
-                                        ? 'bg-emerald-600 text-white border-none shadow-lg'
-                                        : 'bg-white text-gray-500 border border-slate-200 hover:border-emerald-300'
-                                }`}
-                            >
-                                {page}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                {/* Pagination */}
+                <div className="mt-8 pb-12">
+                    <Pagination
+                        currentPage={notifications.current_page}
+                        lastPage={notifications.last_page}
+                        total={(notifications as any).total || notifications.data.length}
+                        url="/nasabah/notifications"
+                        itemLabel="Notifikasi"
+                    />
+                </div>
             </div>
         </DashboardLayout>
     );

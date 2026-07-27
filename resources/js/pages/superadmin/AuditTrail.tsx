@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { useState } from 'react';
+import Pagination from '@/components/Pagination';
 
 interface AuditLog {
     id: number;
@@ -359,37 +360,14 @@ export default function AuditTrail({ logs, filters }: AuditTrailProps) {
                     </div>
                     
                     {/* Pagination */}
-                    <div className="px-6 py-4 border-t border-slate-200/70 bg-slate-50/70 flex items-center justify-between">
-                        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">
-                            Menampilkan {logs.data.length} dari {logs.total} log
-                        </div>
-                        
-                        <div className="flex gap-2">
-                            {logs.current_page > 1 && (
-                                <Link
-                                    href={`/${rolePrefix}/audit-trail`}
-                                    data={{ ...filters, page: logs.current_page - 1 }}
-                                    className="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                                >
-                                    Prev
-                                </Link>
-                            )}
-                            
-                            <div className="px-4 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-xl">
-                                {logs.current_page}
-                            </div>
-                            
-                            {logs.current_page < logs.last_page && (
-                                <Link
-                                    href={`/${rolePrefix}/audit-trail`}
-                                    data={{ ...filters, page: logs.current_page + 1 }}
-                                    className="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                                >
-                                    Next
-                                </Link>
-                            )}
-                        </div>
-                    </div>
+                    <Pagination
+                        currentPage={logs.current_page}
+                        lastPage={logs.last_page}
+                        total={logs.total}
+                        url={`/${rolePrefix}/audit-trail`}
+                        filters={filters}
+                        itemLabel="Log"
+                    />
                 </div>
 
                 {/* Detail Modal */}

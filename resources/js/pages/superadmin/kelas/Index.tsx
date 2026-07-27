@@ -2,6 +2,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import Modal from '@/components/Modal';
+import Pagination from '@/components/Pagination';
 import type { Jurusan } from '@/types';
 
 interface Rombel {
@@ -303,32 +304,17 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                     </div>
 
                     {/* Pagination */}
-                    <div className="px-6 py-4 border-t border-slate-200/70 bg-slate-50/70 flex items-center justify-between">
-                        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">
-                            Total {rombels.total} Kelas
-                        </div>
-                        <div className="flex gap-2">
-                            {rombels.current_page > 1 && (
-                                <Link
-                                    href={`/${rolePrefix}/rombel?page=${rombels.current_page - 1}&search=${search}&jurusan_id=${jurusanFilter}`}
-                                    className="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                                >
-                                    Prev
-                                </Link>
-                            )}
-                            <div className="px-4 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-xl">
-                                {rombels.current_page}
-                            </div>
-                            {rombels.current_page < rombels.last_page && (
-                                <Link
-                                    href={`/${rolePrefix}/rombel?page=${rombels.current_page + 1}&search=${search}&jurusan_id=${jurusanFilter}`}
-                                    className="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                                >
-                                    Next
-                                </Link>
-                            )}
-                        </div>
-                    </div>
+                    <Pagination
+                        currentPage={rombels.current_page}
+                        lastPage={rombels.last_page}
+                        total={rombels.total}
+                        url={`/${rolePrefix}/rombel`}
+                        filters={{
+                            search,
+                            jurusan_id: jurusanFilter,
+                        }}
+                        itemLabel="Kelas"
+                    />
                 </div>
             </div>
 
