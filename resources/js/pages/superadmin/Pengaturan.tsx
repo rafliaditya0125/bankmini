@@ -197,6 +197,7 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
                                 <>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         {renderInput('bank_name', 'Nama Bank')}
+                                        {renderInput('school_name', 'Nama Sekolah')}
                                         {renderInput('bank_city', 'Kota')}
                                         <div className="md:col-span-2">
                                             {renderInput('address', 'Alamat Lengkap')}

@@ -52,7 +52,7 @@ class PengaturanController extends Controller
     {
         return [
             // UMUM
-            'bank_name', 'address', 'bank_city', 'phone',
+            'bank_name', 'school_name', 'address', 'bank_city', 'phone',
             // KEAMANAN
             'ip_blacklist', 'throttle_login_limit', 'throttle_transaction_limit',
             // TRANSAKSI
@@ -139,6 +139,7 @@ class PengaturanController extends Controller
         return [
             // UMUM
             'bank_name' => Setting::get('bank_name', 'BANK MINI SMK'),
+            'school_name' => Setting::get('school_name', 'SMK NEGERI 1 CIAMIS'),
             'address' => Setting::get('address', 'Jl. Pendidikan No. 123, Jakarta'),
             'bank_city' => Setting::get('bank_city', 'Tasikmalaya'),
             'phone' => Setting::get('phone', '(021) 1234-5678'),

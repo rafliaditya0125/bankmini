@@ -357,4 +357,132 @@ class JurusanController extends Controller
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
+
+    /**
+     * Download template rombel for all jurusan (with jurusan_id column)
+     */
+    public function downloadRombelTemplateAll()
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Template Rombel All');
+
+        // Header
+        $sheet->fromArray(['jurusan_id', 'tahun_ajaran', 'tingkat', 'nama'], null, 'A1');
+        
+        // Contoh data dengan beberapa jurusan
+        $jurusans = Jurusan::orderBy('id')->take(3)->get();
+        $row = 2;
+        foreach ($jurusans as $jurusan) {
+            $sheet->fromArray([$jurusan->id, '2025/2026', '10', '10 ' . $jurusan->kode . ' 1'], null, "A{$row}");
+            $row++;
+            $sheet->fromArray([$jurusan->id, '2025/2026', '11', '11 ' . $jurusan->kode . ' 1'], null, "A{$row}");
+            $row++;
+        }
+
+        $writer = new XlsxWriter($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, 'template_rombel_all_jurusan.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * Import rombel for all jurusan with jurusan_id column
+     */
+    public function importRombelAll(Request $request)
+    {
+        $request->validate([
+            'files'   => 'nullable|array',
+            'files.*' => 'mimes:xlsx,xls',
+            'file'    => 'nullable|mimes:xlsx,xls',
+        ]);
+
+        $uploadedFiles = [];
+        if ($request->hasFile('files')) {
+            $rawFiles = $request->file('files');
+            $uploadedFiles = is_array($rawFiles) ? $rawFiles : [$rawFiles];
+        } elseif ($request->hasFile('file')) {
+            $rawFile = $request->file('file');
+            $uploadedFiles = is_array($rawFile) ? $rawFile : [$rawFile];
+        }
+
+        if (empty($uploadedFiles)) {
+            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+        }
+
+        $count = 0;
+        $errors = [];
+
+        DB::transaction(function () use ($uploadedFiles, &$count, &$errors) {
+            foreach ($uploadedFiles as $file) {
+                $spreadsheet = IOFactory::load($file->getRealPath());
+                $rows = $spreadsheet->getActiveSheet()->toArray();
+                array_shift($rows); // Skip header
+
+                foreach ($rows as $rowIndex => $data) {
+                    $rowNumber = $rowIndex + 2; // +2 because header is row 1, data starts at row 2
+
+                    if (empty($data[0]) || empty($data[1]) || empty($data[2]) || empty($data[3])) continue;
+
+                    $jurusanId = (int)trim($data[0]);
+                    $tahunAjaran = trim($data[1]);
+                    $tingkat = trim($data[2]);
+                    $nama = trim($data[3]);
+
+                    // Validate jurusan exists
+                    $jurusan = Jurusan::find($jurusanId);
+                    if (!$jurusan) {
+                        $errors[] = "Baris {$rowNumber}: Jurusan ID {$jurusanId} tidak ditemukan";
+                        continue;
+                    }
+
+                    // Validate tingkat
+                    if (!in_array($tingkat, ['10', '11', '12'])) {
+                        $errors[] = "Baris {$rowNumber}: Tingkat harus 10, 11, atau 12";
+                        continue;
+                    }
+
+                    // Check if combination already exists
+                    if (\App\Models\Rombel::where('jurusan_id', $jurusanId)
+                        ->where('tahun_ajaran', $tahunAjaran)
+                        ->where('tingkat', $tingkat)
+                        ->where('nama', $nama)
+                        ->exists()) {
+                        continue; // Skip duplicates silently
+                    }
+
+                    \App\Models\Rombel::create([
+                        'jurusan_id' => $jurusanId,
+                        'tahun_ajaran' => $tahunAjaran,
+                        'tingkat' => $tingkat,
+                        'nama' => $nama,
+                    ]);
+
+                    $count++;
+                }
+            }
+        });
+
+        AuditLog::logActivity(
+            'import_rombel_all',
+            "Import {$count} rombel baru untuk semua jurusan via Excel",
+            'success',
+            Auth::id(),
+            Auth::user()->name,
+            Auth::user()->role
+        );
+
+        $message = "Berhasil mengimport {$count} rombel";
+        if (!empty($errors)) {
+            $message .= ". Beberapa baris dilewati: " . implode(', ', array_slice($errors, 0, 3));
+            if (count($errors) > 3) {
+                $message .= " dan " . (count($errors) - 3) . " error lainnya";
+            }
+        }
+
+        return back()->with('success', $message);
+    }
 }
