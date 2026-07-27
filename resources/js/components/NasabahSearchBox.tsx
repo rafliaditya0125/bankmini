@@ -8,11 +8,28 @@ interface NasabahSearchBoxProps {
     placeholder?: string;
 }
 
-export default function NasabahSearchBox({ value, onChange, onSelect, placeholder = "Cari nama atau nomor rekening..." }: NasabahSearchBoxProps) {
+export default function NasabahSearchBox({ value, onChange, onSelect, placeholder = "Cari nama, kelas, atau nomor rekening..." }: NasabahSearchBoxProps) {
     const [results, setResults] = useState<any[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
+
+    const getKelasName = (item: any) => {
+        if (item.rombel_rel || item.rombelRel) {
+            const rombel = item.rombel_rel || item.rombelRel;
+            if (rombel.nama_kelas) return rombel.nama_kelas;
+            if (rombel.nama) return rombel.nama;
+            const jurusanKode = rombel.jurusan?.kode || rombel.jurusan_rel?.kode || '';
+            return `${rombel.tingkat || ''} ${jurusanKode}`.trim();
+        }
+        if (item.jurusan_rel || item.jurusanRel) {
+            return (item.jurusan_rel || item.jurusanRel).kode || '';
+        }
+        if (item.user && item.user.user_type && item.user.user_type !== 'siswa') {
+            return item.user.user_type.toUpperCase();
+        }
+        return '';
+    };
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -84,25 +101,35 @@ export default function NasabahSearchBox({ value, onChange, onSelect, placeholde
                         <div className="p-4 text-center text-xs text-slate-500 font-semibold">Mencari...</div>
                     ) : results.length > 0 ? (
                         <div className="max-h-64 overflow-y-auto p-2 space-y-1">
-                            {results.map((item, index) => (
-                                <div
-                                    key={index}
-                                    onClick={() => {
-                                        onChange(item.nomor_rekening);
-                                        onSelect(item.nomor_rekening);
-                                        setIsOpen(false);
-                                    }}
-                                    className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors"
-                                >
-                                    <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm uppercase shrink-0">
-                                        {item.user.name.charAt(0)}
+                            {results.map((item, index) => {
+                                const kelasName = getKelasName(item);
+                                return (
+                                    <div
+                                        key={index}
+                                        onClick={() => {
+                                            onChange(item.nomor_rekening);
+                                            onSelect(item.nomor_rekening);
+                                            setIsOpen(false);
+                                        }}
+                                        className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors"
+                                    >
+                                        <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm uppercase shrink-0">
+                                            {item.user?.name ? item.user.name.charAt(0) : '?'}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-sm text-slate-800 flex items-center gap-1.5 flex-wrap">
+                                                <span>{item.user?.name || '-'}</span>
+                                                {kelasName && (
+                                                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 uppercase">
+                                                        {kelasName}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-xs text-slate-500 font-semibold">{item.nomor_rekening}</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div className="font-bold text-sm text-slate-800">{item.user.name}</div>
-                                        <div className="text-xs text-slate-500 font-semibold">{item.nomor_rekening}</div>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="p-4 text-center text-xs text-slate-500 font-semibold">Nasabah tidak ditemukan</div>
