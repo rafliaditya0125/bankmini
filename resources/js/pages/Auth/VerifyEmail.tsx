@@ -1,4 +1,4 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage, router } from '@inertiajs/react';
 import { FormEventHandler, useState, useEffect } from 'react';
 import FlashMessage from '@/components/FlashMessage';
 
@@ -117,6 +117,19 @@ export default function VerifyEmail() {
                         >
                             {sending ? 'Mengirim...' : (timer > 0 ? `Kirim Ulang (${timer}s)` : 'Kirim Kode OTP Baru')}
                         </button>
+
+                        <div className="pt-4 border-t border-slate-100 w-full mt-2 flex justify-center">
+                            <button
+                                type="button"
+                                onClick={() => router.post(route('logout'))}
+                                className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 transition-colors flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                                Keluar & Login Akun Lain
+                            </button>
+                        </div>
                     </div>
                 </div>
 
