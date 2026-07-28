@@ -4,6 +4,7 @@ import DashboardLayout from '@/layouts/DashboardLayout';
 import Modal from '@/components/Modal';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
 import ConfirmModal from '@/components/ConfirmModal';
+import Pagination from '@/components/Pagination';
 import type { Nasabah, User } from '@/types';
 import { formatRupiah, formatNumber, parseNumber } from '@/lib/utils';
 
@@ -646,32 +647,21 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                     </div>
 
                     {/* Pagination */}
-                    <div className="px-6 py-4 border-t border-slate-200/70 bg-slate-50/70 flex items-center justify-between">
-                        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">
-                            Total {nasabah.total} Nasabah
-                        </div>
-                        <div className="flex gap-2">
-                            {nasabah.current_page > 1 && (
-                                <Link
-                                    href={`/${rolePrefix}/nasabah?page=${nasabah.current_page - 1}&search=${search}&status=${statusFilter}&tingkat=${tingkatFilter}&jurusan_id=${jurusanFilter}&rombel_id=${rombelFilter}&user_type=${typeFilter}`}
-                                    className="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                                >
-                                    Prev
-                                </Link>
-                            )}
-                            <div className="px-4 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-xl">
-                                {nasabah.current_page}
-                            </div>
-                            {nasabah.current_page < nasabah.last_page && (
-                                <Link
-                                    href={`/${rolePrefix}/nasabah?page=${nasabah.current_page + 1}&search=${search}&status=${statusFilter}&tingkat=${tingkatFilter}&jurusan_id=${jurusanFilter}&rombel_id=${rombelFilter}&user_type=${typeFilter}`}
-                                    className="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                                >
-                                    Next
-                                </Link>
-                            )}
-                        </div>
-                    </div>
+                    <Pagination
+                        currentPage={nasabah.current_page}
+                        lastPage={nasabah.last_page}
+                        total={nasabah.total}
+                        url={`/${rolePrefix}/nasabah`}
+                        filters={{
+                            search,
+                            status: statusFilter,
+                            tingkat: tingkatFilter,
+                            jurusan_id: jurusanFilter,
+                            rombel_id: rombelFilter,
+                            user_type: typeFilter,
+                        }}
+                        itemLabel="Nasabah"
+                    />
                 </div>
             </div>
 
