@@ -7,6 +7,7 @@ import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Receipt from '@/components/Receipt';
 import FlashMessage from '@/components/FlashMessage';
+import NasabahSearchBox from '@/components/NasabahSearchBox';
 import type { Nasabah, User } from '@/types';
 
 interface PageProps {
@@ -166,21 +167,14 @@ export default function Transfer({ pengirim, minWithdraw }: PageProps) {
                 <div className="xl:col-span-12">
                     <div className="rounded-3xl border border-slate-200/70 bg-white/90 p-6 md:p-8 shadow-sm mb-8">
                         <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6">Cari Rekening Pengirim</h2>
-                        <form onSubmit={e => { e.preventDefault(); handleSearch(searchAccount); }} className="flex w-full">
-                            <div className="flex w-full">
-                                <input
-                                    type="text"
-                                    value={searchAccount}
-                                    onChange={(e) => setSearchAccount(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
-                                    placeholder="Nomor Rekening Pengirim..."
-                                    maxLength={255}
-                                    className="flex-1 px-4 py-3 bg-white border border-slate-200 border-r-0 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 rounded-l-2xl rounded-r-none outline-none transition-all font-bold text-[13px] h-12"
-                                />
-                                <button type="submit" className="px-6 bg-slate-900 text-white rounded-r-2xl rounded-l-none font-black text-[11px] uppercase tracking-widest hover:bg-blue-600 transition-all h-12 flex items-center">
-                                    Cari
-                                </button>
-                            </div>
-                        </form>
+                        <div className="w-full">
+                            <NasabahSearchBox
+                                value={searchAccount}
+                                onChange={setSearchAccount}
+                                onSelect={handleSearch}
+                                placeholder="Cari nama atau nomor rekening pengirim..."
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -193,17 +187,12 @@ export default function Transfer({ pengirim, minWithdraw }: PageProps) {
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Rekening Penerima</label>
                                     <div className="flex w-full">
-                                        <input
-                                            type="text"
+                                        <NasabahSearchBox
                                             value={data.penerima_rekening}
-                                            onChange={e => setData('penerima_rekening', e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
-                                            placeholder="Masukkan No Rekening Tujuan"
-                                            maxLength={255}
-                                            className={`flex-1 px-4 py-3 bg-white border border-slate-200 border-r-0 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 rounded-l-2xl rounded-r-none outline-none transition-all font-bold text-[13px] h-12 uppercase ${errors.penerima_rekening ? 'border-red-500' : ''}`}
+                                            onChange={(val) => setData('penerima_rekening', val)}
+                                            onSelect={(val) => setData('penerima_rekening', val)}
+                                            placeholder="Cari nama atau nomor rekening tujuan..."
                                         />
-                                        <button type="button" onClick={() => setData('penerima_rekening', data.penerima_rekening)} className="px-6 bg-slate-900 text-white rounded-r-2xl rounded-l-none font-black text-[11px] uppercase tracking-widest hover:bg-blue-600 transition-all h-12 flex items-center">
-                                            Cari
-                                        </button>
                                     </div>
                                     {errors.penerima_rekening && <p className="text-[10px] font-black text-red-500 uppercase mt-1 ml-1">{errors.penerima_rekening}</p>}
                                     {data.penerima_rekening && pengirim && data.penerima_rekening === pengirim.nomor_rekening && (

@@ -5,6 +5,7 @@ import { formatRupiah } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
 import Receipt from '@/components/Receipt';
+import Pagination from '@/components/Pagination';
 import type { Transaksi } from '@/types';
 
 interface PaginatedTransactions {
@@ -353,32 +354,18 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                     </div>
 
                     {/* Pagination */}
-                    <div className="px-6 py-4 border-t border-slate-200/70 bg-slate-50/70 flex items-center justify-between">
-                        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">
-                            Total {transactions.total} Data Transaksi
-                        </div>
-                        <div className="flex gap-2">
-                            {transactions.current_page > 1 && (
-                                <Link
-                                    href={`/teller/transaksi?page=${transactions.current_page - 1}&${new URLSearchParams(filters as any).toString()}`}
-                                    className="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                                >
-                                    Prev
-                                </Link>
-                            )}
-                            <div className="px-4 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-xl">
-                                {transactions.current_page}
-                            </div>
-                            {transactions.current_page < transactions.last_page && (
-                                <Link
-                                    href={`/teller/transaksi?page=${transactions.current_page + 1}&${new URLSearchParams(filters as any).toString()}`}
-                                    className="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-                                >
-                                    Next
-                                </Link>
-                            )}
-                        </div>
-                    </div>
+                    <Pagination
+                        currentPage={transactions.current_page}
+                        lastPage={transactions.last_page}
+                        total={transactions.total}
+                        url="/teller/transaksi"
+                        filters={{
+                            search,
+                            type,
+                            view_all: viewAll ? 'true' : 'false',
+                        }}
+                        itemLabel="Transaksi"
+                    />
                 </div>
             </div>
 
