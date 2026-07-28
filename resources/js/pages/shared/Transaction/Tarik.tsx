@@ -437,8 +437,12 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
                                 </div>
                             </div>
                             <div className="flex flex-col items-center mb-4 relative z-10">
-                                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-xl font-black mb-2 border border-white/20">
-                                    {nasabah.user.name.charAt(0).toUpperCase()}
+                                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-xl font-black mb-2 border border-white/20 overflow-hidden">
+                                    {nasabah.user.profile_photo_url && !nasabah.user.profile_photo_url.includes('ui-avatars') ? (
+                                        <img src={nasabah.user.profile_photo_url} alt={nasabah.user.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                        nasabah.user.name.charAt(0).toUpperCase()
+                                    )}
                                 </div>
                                 <h3 className="text-base font-black tracking-tight">{nasabah.user.name}</h3>
                                 <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mt-1 italic">{nasabah.nomor_rekening}</p>

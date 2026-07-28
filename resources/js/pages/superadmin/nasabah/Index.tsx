@@ -519,11 +519,15 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
-                                                        <span className="text-xs font-semibold text-white">
-                                                            {item.user.name.charAt(0).toUpperCase()}
-                                                        </span>
-                                                    </div>
+                                                    {item.user.profile_photo_url && !item.user.profile_photo_url.includes('ui-avatars') ? (
+                                                        <img src={item.user.profile_photo_url} alt={item.user.name} className="h-10 w-10 rounded-xl object-cover shrink-0" />
+                                                    ) : (
+                                                        <div className="h-10 w-10 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+                                                            <span className="text-xs font-semibold text-white">
+                                                                {item.user.name.charAt(0).toUpperCase()}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <div className="flex items-center gap-2">
                                                             <p className="text-sm font-semibold text-slate-900 tracking-tight">{item.user.name}</p>

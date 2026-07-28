@@ -269,10 +269,14 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
                                     <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 rounded-xl bg-linear-to-br from-emerald-600 to-emerald-800 flex items-center justify-center shrink-0">
-                                                    <span className="text-xs font-semibold text-white">
-                                                        {getInitial(item.name, item.email)}
-                                                    </span>
+                                                <div className="h-10 w-10 rounded-xl bg-linear-to-br from-emerald-600 to-emerald-800 flex items-center justify-center shrink-0 overflow-hidden">
+                                                    {item.profile_photo_url && !item.profile_photo_url.includes('ui-avatars') ? (
+                                                        <img src={item.profile_photo_url} alt={item.name} className="h-full w-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-xs font-semibold text-white">
+                                                            {getInitial(item.name, item.email)}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center gap-2">

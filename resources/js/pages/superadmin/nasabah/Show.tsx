@@ -172,10 +172,14 @@ export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNas
                     <div className="relative flex flex-col md:flex-row gap-8 items-center justify-between">
                         <div className="flex flex-col md:flex-row items-center gap-8 text-center md:text-left">
                             <div className="relative h-28 w-28 shrink-0">
-                                <div className="h-28 w-28 rounded-[2rem] bg-white/10 flex items-center justify-center border border-white/10 shadow-inner backdrop-blur-sm">
-                                    <span className="text-4xl font-black text-white tracking-tighter">
-                                        {getInitial(nasabah.user.name)}
-                                    </span>
+                                <div className="h-28 w-28 rounded-[2rem] bg-white/10 flex items-center justify-center border border-white/10 shadow-inner backdrop-blur-sm overflow-hidden">
+                                    {nasabah.user.profile_photo_url && !nasabah.user.profile_photo_url.includes('ui-avatars') ? (
+                                        <img src={nasabah.user.profile_photo_url} alt={nasabah.user.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <span className="text-4xl font-black text-white tracking-tighter">
+                                            {getInitial(nasabah.user.name)}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 h-8 w-8 rounded-xl border-4 border-slate-900 flex items-center justify-center ${nasabah.status === 'aktif' ? 'bg-emerald-500' : 'bg-rose-500 shadow-lg shadow-rose-900/20'}`}>
                                     <div className="h-2 w-2 rounded-full bg-white animate-pulse"></div>
