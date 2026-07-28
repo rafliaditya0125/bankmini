@@ -217,19 +217,24 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
         return 'Terlalu Besar';
     };
 
-    // Determine transaction type for header (KREDIT/DEBIT)
+    // Determine transaction type for header (SETOR/TARIK/TRANSFER/BAYAR)
     const getTransactionHeader = (type: string) => {
         if (!type) return 'TRANSAKSI';
         switch (type.toLowerCase()) {
             case 'setor': 
-            case 'terima_bayar':
-            case 'bunga':
-                return 'TRANSAKSI KREDIT';
+                return 'TRANSAKSI SETOR';
             case 'tarik': 
+                return 'TRANSAKSI TARIK';
             case 'transfer':
+                return 'TRANSAKSI TRANSFER';
             case 'bayar':
+                return 'TRANSAKSI BAYAR';
+            case 'terima_bayar':
+                return 'TRANSAKSI PENERIMAAN';
+            case 'bunga':
+                return 'TRANSAKSI BUNGA';
             case 'biaya_admin':
-                return 'TRANSAKSI DEBIT';
+                return 'TRANSAKSI BIAYA ADMIN';
             default: 
                 return 'TRANSAKSI';
         }
@@ -249,6 +254,9 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                     <div className="font-black text-base tracking-tight uppercase">{name}</div>
                     <div className="text-[10px] font-bold uppercase mt-0.5">{school_name || 'SMK NEGERI 1 CIAMIS'}</div>
                     <div className="text-[10px] font-bold uppercase">{bank_city?.toUpperCase() || 'CIAMIS'}</div>
+                    {bank_address && (
+                        <div className="text-[9px] font-bold mt-0.5">{bank_address}</div>
+                    )}
                     <div className="text-[10px] font-bold">{bank_phone || '(0265) 771204'}</div>
                 </div>
 
