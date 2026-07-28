@@ -46,6 +46,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<(Nasabah & { user: User }) | null>(null);
+    const [viewKelasModalOpen, setViewKelasModalOpen] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1029,15 +1030,17 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                 </svg>
                                 Download Template Excel
                             </a>
-                            <a
-                                href={`/${rolePrefix}/nasabah/rombel-list`}
+                            <button
+                                type="button"
+                                onClick={() => setViewKelasModalOpen(true)}
                                 className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-[10px] font-black uppercase tracking-widest transition-colors"
                             >
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
-                                Download Daftar Kelas
-                            </a>
+                                Lihat Daftar Kelas
+                            </button>
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -1080,10 +1083,25 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                         </div>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Catatan</p>
-                        <p className="mt-1 text-xs text-slate-600">
-                            Gunakan tanda kutip jika alamat mengandung koma. Data duplikat akan dilewati.
-                        </p>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Catatan</p>
+                                <p className="mt-1 text-xs text-slate-600">
+                                    Gunakan <strong>rombel_id</strong> yang sesuai dari daftar kelas. Data duplikat akan dilewati.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setViewKelasModalOpen(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-700 transition-all whitespace-nowrap"
+                            >
+                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                Lihat Daftar Kelas
+                            </button>
+                        </div>
                     </div>
                     <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
                         <button type="button" onClick={() => setImportModalOpen(false)} className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">Batal</button>
@@ -1096,6 +1114,88 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                         </button>
                     </div>
                 </form>
+            </Modal>
+
+            {/* Modal View Daftar Kelas */}
+            <Modal
+                show={viewKelasModalOpen}
+                onClose={() => setViewKelasModalOpen(false)}
+                title="Daftar Kelas (Rombel)"
+                description="Referensi ID Kelas untuk Import Nasabah"
+                maxWidth="4xl"
+            >
+                <div className="space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Info</p>
+                        <p className="text-xs text-slate-600">
+                            Gunakan <strong>ID</strong> pada kolom pertama saat mengisi <strong>rombel_id</strong> di file Excel import nasabah.
+                        </p>
+                    </div>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                        <table className="w-full">
+                            <thead className="bg-slate-100">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-[10px] font-black text-slate-600 uppercase tracking-widest">ID</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-black text-slate-600 uppercase tracking-widest">Tingkat</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-black text-slate-600 uppercase tracking-widest">Jurusan</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-black text-slate-600 uppercase tracking-widest">Nama Kelas</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-black text-slate-600 uppercase tracking-widest">Tahun Ajaran</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 bg-white">
+                                {available_rombels.length > 0 ? (
+                                    available_rombels.map((rombel) => {
+                                        const jurusan = available_jurusan.find(j => j.id === rombel.jurusan_id);
+                                        return (
+                                            <tr key={rombel.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-4 py-3">
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                                                        {rombel.id}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                                                        rombel.tingkat === 10 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                        rombel.tingkat === 11 ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                        'bg-orange-50 text-orange-700 border-orange-200'
+                                                    }`}>
+                                                        {rombel.tingkat}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                                        {jurusan ? jurusan.kode : '-'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="text-xs font-semibold text-slate-900">{rombel.nama}</span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="text-xs text-slate-600 font-mono">{(rombel as any).tahun_ajaran || '-'}</span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={5} className="px-4 py-8 text-center">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Belum ada data kelas</p>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="pt-2 flex justify-end">
+                        <button
+                            type="button"
+                            onClick={() => setViewKelasModalOpen(false)}
+                            className="px-6 py-2.5 bg-slate-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-slate-700 transition-all"
+                        >
+                            Tutup
+                        </button>
+                    </div>
+                </div>
             </Modal>
 
             <ConfirmModal
