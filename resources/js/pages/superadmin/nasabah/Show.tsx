@@ -18,6 +18,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNas
     const page = usePage<any>();
     const rolePrefix = page.props.auth.user.role === 'superadmin' ? 'superadmin' : 'admin';
     const [editOpen, setEditOpen] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const identifierLabel = nasabah.user.user_type === 'siswa' ? 'NIS' : nasabah.user.user_type === 'guru' ? 'NIP' : 'No. Rekening';
     const identifierValue = nasabah.user.user_type === 'siswa'
@@ -171,10 +172,14 @@ export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNas
                     <div className="relative flex flex-col md:flex-row gap-8 items-center justify-between">
                         <div className="flex flex-col md:flex-row items-center gap-8 text-center md:text-left">
                             <div className="relative h-28 w-28 shrink-0">
-                                <div className="h-28 w-28 rounded-[2rem] bg-white/10 flex items-center justify-center border border-white/10 shadow-inner backdrop-blur-sm">
-                                    <span className="text-4xl font-black text-white tracking-tighter">
-                                        {getInitial(nasabah.user.name)}
-                                    </span>
+                                <div className="h-28 w-28 rounded-[2rem] bg-white/10 flex items-center justify-center border border-white/10 shadow-inner backdrop-blur-sm overflow-hidden">
+                                    {nasabah.user.profile_photo_url && !nasabah.user.profile_photo_url.includes('ui-avatars') ? (
+                                        <img src={nasabah.user.profile_photo_url} alt={nasabah.user.name} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <span className="text-4xl font-black text-white tracking-tighter">
+                                            {getInitial(nasabah.user.name)}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 h-8 w-8 rounded-xl border-4 border-slate-900 flex items-center justify-center ${nasabah.status === 'aktif' ? 'bg-emerald-500' : 'bg-rose-500 shadow-lg shadow-rose-900/20'}`}>
                                     <div className="h-2 w-2 rounded-full bg-white animate-pulse"></div>
@@ -432,11 +437,29 @@ export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNas
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Password Baru (Opsional)</label>
-                            <input type="password" value={data.password} onChange={e => setData('password', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl font-black" />
+                            <div className="relative">
+                                <input type={showPassword ? "text" : "password"} value={data.password} onChange={e => setData('password', e.target.value)} className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-xl font-black" />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-emerald-600 transition-colors">
+                                    {showPassword ? (
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                                    ) : (
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Konfirmasi Password</label>
-                            <input type="password" value={data.password_confirmation} onChange={e => setData('password_confirmation', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl font-black" />
+                            <div className="relative">
+                                <input type={showPassword ? "text" : "password"} value={data.password_confirmation} onChange={e => setData('password_confirmation', e.target.value)} className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-xl font-black" />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-emerald-600 transition-colors">
+                                    {showPassword ? (
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                                    ) : (
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">

@@ -163,6 +163,7 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::delete('/jurusan/{jurusan}/rombel/{rombel}', [SuperadminJurusanController::class, 'destroyRombel'])->name('jurusan.rombel.destroy');
 
     Route::resource('kelas', \App\Http\Controllers\Superadmin\RombelController::class);
+    Route::get('/setor', [SharedTransactionController::class, 'setorIndex'])->name('setor.index');
     Route::post('/setor', [SharedTransactionController::class, 'setorStore'])->name('setor.store')->middleware('log');
 
     // Tarik Tunai Routes
