@@ -1585,7 +1585,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Template & Format</p>
                             <p className="text-sm font-semibold text-slate-900">Ikuti kolom Excel yang disediakan.</p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap items-center gap-3">
                             <a
                                 href={`/${rolePrefix}/nasabah/template`}
                                 className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-[10px] font-black uppercase tracking-widest transition-colors"
@@ -1595,17 +1595,15 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                 </svg>
                                 Download Template Excel
                             </a>
-                            <button
-                                type="button"
-                                onClick={() => setViewKelasModalOpen(true)}
+                            <a
+                                href={`/${rolePrefix}/nasabah/rombel-list`}
                                 className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-[10px] font-black uppercase tracking-widest transition-colors"
                             >
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                 </svg>
-                                Lihat Daftar Kelas
-                            </button>
+                                Download Excel Daftar Kelas
+                            </a>
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
