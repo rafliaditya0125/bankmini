@@ -411,7 +411,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNas
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Jurusan</label>
                                     <select value={data.jurusan_id} onChange={e => setData('jurusan_id', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl font-black text-xs uppercase tracking-widest">
                                         <option value="">Pilih Jurusan</option>
-                                        {jurusans.map(j => <option key={j.id} value={j.id}>{j.nama}</option>)}
+                                        {jurusans.map(j => <option key={j.id} value={j.id}>{j.kode}</option>)}
                                     </select>
                                     {errors.jurusan_id && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{errors.jurusan_id}</p>}
                                 </div>

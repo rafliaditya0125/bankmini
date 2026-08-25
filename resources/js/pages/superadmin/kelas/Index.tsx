@@ -298,7 +298,7 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                                 <option value="">SEMUA JURUSAN</option>
                                 {jurusans.map(jurusan => (
                                     <option key={jurusan.id} value={jurusan.id}>
-                                        {jurusan.nama}
+                                        {jurusan.kode}
                                     </option>
                                 ))}
                             </select>
@@ -495,7 +495,7 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                                 <option value="">Pilih Jurusan</option>
                                 {jurusans.map(jurusan => (
                                     <option key={jurusan.id} value={jurusan.id}>
-                                        {jurusan.nama}
+                                        {jurusan.kode}
                                     </option>
                                 ))}
                             </select>
@@ -569,7 +569,7 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                                 <option value="">Pilih Jurusan</option>
                                 {jurusans.map(jurusan => (
                                     <option key={jurusan.id} value={jurusan.id}>
-                                        {jurusan.nama}
+                                        {jurusan.kode}
                                     </option>
                                 ))}
                             </select>

@@ -662,7 +662,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                 className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] appearance-none bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-200/40 transition-all"
                             >
                                 <option value="all">SEMUA JURUSAN</option>
-                                {available_jurusan.map(j => <option key={j.id} value={j.id}>{j.nama}</option>)}
+                                {available_jurusan.map(j => <option key={j.id} value={j.id}>{j.kode}</option>)}
                             </select>
                         </div>
                     </div>
@@ -1038,7 +1038,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Jurusan</label>
                                     <select value={data.jurusan_id} onChange={e => setData(d => ({...d, jurusan_id: e.target.value, rombel_id: ''}))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-xs uppercase tracking-widest">
                                         <option value="">Pilih Jurusan</option>
-                                        {available_jurusan.map(j => <option key={j.id} value={j.id}>{j.nama}</option>)}
+                                        {available_jurusan.map(j => <option key={j.id} value={j.id}>{j.kode}</option>)}
                                     </select>
                                     {errors.jurusan_id && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{errors.jurusan_id}</p>}
                                 </div>
@@ -1179,7 +1179,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                     >
                                         <option value="">Pilih Jurusan</option>
                                         {available_jurusan.map(j => (
-                                            <option key={j.id} value={j.id}>{j.nama}</option>
+                                            <option key={j.id} value={j.id}>{j.kode}</option>
                                         ))}
                                     </select>
                                     {editErrors.jurusan_id && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{editErrors.jurusan_id}</p>}
@@ -1337,7 +1337,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                 >
                                     <option value="">-- Pilih Jurusan --</option>
                                     {available_jurusan.map(j => (
-                                        <option key={j.id} value={j.id}>{j.kode} - {j.nama}</option>
+                                        <option key={j.id} value={j.id}>{j.kode}</option>
                                     ))}
                                 </select>
                             </div>
@@ -1803,7 +1803,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                             <option value="all">Semua Jurusan</option>
                             {available_jurusan.map(j => (
                                 <option key={j.id} value={j.id}>
-                                    {j.kode} - {j.nama}
+                                    {j.kode}
                                 </option>
                             ))}
                         </select>
