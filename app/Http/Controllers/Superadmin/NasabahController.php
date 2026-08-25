@@ -89,7 +89,7 @@ class NasabahController extends Controller
 
     public function show(Nasabah $nasabah)
     {
-        $nasabah->load('user');
+        $nasabah->load(['user', 'rombelRel.jurusan', 'jurusanRel']);
         $transactions = Transaksi::where('nasabah_id', $nasabah->id)
             ->latest()
             ->take(10)

@@ -5,6 +5,7 @@ import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Pagination from '@/components/Pagination';
 import type { Jurusan } from '@/types';
+import { formatRombelName } from '@/lib/utils';
 
 interface Rombel {
     id: number;
@@ -243,7 +244,7 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
     const isEditFormValid = editData.jurusan_id && editData.tahun_ajaran && editData.tingkat && editData.nama;
 
     const getRombelDisplayName = (rombel: Rombel) => {
-        return rombel.nama || rombel.nama_kelas || `${rombel.tingkat} ${rombel.jurusan?.kode || ''}`.trim();
+        return formatRombelName(rombel);
     };
 
     return (

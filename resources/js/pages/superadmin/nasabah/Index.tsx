@@ -7,7 +7,7 @@ import Dropdown, { DropdownItem } from '@/components/Dropdown';
 import ConfirmModal from '@/components/ConfirmModal';
 import Pagination from '@/components/Pagination';
 import type { Nasabah, User } from '@/types';
-import { formatRupiah, formatNumber, parseNumber } from '@/lib/utils';
+import { formatRupiah, formatNumber, parseNumber, formatRombelName } from '@/lib/utils';
 
 interface NasabahIndexProps {
     nasabah: {
@@ -431,7 +431,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
             id: student.id,
             name: student.user?.name || student.name || 'Siswa',
             identifier: student.user?.nis || student.nomor_rekening || '',
-            rombel: student.rombel_rel?.nama || student.rombelRel?.nama || student.jurusan_rel?.kode || '',
+            rombel: formatRombelName(student.rombel_rel || student.rombelRel || student.jurusan_rel?.kode || ''),
         };
         setExcludedStudents(prev => [...prev, studentInfo]);
         setBatchData('exclude_nasabah_ids', [...batchData.exclude_nasabah_ids, student.id]);
@@ -676,7 +676,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                 className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] appearance-none bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-200/40 transition-all"
                             >
                                 <option value="all">SEMUA KELAS</option>
-                                {filteredRombels.map(r => <option key={r.id} value={r.id}>{r.nama}</option>)}
+                                {filteredRombels.map(r => <option key={r.id} value={r.id}>{formatRombelName(r)}</option>)}
                             </select>
                             <p className="text-[9px] text-slate-400 mt-1 ml-1">
                                 {filteredRombels.length} kelas tersedia
@@ -865,8 +865,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 {((item as any).rombel_rel || (item as any).rombelRel) ? (
                                                     <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200/70 uppercase tracking-[0.2em]">
-                                                        {((item as any).rombel_rel || (item as any).rombelRel).nama_kelas || 
-                                                         `${((item as any).rombel_rel || (item as any).rombelRel).nama_kelas || ((item as any).rombel_rel || (item as any).rombelRel).tingkat + ' ' + (((item as any).rombel_rel || (item as any).rombelRel).jurusan?.kode || ((item as any).rombel_rel || (item as any).rombelRel).jurusan_rel?.kode || '')}`.trim()}
+                                                        {formatRombelName((item as any).rombel_rel || (item as any).rombelRel)}
                                                     </span>
                                                 ) : (
                                                     ((item as any).jurusan_rel || (item as any).jurusanRel) ? (
@@ -1047,7 +1046,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Kelas</label>
                                     <select value={data.rombel_id} onChange={e => setData('rombel_id', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-xs uppercase tracking-widest">
                                         <option value="">Pilih Kelas</option>
-                                        {available_rombels.filter(r => !data.jurusan_id || r.jurusan_id.toString() === data.jurusan_id).map(r => <option key={r.id} value={r.id}>{r.nama}</option>)}
+                                        {available_rombels.filter(r => !data.jurusan_id || r.jurusan_id.toString() === data.jurusan_id).map(r => <option key={r.id} value={r.id}>{formatRombelName(r)}</option>)}
                                     </select>
                                     {errors.rombel_id && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{errors.rombel_id}</p>}
                                 </div>
@@ -1194,7 +1193,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                     >
                                         <option value="">Pilih Kelas</option>
                                         {available_rombels.filter(r => !editData.jurusan_id || r.jurusan_id.toString() === editData.jurusan_id).map(r => (
-                                            <option key={r.id} value={r.id}>{r.nama}</option>
+                                            <option key={r.id} value={r.id}>{formatRombelName(r)}</option>
                                         ))}
                                     </select>
                                     {editErrors.rombel_id && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{editErrors.rombel_id}</p>}
@@ -1360,7 +1359,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                         const jur = available_jurusan.find(j => j.id === r.jurusan_id);
                                         return (
                                             <option key={r.id} value={r.id}>
-                                                {r.nama} {jur ? `(${jur.kode})` : ''}
+                                                {formatRombelName(r)} {jur ? `(${jur.kode})` : ''}
                                             </option>
                                         );
                                     })}
@@ -1493,7 +1492,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                                     }`}
                                                 >
                                                     {isExcluded ? '✕ ' : '+ '}
-                                                    {r.nama} {jur ? `(${jur.kode})` : ''}
+                                                    {formatRombelName(r)} {jur ? `(${jur.kode})` : ''}
                                                 </button>
                                             );
                                         })}
@@ -1829,7 +1828,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                     const jurusan = available_jurusan.find(j => j.id === r.jurusan_id);
                                     return (
                                         <option key={r.id} value={r.id}>
-                                            {r.nama} {jurusan ? `(${jurusan.kode})` : ''}
+                                            {formatRombelName(r)} {jurusan ? `(${jurusan.kode})` : ''}
                                         </option>
                                     );
                                 })}

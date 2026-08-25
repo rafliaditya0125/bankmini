@@ -5,6 +5,7 @@ import Modal from '@/components/Modal';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
 import ConfirmModal from '@/components/ConfirmModal';
 import type { Jurusan } from '@/types';
+import { formatRombelName } from '@/lib/utils';
 
 interface Rombel {
     id: number;
@@ -217,7 +218,7 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
     };
 
     const getRombelName = (rombel: Rombel) => {
-        return rombel.nama || `${rombel.tingkat} ${jurusan.kode}`;
+        return formatRombelName({ ...rombel, jurusan });
     };
 
     // Group rombels by tahun_ajaran

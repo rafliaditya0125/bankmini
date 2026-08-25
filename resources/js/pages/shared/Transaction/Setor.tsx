@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
-import { formatRupiah, formatNumber, parseNumber } from '@/lib/utils';
+import { formatRupiah, formatNumber, parseNumber, formatRombelName } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Receipt from '@/components/Receipt';
@@ -452,8 +452,7 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
                                     <div className="p-2 rounded-lg bg-white/5 border border-white/10">
                                         <p className="text-[9px] font-black text-emerald-100 uppercase tracking-widest mb-1">Kelas</p>
                                         <p className="text-[9px] font-black text-white uppercase tracking-widest">
-                                            {nasabah.rombel_rel?.nama_kelas || 
-                                             (nasabah.rombel_rel ? nasabah.rombel_rel.nama_kelas || `${nasabah.rombel_rel.tingkat} ${nasabah.rombel_rel.jurusan?.kode || ''}`.trim() : '-')}
+                                            {formatRombelName(nasabah.rombel_rel || (nasabah as any).rombelRel)}
                                         </p>
                                     </div>
                                 </div>

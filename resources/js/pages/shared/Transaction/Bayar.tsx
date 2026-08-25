@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
-import { formatRupiah, formatNumber, parseNumber } from '@/lib/utils';
+import { formatRupiah, formatNumber, parseNumber, formatRombelName } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Receipt from '@/components/Receipt';
@@ -316,8 +316,8 @@ export default function Bayar({ pengirim, pembayaranAccounts, minBayar }: PagePr
                                         </div>
                                         <div className="p-2 rounded-lg bg-white/5 border border-white/10">
                                             <p className="text-[8px] font-bold text-gray-300 uppercase mb-0.5">Kelas</p>
-                                            <p className="text-[10px] font-black text-white uppercase tracking-tighter truncate" title={pengirim.rombel_rel?.nama_kelas || '-'}>
-                                                {pengirim.rombel_rel?.nama_kelas || (pengirim.rombel_rel ? pengirim.rombel_rel.nama_kelas || `${pengirim.rombel_rel.tingkat} ${pengirim.rombel_rel.jurusan?.kode || ''}`.trim() : '-')}
+                                            <p className="text-[10px] font-black text-white uppercase tracking-tighter truncate" title={formatRombelName(pengirim.rombel_rel || (pengirim as any).rombelRel)}>
+                                                {formatRombelName(pengirim.rombel_rel || (pengirim as any).rombelRel)}
                                             </p>
                                         </div>
                                     </div>

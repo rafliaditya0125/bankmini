@@ -32,16 +32,28 @@ class Rombel extends Model
     }
 
     /**
-     * Get class name (reads from 'nama' column in database, or falls back to generated string if empty)
+     * Get dynamic formatted class name (tingkat + nama rombel, e.g. "10 RPL 1", "11 RPL 1")
      */
     public function getNamaKelasAttribute()
     {
-        if (!empty($this->attributes['nama'])) {
-            return $this->attributes['nama'];
+        $tingkat = $this->tingkat ? (string)$this->tingkat : '';
+        $rawNama = trim((string)($this->attributes['nama'] ?? ''));
+        $cleanNama = trim(preg_replace('/^(10|11|12)\s*/i', '', $rawNama));
+
+        if (!empty($tingkat) && !empty($cleanNama)) {
+            return trim("{$tingkat} {$cleanNama}");
         }
 
-        $jurusanKode = $this->jurusan?->kode ?? '';
-        return trim("{$this->tingkat} {$jurusanKode}");
+        if (!empty($cleanNama)) {
+            return $cleanNama;
+        }
+
+        if (!empty($tingkat)) {
+            $jurusanKode = $this->jurusan?->kode ?? '';
+            return trim("{$tingkat} {$jurusanKode}");
+        }
+
+        return $rawNama;
     }
 
     /**
@@ -49,6 +61,6 @@ class Rombel extends Model
      */
     public function getFullNameAttribute()
     {
-        return $this->nama ?? $this->nama_kelas;
+        return $this->nama_kelas;
     }
 }
