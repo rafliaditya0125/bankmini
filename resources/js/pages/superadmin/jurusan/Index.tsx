@@ -133,20 +133,44 @@ export default function Index({ jurusans }: Props) {
     const handleImportSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         postImport(`/${rolePrefix}/jurusan/import`, {
+            preserveScroll: true,
             onSuccess: () => {
                 setImportModalOpen(false);
                 setImportData('files', []);
+                if (fileInputRef.current) fileInputRef.current.value = '';
             },
+            onError: () => {
+                setImportModalOpen(false);
+                setImportData('files', []);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            },
+            onFinish: () => {
+                setImportModalOpen(false);
+                setImportData('files', []);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
         });
     };
 
     const handleImportRombelSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         postImportRombel(`/${rolePrefix}/jurusan/rombel/import-all`, {
+            preserveScroll: true,
             onSuccess: () => {
                 setImportRombelModalOpen(false);
                 setImportRombelData('files', []);
+                if (rombelFileInputRef.current) rombelFileInputRef.current.value = '';
             },
+            onError: () => {
+                setImportRombelModalOpen(false);
+                setImportRombelData('files', []);
+                if (rombelFileInputRef.current) rombelFileInputRef.current.value = '';
+            },
+            onFinish: () => {
+                setImportRombelModalOpen(false);
+                setImportRombelData('files', []);
+                if (rombelFileInputRef.current) rombelFileInputRef.current.value = '';
+            }
         });
     };
 

@@ -439,11 +439,18 @@ class NasabahController extends Controller
 
     public function import(Request $request)
     {
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'files'   => 'nullable|array',
             'files.*' => 'mimes:xlsx,xls',
             'file'    => 'nullable|mimes:xlsx,xls',
+        ], [
+            'files.*.mimes' => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
+            'file.mimes'    => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
         ]);
+
+        if ($validator->fails()) {
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).');
+        }
 
         $uploadedFiles = [];
         if ($request->hasFile('files')) {
@@ -455,79 +462,145 @@ class NasabahController extends Controller
         }
 
         if (empty($uploadedFiles)) {
-            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai.');
         }
 
-        $count = 0;
-        DB::transaction(function () use ($uploadedFiles, &$count) {
-            foreach ($uploadedFiles as $file) {
-                $spreadsheet = IOFactory::load($file->getRealPath());
-                $rows = $spreadsheet->getActiveSheet()->toArray();
-                array_shift($rows); // Skip header
+        $successCount = 0;
+        $failedCount = 0;
+        $errors = [];
+        $formatMismatch = false;
 
-                foreach ($rows as $data) {
-                    if (empty($data[0]) || empty($data[1])) continue;
+        try {
+            DB::transaction(function () use ($uploadedFiles, &$successCount, &$failedCount, &$errors, &$formatMismatch) {
+                foreach ($uploadedFiles as $file) {
+                    $spreadsheet = IOFactory::load($file->getRealPath());
+                    $rows = $spreadsheet->getActiveSheet()->toArray();
 
-                    $name       = trim($data[0]);
-                    $identifier = trim($data[1]);
-                    $norekInput = isset($data[2]) && trim((string)$data[2]) !== '' ? trim((string)$data[2]) : null;
-                    $user_type  = trim($data[3] ?? 'siswa');
-                    $rombelId   = $data[4] ?: null;
-                    $phone      = $data[5] ?: null;
-                    $alamat     = $data[6] ?: null;
-                    $saldo_awal = $data[7] ?? 0;
-
-                    $norek = $norekInput ?: $identifier;
-
-                    $nis = $user_type === 'siswa' ? $identifier : null;
-                    $nip = $user_type === 'guru'  ? $identifier : null;
-
-                    if (User::where('nis', $identifier)->orWhere('nip', $identifier)->exists())
+                    if (empty($rows) || count($rows) < 2) {
+                        $failedCount++;
+                        $errors[] = "Berkas '{$file->getClientOriginalName()}' kosong atau tidak memiliki baris data.";
                         continue;
-
-                    if (Nasabah::where('nomor_rekening', $norek)->exists())
-                        continue;
-
-                    $user = User::create([
-                        'name'      => $name,
-                        'username'  => $identifier,
-                        'email'     => $identifier . '@bankmini.smk',
-                        'password'  => $identifier,
-                        'role'      => 'nasabah',
-                        'phone'     => $phone,
-                        'user_type' => $user_type,
-                        'nis'       => $nis,
-                        'nip'       => $nip,
-                        'status'    => 'active',
-                    ]);
-
-                    // Get jurusan_id from rombel
-                    $jurusanId = null;
-                    if ($rombelId) {
-                        $rombel    = \App\Models\Rombel::find($rombelId);
-                        $jurusanId = $rombel ? $rombel->jurusan_id : null;
                     }
 
-                    Nasabah::create([
-                        'user_id'         => $user->id,
-                        'nomor_rekening'  => $norek,
-                        'saldo'           => $saldo_awal,
-                        'saldo_minimum'   => 10000,
-                        'jurusan_id'      => $jurusanId,
-                        'rombel_id'       => $rombelId,
-                        'alamat'          => $alamat,
-                        'tanggal_buka'    => now(),
-                        'status'          => 'aktif',
-                    ]);
+                    // Check Header Row
+                    $header = array_map(fn($h) => strtolower(trim((string)$h)), $rows[0]);
+                    $hasName = in_array('name', $header) || in_array('nama', $header);
+                    $hasIdentifier = in_array('nis_or_nip', $header) || in_array('nis', $header) || in_array('nip', $header) || in_array('identifier', $header);
 
-                    $count++;
+                    if (!$hasName && !$hasIdentifier && count(array_filter($header)) < 2) {
+                        $formatMismatch = true;
+                        $failedCount += (count($rows) - 1);
+                        $errors[] = "Format kolom pada '{$file->getClientOriginalName()}' tidak sesuai template.";
+                        continue;
+                    }
+
+                    // Remove header
+                    array_shift($rows);
+
+                    foreach ($rows as $index => $data) {
+                        $rowNum = $index + 2;
+
+                        // Check if row is completely empty
+                        if (empty(array_filter($data, fn($v) => $v !== null && trim((string)$v) !== ''))) {
+                            continue;
+                        }
+
+                        $name       = isset($data[0]) ? trim((string)$data[0]) : '';
+                        $identifier = isset($data[1]) ? trim((string)$data[1]) : '';
+                        $norekInput = isset($data[2]) && trim((string)$data[2]) !== '' ? trim((string)$data[2]) : null;
+                        $user_type  = isset($data[3]) && trim((string)$data[3]) !== '' ? strtolower(trim((string)$data[3])) : 'siswa';
+                        $rombelId   = isset($data[4]) && trim((string)$data[4]) !== '' ? trim((string)$data[4]) : null;
+                        $phone      = isset($data[5]) && trim((string)$data[5]) !== '' ? trim((string)$data[5]) : null;
+                        $alamat     = isset($data[6]) && trim((string)$data[6]) !== '' ? trim((string)$data[6]) : null;
+                        $saldo_awal = isset($data[7]) && is_numeric($data[7]) ? (float)$data[7] : 0;
+
+                        if (empty($name) || empty($identifier)) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Kolom Nama atau NIS/NIP tidak boleh kosong";
+                            continue;
+                        }
+
+                        $norek = $norekInput ?: $identifier;
+                        $nis = $user_type === 'siswa' ? $identifier : null;
+                        $nip = $user_type === 'guru'  ? $identifier : null;
+
+                        // Check duplicate identifier in users
+                        if (User::where('nis', $identifier)->orWhere('nip', $identifier)->orWhere('username', $identifier)->exists()) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: NIS/NIP '{$identifier}' sudah terdaftar";
+                            continue;
+                        }
+
+                        // Check duplicate nomor_rekening in nasabah
+                        if (Nasabah::where('nomor_rekening', $norek)->exists()) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Nomor rekening '{$norek}' sudah digunakan";
+                            continue;
+                        }
+
+                        $user = User::create([
+                            'name'      => $name,
+                            'username'  => $identifier,
+                            'email'     => $identifier . '@bankmini.smk',
+                            'password'  => $identifier,
+                            'role'      => 'nasabah',
+                            'phone'     => $phone,
+                            'user_type' => in_array($user_type, ['siswa', 'guru', 'kelas', 'organisasi', 'pembayaran']) ? $user_type : 'siswa',
+                            'nis'       => $nis,
+                            'nip'       => $nip,
+                            'status'    => 'active',
+                        ]);
+
+                        // Get jurusan_id from rombel
+                        $jurusanId = null;
+                        if ($rombelId) {
+                            $rombel    = \App\Models\Rombel::find($rombelId);
+                            $jurusanId = $rombel ? $rombel->jurusan_id : null;
+                        }
+
+                        Nasabah::create([
+                            'user_id'         => $user->id,
+                            'nomor_rekening'  => $norek,
+                            'saldo'           => $saldo_awal,
+                            'saldo_minimum'   => 10000,
+                            'jurusan_id'      => $jurusanId,
+                            'rombel_id'       => $rombelId,
+                            'alamat'          => $alamat,
+                            'tanggal_buka'    => now(),
+                            'status'          => 'aktif',
+                        ]);
+
+                        $successCount++;
+                    }
                 }
-            }
-        });
+            });
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan template Excel).');
+        }
 
-        AuditTrail::log("Import {$count} nasabah baru via Excel", 'Nasabah');
+        if ($successCount > 0) {
+            AuditTrail::log("Import {$successCount} nasabah baru via Excel", 'Nasabah');
+        }
 
-        return back()->with('success', "Berhasil mengimport {$count} nasabah");
+        if ($formatMismatch && $successCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan tombol Download Template).');
+        }
+
+        if ($successCount === 0 && $failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? '. Kendala: ' . implode('; ', array_slice($errors, 0, 3)) : '';
+            return back()->with('error', "Gagal mengimport data: 0 berhasil, {$failedCount} gagal/dilewati{$sampleErrors}. Mohon masukkan file dengan format sesuai.");
+        }
+
+        if ($successCount === 0 && $failedCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai.');
+        }
+
+        if ($failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? ' (Catatan: ' . implode('; ', array_slice($errors, 0, 2)) . ')' : '';
+            return back()->with('success', "Proses import selesai: {$successCount} nasabah berhasil, {$failedCount} data gagal/dilewati{$sampleErrors}.");
+        }
+
+        return back()->with('success', "Berhasil mengimport {$successCount} nasabah.");
     }
 
     public function downloadTemplate()

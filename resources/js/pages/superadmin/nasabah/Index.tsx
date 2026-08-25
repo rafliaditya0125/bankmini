@@ -355,10 +355,22 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
     const handleImportSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         postImport(`/${rolePrefix}/nasabah/import`, {
+            preserveScroll: true,
             onSuccess: () => {
                 setImportModalOpen(false);
                 setImportData('files', []);
+                if (fileInputRef.current) fileInputRef.current.value = '';
             },
+            onError: () => {
+                setImportModalOpen(false);
+                setImportData('files', []);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            },
+            onFinish: () => {
+                setImportModalOpen(false);
+                setImportData('files', []);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
         });
     };
 

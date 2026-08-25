@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import Modal from '@/components/Modal';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
@@ -30,6 +30,7 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
     const [editOpen, setEditOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<Rombel | null>(null);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [confirmModal, setConfirmModal] = useState<{
         show: boolean;
         title: string;
@@ -177,7 +178,18 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
             onSuccess: () => {
                 setImportOpen(false);
                 importForm.reset();
+                if (fileInputRef.current) fileInputRef.current.value = '';
             },
+            onError: () => {
+                setImportOpen(false);
+                importForm.reset();
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            },
+            onFinish: () => {
+                setImportOpen(false);
+                importForm.reset();
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
         });
     };
 
@@ -532,6 +544,7 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                         <div className="mt-6">
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">File Excel (.xlsx, .xls) - Bisa pilih lebih dari 1 file</label>
                             <input
+                                ref={fileInputRef}
                                 type="file"
                                 accept=".xlsx,.xls"
                                 multiple
