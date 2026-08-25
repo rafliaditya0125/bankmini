@@ -661,6 +661,36 @@ class NasabahController extends Controller
     }
 
     /**
+     * Bulk update kelas/rombel for selected nasabahs.
+     */
+    public function bulkUpdateKelas(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:nasabah,id',
+            'rombel_id' => 'required|exists:rombels,id',
+        ]);
+
+        $rombel = \App\Models\Rombel::with('jurusan')->findOrFail($request->rombel_id);
+        $nasabahs = Nasabah::with('user')->whereIn('id', $request->ids)->get();
+
+        $count = 0;
+        DB::transaction(function () use ($nasabahs, $rombel, &$count) {
+            foreach ($nasabahs as $nasabah) {
+                $nasabah->update([
+                    'rombel_id' => $rombel->id,
+                    'jurusan_id' => $rombel->jurusan_id,
+                ]);
+                $count++;
+            }
+        });
+
+        AuditTrail::log("Memindahkan {$count} nasabah ke kelas {$rombel->nama_kelas}", 'Nasabah');
+
+        return back()->with('success', "Berhasil memindahkan {$count} nasabah ke kelas {$rombel->nama_kelas}");
+    }
+
+    /**
      * Bulk promote selected nasabahs.
      */
     public function bulkPromote(Request $request)

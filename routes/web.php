@@ -136,6 +136,7 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::get('/dashboard', [SuperadminDashboardController::class, 'index'])->name('dashboard');
     Route::post('/nasabah/promote-batch', [SuperadminNasabahController::class, 'promoteBatch'])->name('nasabah.promote-batch');
     Route::post('/nasabah/bulk-promote', [SuperadminNasabahController::class, 'bulkPromote'])->name('nasabah.bulk-promote');
+    Route::post('/nasabah/bulk-kelas', [SuperadminNasabahController::class, 'bulkUpdateKelas'])->name('nasabah.bulk-kelas');
     Route::post('/nasabah/bulk-status', [SuperadminNasabahController::class, 'bulkStatus'])->name('nasabah.bulk-status');
     Route::post('/nasabah/bulk-delete', [SuperadminNasabahController::class, 'bulkDelete'])->name('nasabah.bulk-delete');
     Route::post('/nasabah/import', [SuperadminNasabahController::class, 'import'])->name('nasabah.import');
@@ -217,6 +218,7 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     Route::get('/dashboard', [SuperadminDashboardController::class, 'index'])->name('dashboard');
     Route::post('/nasabah/promote-batch', [SuperadminNasabahController::class, 'promoteBatch'])->name('nasabah.promote-batch');
     Route::post('/nasabah/bulk-promote', [SuperadminNasabahController::class, 'bulkPromote'])->name('nasabah.bulk-promote');
+    Route::post('/nasabah/bulk-kelas', [SuperadminNasabahController::class, 'bulkUpdateKelas'])->name('nasabah.bulk-kelas');
     Route::post('/nasabah/bulk-status', [SuperadminNasabahController::class, 'bulkStatus'])->name('nasabah.bulk-status');
     Route::post('/nasabah/bulk-delete', [SuperadminNasabahController::class, 'bulkDelete'])->name('nasabah.bulk-delete');
     Route::post('/nasabah/import', [SuperadminNasabahController::class, 'import'])->name('nasabah.import');

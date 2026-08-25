@@ -44,6 +44,10 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
     const [modalOpen, setModalOpen] = useState(false);
     const [promoteBatchModalOpen, setPromoteBatchModalOpen] = useState(false);
     const [importModalOpen, setImportModalOpen] = useState(false);
+    const [bulkKelasModalOpen, setBulkKelasModalOpen] = useState(false);
+    const [targetJurusanFilter, setTargetJurusanFilter] = useState('all');
+    const [targetRombelId, setTargetRombelId] = useState('');
+    const [isUpdatingKelas, setIsUpdatingKelas] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<(Nasabah & { user: User }) | null>(null);
     const [viewKelasModalOpen, setViewKelasModalOpen] = useState(false);
@@ -155,8 +159,8 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         if (selectedIds.length === 0) return;
         setConfirmModal({
             show: true,
-            title: 'Naik Kelas Massal',
-            message: `Apakah Anda yakin ingin menaikkan kelas ${selectedIds.length} nasabah yang dipilih? (Hanya berlaku untuk nasabah tipe Siswa).`,
+            title: 'Naikkan Kelas Massal',
+            message: `Apakah Anda yakin ingin menaikkan kelas untuk ${selectedIds.length} nasabah yang dipilih? (Nasabah non-siswa otomatis dilewati).`,
             variant: 'info',
             onConfirm: () => {
                 router.post(`/${rolePrefix}/nasabah/bulk-promote`, { ids: selectedIds }, {
@@ -166,6 +170,32 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                         setConfirmModal(prev => ({ ...prev, show: false }));
                     }
                 });
+            }
+        });
+    };
+
+    const handleBulkUpdateKelas = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!targetRombelId || selectedIds.length === 0) return;
+
+        setIsUpdatingKelas(true);
+        router.post(`/${rolePrefix}/nasabah/bulk-kelas`, {
+            ids: selectedIds,
+            rombel_id: parseInt(targetRombelId),
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setBulkKelasModalOpen(false);
+                setTargetRombelId('');
+                setTargetJurusanFilter('all');
+                setSelectedIds([]);
+                setIsUpdatingKelas(false);
+            },
+            onError: () => {
+                setIsUpdatingKelas(false);
+            },
+            onFinish: () => {
+                setIsUpdatingKelas(false);
             }
         });
     };
@@ -601,6 +631,19 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                 </svg>
                                 Naikkan Kelas
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setTargetRombelId('');
+                                    setTargetJurusanFilter('all');
+                                    setBulkKelasModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                Ubah Kelas
                             </button>
                             <button
                                 onClick={() => handleBulkStatus('aktif')}
@@ -1346,6 +1389,103 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                         </button>
                     </div>
                 </div>
+            </Modal>
+
+            {/* Modal Ubah Kelas Massal */}
+            <Modal
+                show={bulkKelasModalOpen}
+                onClose={() => setBulkKelasModalOpen(false)}
+                title="Ubah Kelas Massal"
+                description={`Pindahkan kelas untuk ${selectedIds.length} nasabah terpilih`}
+                maxWidth="lg"
+            >
+                <form onSubmit={handleBulkUpdateKelas} className="space-y-5">
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-200">
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="text-xs font-black text-blue-900 uppercase tracking-tight">
+                                    {selectedIds.length} Nasabah Terpilih
+                                </p>
+                                <p className="text-[11px] text-blue-700 font-medium mt-0.5">
+                                    Jurusan nasabah akan disesuaikan otomatis mengikuti jurusan kelas tujuan.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                            Filter Jurusan (Opsional)
+                        </label>
+                        <select
+                            value={targetJurusanFilter}
+                            onChange={e => {
+                                setTargetJurusanFilter(e.target.value);
+                                setTargetRombelId('');
+                            }}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-800 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                        >
+                            <option value="all">Semua Jurusan</option>
+                            {available_jurusan.map(j => (
+                                <option key={j.id} value={j.id}>
+                                    {j.kode} - {j.nama}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                            Pilih Kelas / Rombel Tujuan <span className="text-rose-500">*</span>
+                        </label>
+                        <select
+                            required
+                            value={targetRombelId}
+                            onChange={e => setTargetRombelId(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs uppercase tracking-wider text-slate-800 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                        >
+                            <option value="">-- Pilih Kelas Tujuan --</option>
+                            {available_rombels
+                                .filter(r => targetJurusanFilter === 'all' || r.jurusan_id.toString() === targetJurusanFilter)
+                                .map(r => {
+                                    const jurusan = available_jurusan.find(j => j.id === r.jurusan_id);
+                                    return (
+                                        <option key={r.id} value={r.id}>
+                                            {r.nama} {jurusan ? `(${jurusan.kode})` : ''}
+                                        </option>
+                                    );
+                                })}
+                        </select>
+                    </div>
+
+                    <div className="pt-3 flex justify-end gap-3 border-t border-gray-100">
+                        <button
+                            type="button"
+                            onClick={() => setBulkKelasModalOpen(false)}
+                            className="px-6 py-2.5 text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={!targetRombelId || isUpdatingKelas}
+                            className="px-8 py-2.5 bg-blue-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:bg-blue-300 disabled:shadow-none flex items-center gap-2"
+                        >
+                            {isUpdatingKelas && (
+                                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                            )}
+                            {isUpdatingKelas ? 'Menyimpan...' : `Pindahkan (${selectedIds.length} Nasabah)`}
+                        </button>
+                    </div>
+                </form>
             </Modal>
 
             <ConfirmModal
