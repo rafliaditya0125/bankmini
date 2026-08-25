@@ -53,6 +53,15 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
     const [editTarget, setEditTarget] = useState<(Nasabah & { user: User }) | null>(null);
     const [viewKelasModalOpen, setViewKelasModalOpen] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+    // Excluded students search states for batch promote
+    const [excludedStudents, setExcludedStudents] = useState<{ id: number; name: string; identifier: string; rombel: string }[]>([]);
+    const [studentSearchQuery, setStudentSearchQuery] = useState('');
+    const [studentSearchResults, setStudentSearchResults] = useState<any[]>([]);
+    const [isSearchingStudent, setIsSearchingStudent] = useState(false);
+    const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
+    const studentSearchRef = useRef<HTMLDivElement>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 

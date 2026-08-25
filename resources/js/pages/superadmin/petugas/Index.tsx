@@ -33,6 +33,20 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
     const [editOpen, setEditOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<User | null>(null);
     const [showPassword, setShowPassword] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [confirmModal, setConfirmModal] = useState<{
+        show: boolean;
+        title: string;
+        message: string;
+        variant: 'danger' | 'warning' | 'primary';
+        onConfirm: () => void;
+    }>({
+        show: false,
+        title: '',
+        message: '',
+        variant: 'danger',
+        onConfirm: () => {},
+    });
 
     const dropdownRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -410,9 +424,25 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {petugas.data.map((item) => (
-                                    <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                {petugas.data.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                                            Tidak ada data petugas
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    petugas.data.map((item) => (
+                                        <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                                            <td className="px-4 py-4 text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.includes(item.id)}
+                                                    onChange={() => handleToggleSelect(item.id)}
+                                                    disabled={item.id === auth.user.id}
+                                                    className="h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                />
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
                                                 <div className="h-10 w-10 rounded-xl bg-linear-to-br from-emerald-600 to-emerald-800 flex items-center justify-center shrink-0 overflow-hidden">
                                                     {item.profile_photo_url && !item.profile_photo_url.includes('ui-avatars') ? (
@@ -434,10 +464,12 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
                                                             <div className="flex items-center justify-center p-0.5 rounded-full bg-slate-100 text-slate-400" title="Email Belum Terverifikasi">
                                                                 <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                                                             </div>
-                                                            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">{item.email || '-'}</p>
-                                                        </div>
+                                                        )}
                                                     </div>
-                                                </td>
+                                                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">{item.email || '-'}</p>
+                                                </div>
+                                            </div>
+                                        </td>
                                                 <td className="px-6 py-4 text-center whitespace-nowrap">
                                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-semibold border uppercase tracking-[0.2em] ${
                                                         item.role === 'superadmin' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/70' :
@@ -503,8 +535,7 @@ export default function PetugasIndex({ petugas, filters }: PetugasIndexProps) {
                                                     </div>
                                                 </td>
                                             </tr>
-                                        );
-                                    })
+                                        ))
                                 )}
                             </tbody>
                         </table>
