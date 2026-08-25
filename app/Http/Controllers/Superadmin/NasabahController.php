@@ -586,4 +586,180 @@ class NasabahController extends Controller
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
+
+    /**
+     * Bulk promote selected nasabahs.
+     */
+    public function bulkPromote(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:nasabah,id',
+        ]);
+
+        $nasabahs = Nasabah::with(['user', 'rombelRel'])
+            ->whereIn('id', $request->ids)
+            ->get();
+
+        $promotedCount = 0;
+        $graduatedCount = 0;
+        $failedCount = 0;
+        $errors = [];
+
+        DB::transaction(function () use ($nasabahs, &$promotedCount, &$graduatedCount, &$failedCount, &$errors) {
+            foreach ($nasabahs as $nasabah) {
+                if ($nasabah->user->user_type !== 'siswa') {
+                    $failedCount++;
+                    continue;
+                }
+
+                if (!$nasabah->rombelRel) {
+                    $failedCount++;
+                    $errors[] = "Nasabah {$nasabah->user->name} belum memiliki data rombel/kelas.";
+                    continue;
+                }
+
+                $currentTingkat = (string)$nasabah->rombelRel->tingkat;
+                $newTingkat = match ($currentTingkat) {
+                    '10' => '11',
+                    '11' => '12',
+                    '12' => 'Alumni',
+                    default => $currentTingkat
+                };
+
+                if ($newTingkat === $currentTingkat || $currentTingkat === 'Alumni') {
+                    $failedCount++;
+                    continue;
+                }
+
+                if ($newTingkat === 'Alumni') {
+                    $nasabah->update(['tanggal_lulus' => now()]);
+                    $graduatedCount++;
+                    AuditTrail::log(
+                        "Kelulusan nasabah {$nasabah->user->name}: Tingkat {$currentTingkat} -> Alumni",
+                        'Nasabah',
+                        $nasabah->id
+                    );
+                } else {
+                    // Find rombel in the next level with same jurusan
+                    $nextRombel = Rombel::where('jurusan_id', $nasabah->jurusan_id)
+                        ->where('tingkat', $newTingkat)
+                        ->first();
+
+                    if ($nextRombel) {
+                        $nasabah->update(['rombel_id' => $nextRombel->id]);
+                        $promotedCount++;
+                        AuditTrail::log(
+                            "Naik kelas nasabah {$nasabah->user->name}: Tingkat {$currentTingkat} -> {$newTingkat}",
+                            'Nasabah',
+                            $nasabah->id
+                        );
+                    } else {
+                        $failedCount++;
+                        $errors[] = "Rombel tingkat {$newTingkat} untuk jurusan nasabah {$nasabah->user->name} belum tersedia.";
+                    }
+                }
+            }
+        });
+
+        $totalSuccess = $promotedCount + $graduatedCount;
+        if ($totalSuccess === 0 && $failedCount > 0) {
+            return back()->with('error', 'Gagal menaikkan kelas: ' . (count($errors) > 0 ? implode(', ', array_slice($errors, 0, 2)) : 'Nasabah tidak valid atau sudah di tingkat tertinggi.'));
+        }
+
+        $message = "Berhasil memproses {$totalSuccess} nasabah";
+        if ($promotedCount > 0 && $graduatedCount > 0) {
+            $message .= " ({$promotedCount} naik kelas, {$graduatedCount} lulus/alumni)";
+        } elseif ($graduatedCount > 0) {
+            $message .= " ({$graduatedCount} lulus/alumni)";
+        }
+        if ($failedCount > 0) {
+            $message .= " ({$failedCount} dilewati)";
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Bulk update status for selected nasabahs (aktif/nonaktif).
+     */
+    public function bulkStatus(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:nasabah,id',
+            'status' => 'required|in:aktif,nonaktif',
+        ]);
+
+        $nasabahs = Nasabah::with('user')->whereIn('id', $request->ids)->get();
+        $targetStatus = $request->status;
+        $userTargetStatus = $targetStatus === 'aktif' ? 'active' : 'inactive';
+        $count = 0;
+
+        DB::transaction(function () use ($nasabahs, $targetStatus, $userTargetStatus, &$count) {
+            foreach ($nasabahs as $nasabah) {
+                $nasabah->update(['status' => $targetStatus]);
+                $nasabah->user->update(['status' => $userTargetStatus]);
+                $count++;
+            }
+
+            AuditTrail::log(
+                ($targetStatus === 'aktif' ? 'Mengaktifkan' : 'Menonaktifkan') . " {$count} akun nasabah secara massal",
+                'Nasabah'
+            );
+        });
+
+        $statusText = $targetStatus === 'aktif' ? 'diaktifkan' : 'dinonaktifkan';
+        return back()->with('success', "Berhasil {$statusText} {$count} nasabah");
+    }
+
+    /**
+     * Bulk delete accounts for selected nasabahs.
+     * Only deletes accounts with 0 saldo.
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:nasabah,id',
+        ]);
+
+        $nasabahs = Nasabah::with('user')->whereIn('id', $request->ids)->get();
+
+        $deletedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($nasabahs, &$deletedCount, &$skippedCount) {
+            foreach ($nasabahs as $nasabah) {
+                if ((float)$nasabah->saldo > 0) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $userName = $nasabah->user->name;
+                $userId = $nasabah->user_id;
+
+                AuditTrail::log(
+                    "Menghapus rekening nasabah secara permanen: {$userName}",
+                    'Nasabah',
+                    $nasabah->id
+                );
+
+                $nasabah->forceDelete();
+                DB::table('users')->where('id', $userId)->delete();
+                $deletedCount++;
+            }
+        });
+
+        if ($deletedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', "Semua {$skippedCount} nasabah yang dipilih masih memiliki sisa saldo dan tidak dapat dihapus.");
+        }
+
+        $message = "Berhasil menghapus {$deletedCount} rekening nasabah secara permanen";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} nasabah dilewati karena masih memiliki saldo)";
+        }
+
+        return back()->with('success', $message);
+    }
 }

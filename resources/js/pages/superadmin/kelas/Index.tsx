@@ -2,6 +2,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import Modal from '@/components/Modal';
+import ConfirmModal from '@/components/ConfirmModal';
 import Pagination from '@/components/Pagination';
 import type { Jurusan } from '@/types';
 
@@ -40,8 +41,20 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
     const [modalOpen, setModalOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<Rombel | null>(null);
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-    const [deleteTarget, setDeleteTarget] = useState<Rombel | null>(null);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [confirmModal, setConfirmModal] = useState<{
+        show: boolean;
+        title: string;
+        message: string;
+        variant: 'danger' | 'warning' | 'info' | 'success';
+        onConfirm: () => void;
+    }>({
+        show: false,
+        title: '',
+        message: '',
+        variant: 'info',
+        onConfirm: () => {}
+    });
 
     // Realtime search with debounce
     useEffect(() => {
@@ -50,14 +63,81 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
             if (search) queryParams.search = search;
             if (jurusanFilter) queryParams.jurusan_id = jurusanFilter;
 
-            router.get(`/${rolePrefix}/rombel`, queryParams, {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true
-            });
+            if (
+                search !== (filters.search || '') ||
+                jurusanFilter !== (filters.jurusan_id?.toString() || '')
+            ) {
+                setSelectedIds([]);
+                router.get(`/${rolePrefix}/rombel`, queryParams, {
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true
+                });
+            }
         }, 300);
         return () => clearTimeout(timeoutId);
-    }, [search, jurusanFilter, rolePrefix]);
+    }, [search, jurusanFilter, rolePrefix, filters]);
+
+    useEffect(() => {
+        setSearch(filters.search || '');
+        setJurusanFilter(filters.jurusan_id?.toString() || '');
+        setSelectedIds([]);
+    }, [filters]);
+
+    const isAllSelected = rombels.data.length > 0 && rombels.data.every(r => selectedIds.includes(r.id));
+    const isIndeterminate = selectedIds.length > 0 && !isAllSelected && rombels.data.some(r => selectedIds.includes(r.id));
+
+    const handleToggleSelect = (id: number) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (isAllSelected) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(rombels.data.map(r => r.id));
+        }
+    };
+
+    const handleBulkPromote = () => {
+        if (selectedIds.length === 0) return;
+        setConfirmModal({
+            show: true,
+            title: 'Naikkan Tingkat Kelas Massal',
+            message: `Apakah Anda yakin ingin menaikkan tingkat ${selectedIds.length} kelas yang dipilih? (Tingkat 10 -> 11, 11 -> 12).`,
+            variant: 'info',
+            onConfirm: () => {
+                router.post(`/${rolePrefix}/kelas/bulk-promote`, { ids: selectedIds }, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setSelectedIds([]);
+                        setConfirmModal(prev => ({ ...prev, show: false }));
+                    }
+                });
+            }
+        });
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedIds.length === 0) return;
+        setConfirmModal({
+            show: true,
+            title: 'Hapus Kelas Massal',
+            message: `Apakah Anda yakin ingin MENGHAPUS ${selectedIds.length} kelas yang dipilih? Kelas yang masih memiliki data siswa terdaftar akan otomatis dilewati.`,
+            variant: 'danger',
+            onConfirm: () => {
+                router.post(`/${rolePrefix}/kelas/bulk-delete`, { ids: selectedIds }, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setSelectedIds([]);
+                        setConfirmModal(prev => ({ ...prev, show: false }));
+                    }
+                });
+            }
+        });
+    };
 
     const { data, setData, post, processing, errors, reset } = useForm({
         jurusan_id: '',
@@ -131,15 +211,17 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
     };
 
     const handleDelete = (rombel: Rombel) => {
-        setDeleteTarget(rombel);
-        setDeleteConfirmOpen(true);
-    };
-
-    const confirmDelete = () => {
-        if (!deleteTarget) return;
-        router.delete(`/${rolePrefix}/rombel/${deleteTarget.id}`, {
-            preserveScroll: true,
-            onSuccess: () => setDeleteConfirmOpen(false),
+        setConfirmModal({
+            show: true,
+            title: 'Hapus Kelas',
+            message: `Apakah Anda yakin ingin menghapus kelas ${getRombelDisplayName(rombel)}? Tindakan ini tidak dapat dibatalkan.`,
+            variant: 'danger',
+            onConfirm: () => {
+                router.delete(`/${rolePrefix}/rombel/${rombel.id}`, {
+                    preserveScroll: true,
+                    onSuccess: () => setConfirmModal(prev => ({ ...prev, show: false }))
+                });
+            }
         });
     };
 
@@ -223,11 +305,63 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                     </div>
                 </div>
 
+                {/* Bulk Action Bar */}
+                {selectedIds.length > 0 && (
+                    <div className="bg-slate-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl border border-slate-800 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center gap-3">
+                            <span className="inline-flex items-center justify-center bg-emerald-500 text-slate-900 font-black text-xs h-7 min-w-7 px-2 rounded-xl">
+                                {selectedIds.length}
+                            </span>
+                            <span className="text-xs font-semibold uppercase tracking-wider text-slate-200">
+                                Kelas Terpilih
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                onClick={handleBulkPromote}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                </svg>
+                                Naikkan Tingkat
+                            </button>
+                            <button
+                                onClick={handleBulkDelete}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Hapus Kelas
+                            </button>
+                            <button
+                                onClick={() => setSelectedIds([])}
+                                className="px-3 py-2 text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest transition-colors"
+                            >
+                                Batal
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="rounded-2xl bg-white border border-slate-200/70 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-slate-50/80 border-b border-slate-200/70">
                                 <tr>
+                                    <th className="px-4 py-4 text-center w-12 border-b border-slate-200/70">
+                                        <input
+                                            type="checkbox"
+                                            checked={isAllSelected}
+                                            ref={(el) => {
+                                                if (el) el.indeterminate = isIndeterminate;
+                                            }}
+                                            onChange={handleSelectAll}
+                                            className="h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer transition-all"
+                                            title="Pilih Semua Kelas di Halaman Ini"
+                                        />
+                                    </th>
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">ID</th>
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Nama Kelas</th>
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Jurusan</th>
@@ -240,13 +374,24 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                             <tbody className="divide-y divide-slate-100">
                                 {rombels.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-12 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
+                                        <td colSpan={8} className="px-6 py-12 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
                                             Tidak ada kelas ditemukan
                                         </td>
                                     </tr>
                                 ) : (
                                     rombels.data.map((item) => (
-                                        <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                                        <tr
+                                            key={item.id}
+                                            className={`transition-colors ${selectedIds.includes(item.id) ? 'bg-emerald-50/50' : 'hover:bg-slate-50/70'}`}
+                                        >
+                                            <td className="px-4 py-4 text-center whitespace-nowrap">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.includes(item.id)}
+                                                    onChange={() => handleToggleSelect(item.id)}
+                                                    className="h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer transition-all"
+                                                />
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-semibold border bg-slate-100 text-slate-700 border-slate-200/70 uppercase tracking-[0.2em]">
                                                     {item.id}
@@ -317,6 +462,16 @@ export default function RombelIndex({ rombels, jurusans, filters }: RombelIndexP
                     />
                 </div>
             </div>
+
+            {/* Confirm Modal */}
+            <ConfirmModal
+                show={confirmModal.show}
+                onClose={() => setConfirmModal(prev => ({ ...prev, show: false }))}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                variant={confirmModal.variant}
+            />
 
             {/* Modal Tambah Kelas */}
             <Modal

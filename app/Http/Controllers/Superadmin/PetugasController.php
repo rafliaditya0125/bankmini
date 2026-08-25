@@ -311,4 +311,126 @@ class PetugasController extends Controller
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
+
+    /**
+     * Bulk update status for selected petugas.
+     */
+    public function bulkStatus(Request $request)
+    {
+        $currentUser = auth()->user();
+
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:users,id',
+            'status' => 'required|in:active,inactive,suspended',
+        ]);
+
+        $users = User::whereIn('id', $request->ids)->get();
+        $targetStatus = $request->status;
+        $updatedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($users, $targetStatus, $currentUser, &$updatedCount, &$skippedCount) {
+            foreach ($users as $user) {
+                // Cannot change self
+                if ($user->id === $currentUser->id) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                // Role restrictions
+                if ($currentUser->role === 'admin') {
+                    if ($user->role === 'superadmin' || $user->role === 'admin') {
+                        $skippedCount++;
+                        continue;
+                    }
+                }
+
+                $user->update(['status' => $targetStatus]);
+                $updatedCount++;
+            }
+
+            if ($updatedCount > 0) {
+                AuditTrail::log(
+                    "Mengubah status {$updatedCount} akun petugas menjadi {$targetStatus}",
+                    'User'
+                );
+            }
+        });
+
+        $statusText = match($targetStatus) {
+            'active' => 'diaktifkan',
+            'inactive' => 'dinonaktifkan',
+            'suspended' => 'diblokir',
+        };
+
+        if ($updatedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', 'Tidak ada akun petugas yang dapat diubah karena batasan hak akses.');
+        }
+
+        $message = "Berhasil {$statusText} {$updatedCount} petugas";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} dilewati karena batasan hak akses atau akun sendiri)";
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Bulk delete selected petugas accounts.
+     */
+    public function bulkDelete(Request $request)
+    {
+        $currentUser = auth()->user();
+
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:users,id',
+        ]);
+
+        $users = User::whereIn('id', $request->ids)->get();
+        $deletedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($users, $currentUser, &$deletedCount, &$skippedCount) {
+            foreach ($users as $user) {
+                // Cannot delete self
+                if ($user->id === $currentUser->id) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                // Superadmin protection & admin permission limits
+                if ($user->role === 'superadmin') {
+                    $skippedCount++;
+                    continue;
+                }
+
+                if ($currentUser->role === 'admin' && $user->role !== 'teller') {
+                    $skippedCount++;
+                    continue;
+                }
+
+                AuditTrail::log(
+                    "Menghapus akun petugas: {$user->email} ({$user->role})",
+                    'User',
+                    $user->id
+                );
+
+                $user->delete();
+                $deletedCount++;
+            }
+        });
+
+        if ($deletedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', 'Tidak ada akun petugas yang dapat dihapus karena batasan hak akses atau akun sendiri.');
+        }
+
+        $message = "Berhasil menghapus {$deletedCount} akun petugas";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} dilewati karena batasan hak akses/akun sendiri)";
+        }
+
+        return back()->with('success', $message);
+    }
 }

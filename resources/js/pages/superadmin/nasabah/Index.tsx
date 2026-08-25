@@ -47,6 +47,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
     const [editOpen, setEditOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<(Nasabah & { user: User }) | null>(null);
     const [viewKelasModalOpen, setViewKelasModalOpen] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -100,6 +101,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                 rombelFilter !== (filters.rombel_id || 'all') ||
                 typeFilter !== (filters.user_type || 'all')
             ) {
+                setSelectedIds([]);
                 router.get(`/${rolePrefix}/nasabah`, queryParams, {
                     preserveState: true,
                     preserveScroll: true,
@@ -118,6 +120,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         setJurusanFilter(filters.jurusan_id || 'all');
         setRombelFilter(filters.rombel_id || 'all');
         setTypeFilter(filters.user_type || 'all');
+        setSelectedIds([]);
     }, [filters]);
 
     const handleJurusanFilterChange = (val: string) => {
@@ -127,6 +130,83 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
 
     const handleStatusFilter = (status: string) => {
         setStatusFilter(status);
+    };
+
+    // Checkbox selection handlers
+    const isAllSelected = nasabah.data.length > 0 && nasabah.data.every(item => selectedIds.includes(item.id));
+    const isIndeterminate = selectedIds.length > 0 && !isAllSelected && nasabah.data.some(item => selectedIds.includes(item.id));
+
+    const handleToggleSelect = (id: number) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (isAllSelected) {
+            setSelectedIds([]);
+        } else {
+            const allIds = nasabah.data.map(item => item.id);
+            setSelectedIds(allIds);
+        }
+    };
+
+    const handleBulkPromote = () => {
+        if (selectedIds.length === 0) return;
+        setConfirmModal({
+            show: true,
+            title: 'Naik Kelas Massal',
+            message: `Apakah Anda yakin ingin menaikkan kelas ${selectedIds.length} nasabah yang dipilih? (Hanya berlaku untuk nasabah tipe Siswa).`,
+            variant: 'info',
+            onConfirm: () => {
+                router.post(`/${rolePrefix}/nasabah/bulk-promote`, { ids: selectedIds }, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setSelectedIds([]);
+                        setConfirmModal(prev => ({ ...prev, show: false }));
+                    }
+                });
+            }
+        });
+    };
+
+    const handleBulkStatus = (targetStatus: 'aktif' | 'nonaktif') => {
+        if (selectedIds.length === 0) return;
+        const action = targetStatus === 'aktif' ? 'mengaktifkan' : 'menonaktifkan';
+        setConfirmModal({
+            show: true,
+            title: targetStatus === 'aktif' ? 'Aktifkan Akun Massal' : 'Nonaktifkan Akun Massal',
+            message: `Apakah Anda yakin ingin ${action} ${selectedIds.length} nasabah yang dipilih?${targetStatus === 'nonaktif' ? ' Nasabah tidak akan bisa login.' : ''}`,
+            variant: targetStatus === 'nonaktif' ? 'warning' : 'success',
+            onConfirm: () => {
+                router.post(`/${rolePrefix}/nasabah/bulk-status`, { ids: selectedIds, status: targetStatus }, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setSelectedIds([]);
+                        setConfirmModal(prev => ({ ...prev, show: false }));
+                    }
+                });
+            }
+        });
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedIds.length === 0) return;
+        setConfirmModal({
+            show: true,
+            title: 'Hapus Rekening Massal',
+            message: `Apakah Anda yakin ingin MENGHAPUS PERMANEN ${selectedIds.length} rekening nasabah yang dipilih? Rekening yang masih memiliki sisa saldo akan otomatis dilewati demi keamanan.`,
+            variant: 'danger',
+            onConfirm: () => {
+                router.post(`/${rolePrefix}/nasabah/bulk-delete`, { ids: selectedIds }, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setSelectedIds([]);
+                        setConfirmModal(prev => ({ ...prev, show: false }));
+                    }
+                });
+            }
+        });
     };
 
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -489,12 +569,82 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                     </div>
                 </div>
 
+                {/* Bulk Action Bar */}
+                {selectedIds.length > 0 && (
+                    <div className="bg-slate-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl border border-slate-800 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center gap-3">
+                            <span className="inline-flex items-center justify-center bg-emerald-500 text-slate-900 font-black text-xs h-7 min-w-7 px-2 rounded-xl">
+                                {selectedIds.length}
+                            </span>
+                            <span className="text-xs font-semibold uppercase tracking-wider text-slate-200">
+                                Nasabah Terpilih
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                onClick={handleBulkPromote}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                </svg>
+                                Naikkan Kelas
+                            </button>
+                            <button
+                                onClick={() => handleBulkStatus('aktif')}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Aktifkan
+                            </button>
+                            <button
+                                onClick={() => handleBulkStatus('nonaktif')}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                </svg>
+                                Nonaktifkan
+                            </button>
+                            <button
+                                onClick={handleBulkDelete}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Hapus Rekening
+                            </button>
+                            <button
+                                onClick={() => setSelectedIds([])}
+                                className="px-3 py-2 text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest transition-colors"
+                            >
+                                Batal
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Table Card */}
                 <div className="rounded-2xl bg-white border border-slate-200/70 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-slate-50/80 border-b border-slate-200/70">
                                 <tr>
+                                    <th className="px-4 py-4 text-center w-12 border-b border-slate-200/70">
+                                        <input
+                                            type="checkbox"
+                                            checked={isAllSelected}
+                                            ref={(el) => {
+                                                if (el) el.indeterminate = isIndeterminate;
+                                            }}
+                                            onChange={handleSelectAll}
+                                            className="h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer transition-all"
+                                            title="Pilih Semua di Halaman Ini"
+                                        />
+                                    </th>
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">No. Rekening</th>
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Nasabah</th>
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Tipe</th>
@@ -507,13 +657,24 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                             <tbody className="divide-y divide-slate-100">
                                 {nasabah.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-12 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                        <td colSpan={8} className="px-6 py-12 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                             Tidak ada data nasabah ditemukan
                                         </td>
                                     </tr>
                                 ) : (
                                     nasabah.data.map((item) => (
-                                        <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                                        <tr
+                                            key={item.id}
+                                            className={`transition-colors ${selectedIds.includes(item.id) ? 'bg-emerald-50/50' : 'hover:bg-slate-50/70'}`}
+                                        >
+                                            <td className="px-4 py-4 text-center whitespace-nowrap">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.includes(item.id)}
+                                                    onChange={() => handleToggleSelect(item.id)}
+                                                    className="h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer transition-all"
+                                                />
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className="text-xs font-mono font-semibold text-emerald-700 uppercase tracking-tighter">{item.nomor_rekening}</span>
                                             </td>

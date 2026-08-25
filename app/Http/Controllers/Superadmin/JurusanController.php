@@ -485,4 +485,172 @@ class JurusanController extends Controller
 
         return back()->with('success', $message);
     }
+
+    /**
+     * Bulk delete jurusans.
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:jurusans,id',
+        ]);
+
+        $jurusans = Jurusan::withCount('nasabah')->whereIn('id', $request->ids)->get();
+        $deletedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($jurusans, &$deletedCount, &$skippedCount) {
+            foreach ($jurusans as $jurusan) {
+                if ($jurusan->nasabah_count > 0) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $nama = $jurusan->nama;
+                $jurusan->delete();
+
+                AuditLog::logActivity(
+                    'delete_jurusan',
+                    "Menghapus jurusan: {$nama}",
+                    'success',
+                    Auth::id(),
+                    Auth::user()->name,
+                    Auth::user()->role
+                );
+
+                $deletedCount++;
+            }
+        });
+
+        if ($deletedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', "Gagal: {$skippedCount} jurusan masih digunakan oleh data nasabah aktif.");
+        }
+
+        $message = "Berhasil menghapus {$deletedCount} jurusan";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} jurusan dilewati karena masih memiliki nasabah)";
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Bulk delete rombels for a specific jurusan
+     */
+    public function bulkDestroyRombel(Request $request, Jurusan $jurusan)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:rombels,id',
+        ]);
+
+        $rombels = \App\Models\Rombel::withCount('nasabah')
+            ->where('jurusan_id', $jurusan->id)
+            ->whereIn('id', $request->ids)
+            ->get();
+
+        $deletedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($rombels, $jurusan, &$deletedCount, &$skippedCount) {
+            foreach ($rombels as $rombel) {
+                if ($rombel->nasabah_count > 0) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $rombelName = $rombel->nama ?? "Tingkat {$rombel->tingkat}";
+                $rombel->delete();
+
+                AuditLog::logActivity(
+                    'delete_rombel',
+                    "Menghapus rombel {$rombelName} dari jurusan {$jurusan->nama}",
+                    'success',
+                    Auth::id(),
+                    Auth::user()->name,
+                    Auth::user()->role
+                );
+
+                $deletedCount++;
+            }
+        });
+
+        if ($deletedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', "Gagal: {$skippedCount} rombel masih memiliki siswa terdaftar.");
+        }
+
+        $message = "Berhasil menghapus {$deletedCount} rombel";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} dilewati karena masih memiliki siswa)";
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Bulk promote rombels for a specific jurusan
+     */
+    public function bulkPromoteRombel(Request $request, Jurusan $jurusan)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:rombels,id',
+        ]);
+
+        $rombels = \App\Models\Rombel::where('jurusan_id', $jurusan->id)
+            ->whereIn('id', $request->ids)
+            ->get();
+
+        $promotedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($rombels, $jurusan, &$promotedCount, &$skippedCount) {
+            foreach ($rombels as $rombel) {
+                $currentTingkat = (string)$rombel->tingkat;
+                $newTingkat = match ($currentTingkat) {
+                    '10' => '11',
+                    '11' => '12',
+                    default => null
+                };
+
+                if (!$newTingkat) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $oldNama = $rombel->nama;
+                $newNama = $oldNama ? preg_replace('/^' . preg_quote($currentTingkat, '/') . '\b/', $newTingkat, $oldNama) : "{$newTingkat} {$jurusan->kode}";
+
+                $rombel->update([
+                    'tingkat' => $newTingkat,
+                    'nama' => $newNama
+                ]);
+
+                $promotedCount++;
+            }
+
+            if ($promotedCount > 0) {
+                AuditLog::logActivity(
+                    'update_rombel',
+                    "Menaikkan tingkat {$promotedCount} rombel di jurusan {$jurusan->nama}",
+                    'success',
+                    Auth::id(),
+                    Auth::user()->name,
+                    Auth::user()->role
+                );
+            }
+        });
+
+        if ($promotedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', 'Semua rombel yang dipilih sudah berada di tingkat tertinggi (12).');
+        }
+
+        $message = "Berhasil menaikkan tingkat {$promotedCount} rombel";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} rombel dilewati karena sudah tingkat 12)";
+        }
+
+        return back()->with('success', $message);
+    }
 }

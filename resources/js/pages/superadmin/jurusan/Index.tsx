@@ -1,5 +1,5 @@
 import DashboardLayout from '@/layouts/DashboardLayout';
-import { Head, useForm, usePage, Link } from '@inertiajs/react';
+import { Head, useForm, usePage, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Modal from '@/components/Modal';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
@@ -28,6 +28,8 @@ export default function Index({ jurusans }: Props) {
     const [selectedJurusan, setSelectedJurusan] = useState<Jurusan | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [jurusanToDelete, setJurusanToDelete] = useState<Jurusan | null>(null);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [importRombelModalOpen, setImportRombelModalOpen] = useState(false);
@@ -52,6 +54,38 @@ export default function Index({ jurusans }: Props) {
         j.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
         j.kode.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const isAllSelected = filteredJurusans.length > 0 && filteredJurusans.every(j => selectedIds.includes(j.id));
+    const isIndeterminate = selectedIds.length > 0 && !isAllSelected && filteredJurusans.some(j => selectedIds.includes(j.id));
+
+    const handleToggleSelect = (id: number) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (isAllSelected) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredJurusans.map(j => j.id));
+        }
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedIds.length === 0) return;
+        setShowBulkDeleteConfirm(true);
+    };
+
+    const confirmBulkDelete = () => {
+        router.post(`/${rolePrefix}/jurusan/bulk-delete`, { ids: selectedIds }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setSelectedIds([]);
+                setShowBulkDeleteConfirm(false);
+            }
+        });
+    };
 
     const handleOpenAddModal = () => {
         setIsEdit(false);
@@ -178,12 +212,55 @@ export default function Index({ jurusans }: Props) {
                     </div>
                 </div>
 
+                {/* Bulk Action Bar */}
+                {selectedIds.length > 0 && (
+                    <div className="bg-slate-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl border border-slate-800 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center gap-3">
+                            <span className="inline-flex items-center justify-center bg-emerald-500 text-slate-900 font-black text-xs h-7 min-w-7 px-2 rounded-xl">
+                                {selectedIds.length}
+                            </span>
+                            <span className="text-xs font-semibold uppercase tracking-wider text-slate-200">
+                                Jurusan Terpilih
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                onClick={handleBulkDelete}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Hapus Jurusan
+                            </button>
+                            <button
+                                onClick={() => setSelectedIds([])}
+                                className="px-3 py-2 text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest transition-colors"
+                            >
+                                Batal
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Jurusan Table */}
                 <div className="bg-white rounded-2xl border border-slate-200/70 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50/80">
+                                    <th className="px-4 py-4 text-center w-12 border-b border-slate-200/70">
+                                        <input
+                                            type="checkbox"
+                                            checked={isAllSelected}
+                                            ref={(el) => {
+                                                if (el) el.indeterminate = isIndeterminate;
+                                            }}
+                                            onChange={handleSelectAll}
+                                            className="h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer transition-all"
+                                            title="Pilih Semua Jurusan di Halaman Ini"
+                                        />
+                                    </th>
                                     <th className="px-6 py-4 text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em] border-b border-slate-200/70">Kode</th>
                                     <th className="px-6 py-4 text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em] border-b border-slate-200/70">Nama Jurusan</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em] border-b border-slate-200/70">Kelas 10</th>
@@ -195,7 +272,18 @@ export default function Index({ jurusans }: Props) {
                             <tbody className="divide-y divide-slate-100">
                                 {filteredJurusans.length > 0 ? (
                                     filteredJurusans.map((jurusan) => (
-                                        <tr key={jurusan.id} className="hover:bg-slate-50/70 transition-colors group">
+                                        <tr
+                                            key={jurusan.id}
+                                            className={`transition-colors group ${selectedIds.includes(jurusan.id) ? 'bg-emerald-50/50' : 'hover:bg-slate-50/70'}`}
+                                        >
+                                            <td className="px-4 py-4 text-center whitespace-nowrap">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.includes(jurusan.id)}
+                                                    onChange={() => handleToggleSelect(jurusan.id)}
+                                                    className="h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer transition-all"
+                                                />
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-[0.2em] bg-emerald-50 text-emerald-700 border border-emerald-200/70">
                                                     {jurusan.kode}
@@ -267,7 +355,7 @@ export default function Index({ jurusans }: Props) {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center">
+                                        <td colSpan={7} className="px-6 py-12 text-center">
                                             <div className="flex flex-col items-center gap-2">
                                                 <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400">
                                                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -345,6 +433,17 @@ export default function Index({ jurusans }: Props) {
                 title="Hapus Jurusan"
                 message={`Apakah Anda yakin ingin menghapus jurusan ${jurusanToDelete?.nama}? Tindakan ini tidak dapat dibatalkan.`}
                 confirmText="Ya, Hapus"
+                variant="danger"
+            />
+
+            {/* Modal Konfirmasi Hapus Massal */}
+            <ConfirmModal
+                show={showBulkDeleteConfirm}
+                onClose={() => setShowBulkDeleteConfirm(false)}
+                onConfirm={confirmBulkDelete}
+                title="Hapus Jurusan Massal"
+                message={`Apakah Anda yakin ingin menghapus ${selectedIds.length} jurusan yang dipilih? Jurusan yang masih memiliki nasabah terdaftar akan otomatis dilewati.`}
+                confirmText="Ya, Hapus Terpilih"
                 variant="danger"
             />
 

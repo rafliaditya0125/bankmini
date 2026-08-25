@@ -135,6 +135,9 @@ Route::middleware(['auth', 'role:teller', 'verified'])->prefix('teller')->name('
 Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [SuperadminDashboardController::class, 'index'])->name('dashboard');
     Route::post('/nasabah/promote-batch', [SuperadminNasabahController::class, 'promoteBatch'])->name('nasabah.promote-batch');
+    Route::post('/nasabah/bulk-promote', [SuperadminNasabahController::class, 'bulkPromote'])->name('nasabah.bulk-promote');
+    Route::post('/nasabah/bulk-status', [SuperadminNasabahController::class, 'bulkStatus'])->name('nasabah.bulk-status');
+    Route::post('/nasabah/bulk-delete', [SuperadminNasabahController::class, 'bulkDelete'])->name('nasabah.bulk-delete');
     Route::post('/nasabah/import', [SuperadminNasabahController::class, 'import'])->name('nasabah.import');
     Route::get('/nasabah/template', [SuperadminNasabahController::class, 'downloadTemplate'])->name('nasabah.template');
     Route::get('/nasabah/rombel-list', [SuperadminNasabahController::class, 'downloadRombelList'])->name('nasabah.rombel-list');
@@ -142,10 +145,13 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::post('/nasabah/{nasabah}/promote', [SuperadminNasabahController::class, 'promote'])->name('nasabah.promote');
     Route::delete('/nasabah/{nasabah}/delete-rekening', [SuperadminNasabahController::class, 'deleteRekening'])->name('nasabah.delete-rekening');
 
+    Route::post('/petugas/bulk-status', [SuperadminPetugasController::class, 'bulkStatus'])->name('petugas.bulk-status');
+    Route::post('/petugas/bulk-delete', [SuperadminPetugasController::class, 'bulkDelete'])->name('petugas.bulk-delete');
     Route::post('/petugas/import', [SuperadminPetugasController::class, 'import'])->name('petugas.import');
     Route::get('/petugas/template', [SuperadminPetugasController::class, 'downloadTemplate'])->name('petugas.template');
     Route::resource('petugas', SuperadminPetugasController::class)->except(['edit']);
 
+    Route::post('/jurusan/bulk-delete', [SuperadminJurusanController::class, 'bulkDelete'])->name('jurusan.bulk-delete');
     Route::post('/jurusan/import', [SuperadminJurusanController::class, 'import'])->name('jurusan.import');
     Route::get('/jurusan/template', [SuperadminJurusanController::class, 'downloadTemplate'])->name('jurusan.template');
     Route::resource('jurusan', SuperadminJurusanController::class);
@@ -155,6 +161,8 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::post('/jurusan/rombel/import-all', [SuperadminJurusanController::class, 'importRombelAll'])->name('jurusan.rombel.import-all');
     Route::get('/jurusan/rombel/template-all', [SuperadminJurusanController::class, 'downloadRombelTemplateAll'])->name('jurusan.rombel.template-all');
 
+    Route::post('/jurusan/{jurusan}/rombel/bulk-promote', [SuperadminJurusanController::class, 'bulkPromoteRombel'])->name('jurusan.rombel.bulk-promote');
+    Route::post('/jurusan/{jurusan}/rombel/bulk-delete', [SuperadminJurusanController::class, 'bulkDestroyRombel'])->name('jurusan.rombel.bulk-destroy');
     Route::post('/jurusan/{jurusan}/rombel/import', [SuperadminJurusanController::class, 'importRombel'])->name('jurusan.rombel.import');
     Route::get('/jurusan/{jurusan}/rombel/template', [SuperadminJurusanController::class, 'downloadRombelTemplate'])->name('jurusan.rombel.template');
     Route::get('/jurusan/{jurusan}/rombel', [SuperadminJurusanController::class, 'showRombel'])->name('jurusan.rombel.show');
@@ -162,6 +170,8 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::put('/jurusan/{jurusan}/rombel/{rombel}', [SuperadminJurusanController::class, 'updateRombel'])->name('jurusan.rombel.update');
     Route::delete('/jurusan/{jurusan}/rombel/{rombel}', [SuperadminJurusanController::class, 'destroyRombel'])->name('jurusan.rombel.destroy');
 
+    Route::post('/kelas/bulk-promote', [\App\Http\Controllers\Superadmin\RombelController::class, 'bulkPromote'])->name('kelas.bulk-promote');
+    Route::post('/kelas/bulk-delete', [\App\Http\Controllers\Superadmin\RombelController::class, 'bulkDelete'])->name('kelas.bulk-delete');
     Route::resource('kelas', \App\Http\Controllers\Superadmin\RombelController::class);
     Route::post('/setor', [SharedTransactionController::class, 'setorStore'])->name('setor.store')->middleware('log');
 
@@ -206,6 +216,9 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
 Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')->name('superadmin.')->group(function () {
     Route::get('/dashboard', [SuperadminDashboardController::class, 'index'])->name('dashboard');
     Route::post('/nasabah/promote-batch', [SuperadminNasabahController::class, 'promoteBatch'])->name('nasabah.promote-batch');
+    Route::post('/nasabah/bulk-promote', [SuperadminNasabahController::class, 'bulkPromote'])->name('nasabah.bulk-promote');
+    Route::post('/nasabah/bulk-status', [SuperadminNasabahController::class, 'bulkStatus'])->name('nasabah.bulk-status');
+    Route::post('/nasabah/bulk-delete', [SuperadminNasabahController::class, 'bulkDelete'])->name('nasabah.bulk-delete');
     Route::post('/nasabah/import', [SuperadminNasabahController::class, 'import'])->name('nasabah.import');
     Route::get('/nasabah/template', [SuperadminNasabahController::class, 'downloadTemplate'])->name('nasabah.template');
     Route::get('/nasabah/rombel-list', [SuperadminNasabahController::class, 'downloadRombelList'])->name('nasabah.rombel-list');
@@ -213,10 +226,13 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     Route::post('/nasabah/{nasabah}/promote', [SuperadminNasabahController::class, 'promote'])->name('nasabah.promote');
     Route::delete('/nasabah/{nasabah}/delete-rekening', [SuperadminNasabahController::class, 'deleteRekening'])->name('nasabah.delete-rekening');
 
+    Route::post('/petugas/bulk-status', [SuperadminPetugasController::class, 'bulkStatus'])->name('petugas.bulk-status');
+    Route::post('/petugas/bulk-delete', [SuperadminPetugasController::class, 'bulkDelete'])->name('petugas.bulk-delete');
     Route::post('/petugas/import', [SuperadminPetugasController::class, 'import'])->name('petugas.import');
     Route::get('/petugas/template', [SuperadminPetugasController::class, 'downloadTemplate'])->name('petugas.template');
     Route::resource('petugas', SuperadminPetugasController::class)->except(['edit']);
 
+    Route::post('/jurusan/bulk-delete', [SuperadminJurusanController::class, 'bulkDelete'])->name('jurusan.bulk-delete');
     Route::post('/jurusan/import', [SuperadminJurusanController::class, 'import'])->name('jurusan.import');
     Route::get('/jurusan/template', [SuperadminJurusanController::class, 'downloadTemplate'])->name('jurusan.template');
     Route::resource('jurusan', SuperadminJurusanController::class);
@@ -226,6 +242,8 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     Route::post('/jurusan/rombel/import-all', [SuperadminJurusanController::class, 'importRombelAll'])->name('jurusan.rombel.import-all');
     Route::get('/jurusan/rombel/template-all', [SuperadminJurusanController::class, 'downloadRombelTemplateAll'])->name('jurusan.rombel.template-all');
 
+    Route::post('/jurusan/{jurusan}/rombel/bulk-promote', [SuperadminJurusanController::class, 'bulkPromoteRombel'])->name('jurusan.rombel.bulk-promote');
+    Route::post('/jurusan/{jurusan}/rombel/bulk-delete', [SuperadminJurusanController::class, 'bulkDestroyRombel'])->name('jurusan.rombel.bulk-destroy');
     Route::post('/jurusan/{jurusan}/rombel/import', [SuperadminJurusanController::class, 'importRombel'])->name('jurusan.rombel.import');
     Route::get('/jurusan/{jurusan}/rombel/template', [SuperadminJurusanController::class, 'downloadRombelTemplate'])->name('jurusan.rombel.template');
     Route::get('/jurusan/{jurusan}/rombel', [SuperadminJurusanController::class, 'showRombel'])->name('jurusan.rombel.show');
@@ -233,6 +251,8 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     Route::put('/jurusan/{jurusan}/rombel/{rombel}', [SuperadminJurusanController::class, 'updateRombel'])->name('jurusan.rombel.update');
     Route::delete('/jurusan/{jurusan}/rombel/{rombel}', [SuperadminJurusanController::class, 'destroyRombel'])->name('jurusan.rombel.destroy');
 
+    Route::post('/kelas/bulk-promote', [\App\Http\Controllers\Superadmin\RombelController::class, 'bulkPromote'])->name('kelas.bulk-promote');
+    Route::post('/kelas/bulk-delete', [\App\Http\Controllers\Superadmin\RombelController::class, 'bulkDelete'])->name('kelas.bulk-delete');
     Route::resource('kelas', \App\Http\Controllers\Superadmin\RombelController::class);
     Route::get('/setor', [SharedTransactionController::class, 'setorIndex'])->name('setor.index');
     Route::post('/setor', [SharedTransactionController::class, 'setorStore'])->name('setor.store')->middleware('log');
