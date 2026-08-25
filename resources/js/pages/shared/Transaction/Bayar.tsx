@@ -301,8 +301,12 @@ export default function Bayar({ pengirim, pembayaranAccounts, minBayar }: PagePr
                                 <div className="rounded-xl p-4 text-white shadow bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-900 w-full">
                                     <h2 className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-3 text-left">Data Pembayar (Pengirim)</h2>
                                     <div className="flex items-center gap-3 mb-3">
-                                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-base font-black border border-white/20">
-                                            {pengirim.user.name.charAt(0).toUpperCase()}
+                                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-base font-black border border-white/20 overflow-hidden">
+                                            {pengirim.user.profile_photo_url && !pengirim.user.profile_photo_url.includes('ui-avatars') ? (
+                                                <img src={pengirim.user.profile_photo_url} alt={pengirim.user.name} className="h-full w-full object-cover" />
+                                            ) : (
+                                                pengirim.user.name.charAt(0).toUpperCase()
+                                            )}
                                         </div>
                                         <div>
                                             <h3 className="text-base font-bold leading-tight">{pengirim.user.name}</h3>

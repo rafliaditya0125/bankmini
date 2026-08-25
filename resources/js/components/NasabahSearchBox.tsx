@@ -110,9 +110,13 @@ export default function NasabahSearchBox({ value, onChange, onSelect, placeholde
                                         }}
                                         className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors"
                                     >
-                                        <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm uppercase shrink-0">
-                                            {item.user?.name ? item.user.name.charAt(0) : '?'}
-                                        </div>
+                                        {item.user?.profile_photo_url && !item.user.profile_photo_url.includes('ui-avatars') ? (
+                                            <img src={item.user.profile_photo_url} alt={item.user.name} className="h-10 w-10 rounded-full object-cover shrink-0" />
+                                        ) : (
+                                            <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm uppercase shrink-0">
+                                                {item.user?.name ? item.user.name.charAt(0) : '?'}
+                                            </div>
+                                        )}
                                         <div>
                                             <div className="font-bold text-sm text-slate-800 flex items-center gap-1.5 flex-wrap">
                                                 <span>{item.user?.name || '-'}</span>

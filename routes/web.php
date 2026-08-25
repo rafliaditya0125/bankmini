@@ -174,6 +174,7 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::post('/kelas/bulk-promote', [\App\Http\Controllers\Superadmin\RombelController::class, 'bulkPromote'])->name('kelas.bulk-promote');
     Route::post('/kelas/bulk-delete', [\App\Http\Controllers\Superadmin\RombelController::class, 'bulkDelete'])->name('kelas.bulk-delete');
     Route::resource('kelas', \App\Http\Controllers\Superadmin\RombelController::class);
+    Route::get('/setor', [SharedTransactionController::class, 'setorIndex'])->name('setor.index');
     Route::post('/setor', [SharedTransactionController::class, 'setorStore'])->name('setor.store')->middleware('log');
 
     // Tarik Tunai Routes
