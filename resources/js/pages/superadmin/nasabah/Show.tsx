@@ -2,7 +2,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import type { Nasabah, Transaksi, User } from '@/types';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatRombelName } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 
@@ -266,7 +266,9 @@ export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNas
                             </div>
                             <div className="relative rounded-2xl border border-slate-50 bg-slate-50/50 p-6 transition-all hover:bg-white hover:border-emerald-100 hover:shadow-md">
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Kelas</p>
-                                <p className="text-sm font-black text-slate-800 tracking-tight uppercase">{nasabah.kelas || '-'}</p>
+                                <p className="text-sm font-black text-slate-800 tracking-tight uppercase">
+                                    {formatRombelName((nasabah as any).rombel_rel || (nasabah as any).rombelRel || nasabah.kelas)}
+                                </p>
                             </div>
                             <div className="relative rounded-2xl border border-slate-50 bg-slate-50/50 p-6 transition-all hover:bg-white hover:border-emerald-100 hover:shadow-md">
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Jurusan</p>
@@ -414,7 +416,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNas
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Jurusan</label>
                                     <select value={data.jurusan_id} onChange={e => setData('jurusan_id', e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl font-black text-xs uppercase tracking-widest">
                                         <option value="">Pilih Jurusan</option>
-                                        {jurusans.map(j => <option key={j.id} value={j.id}>{j.nama}</option>)}
+                                        {jurusans.map(j => <option key={j.id} value={j.id}>{j.kode}</option>)}
                                     </select>
                                     {errors.jurusan_id && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{errors.jurusan_id}</p>}
                                 </div>

@@ -38,3 +38,28 @@ export const parseNumber = (value: string): number => {
     const cleanValue = value.toString().replace(/\./g, '');
     return parseInt(cleanValue, 10) || 0;
 };
+
+/**
+ * Format nama rombel selalu: tingkat + nama rombel (e.g. "10 RPL 1", "11 RPL 1")
+ */
+export const formatRombelName = (rombel: any): string => {
+    if (!rombel) return '-';
+    if (typeof rombel === 'string') {
+        return rombel.trim() || '-';
+    }
+    const tingkat = rombel.tingkat ? String(rombel.tingkat).trim() : '';
+    const rawNama = String(rombel.nama || rombel.nama_kelas || '').trim();
+    const cleanNama = rawNama.replace(/^(10|11|12)\s*/i, '').trim();
+
+    if (tingkat && cleanNama) {
+        return `${tingkat} ${cleanNama}`;
+    }
+    if (cleanNama) {
+        return cleanNama;
+    }
+    if (tingkat) {
+        const jurKode = rombel.jurusan?.kode || rombel.jurusan_rel?.kode || '';
+        return `${tingkat} ${jurKode}`.trim();
+    }
+    return rawNama || '-';
+};

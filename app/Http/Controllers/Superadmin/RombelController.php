@@ -89,4 +89,95 @@ class RombelController extends Controller
         $rombel->delete();
         return redirect()->back()->with('success', 'Kelas berhasil dihapus');
     }
+
+    /**
+     * Bulk promote selected classes (tingkat 10 -> 11, 11 -> 12).
+     */
+    public function bulkPromote(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:rombels,id',
+        ]);
+
+        $rombels = Rombel::with('jurusan')->whereIn('id', $request->ids)->get();
+        $promotedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($rombels, &$promotedCount, &$skippedCount) {
+            foreach ($rombels as $rombel) {
+                $currentTingkat = (string)$rombel->tingkat;
+                $newTingkat = match ($currentTingkat) {
+                    '10' => '11',
+                    '11' => '12',
+                    default => null,
+                };
+
+                if (!$newTingkat) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $jurusanKode = $rombel->jurusan?->kode ?? '';
+                $oldNama = $rombel->nama;
+                $newNama = $oldNama ? preg_replace('/^' . preg_quote($currentTingkat, '/') . '\b/', $newTingkat, $oldNama) : trim("{$newTingkat} {$jurusanKode}");
+
+                $rombel->update([
+                    'tingkat' => $newTingkat,
+                    'nama' => $newNama,
+                ]);
+
+                $promotedCount++;
+            }
+        });
+
+        if ($promotedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', 'Semua kelas yang dipilih sudah berada di tingkat tertinggi (12).');
+        }
+
+        $message = "Berhasil menaikkan tingkat {$promotedCount} kelas";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} kelas dilewati karena sudah tingkat 12)";
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Bulk delete selected classes.
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:rombels,id',
+        ]);
+
+        $rombels = Rombel::withCount('nasabah')->whereIn('id', $request->ids)->get();
+        $deletedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($rombels, &$deletedCount, &$skippedCount) {
+            foreach ($rombels as $rombel) {
+                if ($rombel->nasabah_count > 0) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $rombel->delete();
+                $deletedCount++;
+            }
+        });
+
+        if ($deletedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', "Gagal: {$skippedCount} kelas masih memiliki data nasabah/siswa terdaftar.");
+        }
+
+        $message = "Berhasil menghapus {$deletedCount} kelas";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} kelas dilewati karena masih memiliki siswa)";
+        }
+
+        return back()->with('success', $message);
+    }
 }

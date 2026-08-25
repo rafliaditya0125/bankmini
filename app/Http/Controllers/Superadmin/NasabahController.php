@@ -89,7 +89,7 @@ class NasabahController extends Controller
 
     public function show(Nasabah $nasabah)
     {
-        $nasabah->load('user');
+        $nasabah->load(['user', 'rombelRel.jurusan', 'jurusanRel']);
         $transactions = Transaksi::where('nasabah_id', $nasabah->id)
             ->latest()
             ->take(10)
@@ -391,59 +391,153 @@ class NasabahController extends Controller
     public function promoteBatch(Request $request)
     {
         $request->validate([
-            'jurusan_id' => 'required|exists:jurusans,id',
-            'kelas_asal' => 'required|in:10,11,12'
+            'scope'                => 'required|in:all,jurusan,rombel',
+            'jurusan_id'           => 'required_if:scope,jurusan|nullable|exists:jurusans,id',
+            'rombel_id'            => 'required_if:scope,rombel|nullable|exists:rombels,id',
+            'kelas_asal'           => 'nullable|in:all,10,11,12',
+            'exclude_jurusan_ids'  => 'nullable|array',
+            'exclude_jurusan_ids.*'=> 'exists:jurusans,id',
+            'exclude_rombel_ids'   => 'nullable|array',
+            'exclude_rombel_ids.*' => 'exists:rombels,id',
+            'exclude_nasabah_ids'  => 'nullable|array',
+            'exclude_nasabah_ids.*'=> 'exists:nasabah,id',
         ]);
 
-        $nasabahs = Nasabah::where('jurusan_id', $request->jurusan_id)
-            ->whereHas('rombelRel', function ($q) use ($request) {
-                $q->where('tingkat', $request->kelas_asal);
-            })
+        $query = Nasabah::with(['user', 'rombelRel.jurusan', 'jurusanRel'])
             ->whereHas('user', function ($q) {
                 $q->where('user_type', 'siswa');
             })
-            ->get();
+            ->whereNull('tanggal_lulus')
+            ->whereHas('rombelRel');
 
-        if ($nasabahs->isEmpty()) {
-            return back()->with('error', 'Tidak ada nasabah siswa yang ditemukan untuk jurusan dan tingkat tersebut');
+        // Scope filter
+        if ($request->scope === 'jurusan' && $request->filled('jurusan_id')) {
+            $query->where('jurusan_id', $request->jurusan_id);
+        } elseif ($request->scope === 'rombel' && $request->filled('rombel_id')) {
+            $query->where('rombel_id', $request->rombel_id);
         }
 
-        $newTingkat = match ($request->kelas_asal) {
-            '10' => '11',
-            '11' => '12',
-            '12' => 'Alumni',
-        };
+        // Kelas asal (tingkat) filter
+        if ($request->filled('kelas_asal') && in_array($request->kelas_asal, ['10', '11', '12'])) {
+            $query->whereHas('rombelRel', function ($q) use ($request) {
+                $q->where('tingkat', $request->kelas_asal);
+            });
+        }
 
-        DB::transaction(function () use ($nasabahs, $newTingkat, $request) {
+        // Exclusions
+        if ($request->filled('exclude_jurusan_ids') && is_array($request->exclude_jurusan_ids) && !empty($request->exclude_jurusan_ids)) {
+            $query->whereNotIn('jurusan_id', $request->exclude_jurusan_ids);
+        }
+
+        if ($request->filled('exclude_rombel_ids') && is_array($request->exclude_rombel_ids) && !empty($request->exclude_rombel_ids)) {
+            $query->whereNotIn('rombel_id', $request->exclude_rombel_ids);
+        }
+
+        if ($request->filled('exclude_nasabah_ids') && is_array($request->exclude_nasabah_ids) && !empty($request->exclude_nasabah_ids)) {
+            $query->whereNotIn('id', $request->exclude_nasabah_ids);
+        }
+
+        $nasabahs = $query->get();
+
+        if ($nasabahs->isEmpty()) {
+            return back()->with('error', 'Tidak ada nasabah siswa yang memenuhi kriteria kenaikan kelas.');
+        }
+
+        $promotedCount = 0;
+        $graduatedCount = 0;
+
+        DB::transaction(function () use ($nasabahs, &$promotedCount, &$graduatedCount, $request) {
             foreach ($nasabahs as $nasabah) {
-                // When graduating: account stays ACTIVE, set tanggal_lulus
+                $oldRombel = $nasabah->rombelRel;
+                $currentTingkat = (string)($oldRombel ? $oldRombel->tingkat : 10);
+
+                $newTingkat = match ($currentTingkat) {
+                    '10' => '11',
+                    '11' => '12',
+                    '12' => 'Alumni',
+                    default => $currentTingkat
+                };
+
                 if ($newTingkat === 'Alumni') {
                     $nasabah->update(['tanggal_lulus' => now()]);
+                    $graduatedCount++;
+                } else {
+                    $targetRombel = null;
+                    $expectedName = null;
+                    if ($oldRombel) {
+                        $expectedName = preg_replace('/^' . preg_quote((string)$currentTingkat, '/') . '\b/', $newTingkat, $oldRombel->nama);
+                        $targetRombel = Rombel::where('jurusan_id', $nasabah->jurusan_id)
+                            ->where('tingkat', $newTingkat)
+                            ->where('nama', $expectedName)
+                            ->first();
+                    }
+
+                    if (!$targetRombel) {
+                        $targetRombel = Rombel::where('jurusan_id', $nasabah->jurusan_id)
+                            ->where('tingkat', $newTingkat)
+                            ->first();
+                    }
+
+                    if (!$targetRombel) {
+                        $jurusan = $nasabah->jurusanRel ?? Jurusan::find($nasabah->jurusan_id);
+                        $jurusanKode = $jurusan?->kode ?? 'KLS';
+                        $namaRombel = ($oldRombel && !empty($expectedName)) ? $expectedName : "{$newTingkat} {$jurusanKode}";
+                        $targetRombel = Rombel::create([
+                            'jurusan_id'   => $nasabah->jurusan_id,
+                            'tingkat'      => (int)$newTingkat,
+                            'nama'         => $namaRombel,
+                            'tahun_ajaran' => date('Y') . '/' . (date('Y') + 1),
+                        ]);
+                    }
+
+                    $nasabah->update(['rombel_id' => $targetRombel->id]);
+                    $promotedCount++;
                 }
             }
 
-            // Update rombel tingkat for all rombels in this cohort
-            if ($newTingkat !== 'Alumni') {
-                $rombelIds = $nasabahs->pluck('rombel_id')->filter()->unique();
-                Rombel::whereIn('id', $rombelIds)->update(['tingkat' => $newTingkat]);
-            }
+            $scopeDesc = match ($request->scope) {
+                'jurusan' => "jurusan ID {$request->jurusan_id}",
+                'rombel'  => "rombel ID {$request->rombel_id}",
+                default   => 'seluruh angkatan/sekolah'
+            };
 
             AuditTrail::log(
-                "Naik kelas batch jurusan ID {$request->jurusan_id}: {$nasabahs->count()} nasabah ke tingkat {$newTingkat}",
+                "Naik kelas batch ({$scopeDesc}): {$promotedCount} siswa naik kelas, {$graduatedCount} siswa lulus/alumni",
                 'Nasabah'
             );
         });
 
-        return back()->with('success', "Berhasil menaikkan {$nasabahs->count()} nasabah ke tingkat {$newTingkat}");
+        $messages = [];
+        if ($promotedCount > 0) $messages[] = "{$promotedCount} siswa berhasil naik kelas";
+        if ($graduatedCount > 0) $messages[] = "{$graduatedCount} siswa kelas 12 berhasil lulus (alumni)";
+
+        $excludedSummary = [];
+        if (!empty($request->exclude_jurusan_ids)) $excludedSummary[] = count($request->exclude_jurusan_ids) . " jurusan dikecualikan";
+        if (!empty($request->exclude_rombel_ids)) $excludedSummary[] = count($request->exclude_rombel_ids) . " kelas dikecualikan";
+        if (!empty($request->exclude_nasabah_ids)) $excludedSummary[] = count($request->exclude_nasabah_ids) . " siswa dikecualikan";
+
+        $fullMsg = "Proses selesai: " . implode(' & ', $messages) . ".";
+        if (!empty($excludedSummary)) {
+            $fullMsg .= " (" . implode(', ', $excludedSummary) . ")";
+        }
+
+        return back()->with('success', $fullMsg);
     }
 
     public function import(Request $request)
     {
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'files'   => 'nullable|array',
             'files.*' => 'mimes:xlsx,xls',
             'file'    => 'nullable|mimes:xlsx,xls',
+        ], [
+            'files.*.mimes' => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
+            'file.mimes'    => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
         ]);
+
+        if ($validator->fails()) {
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).');
+        }
 
         $uploadedFiles = [];
         if ($request->hasFile('files')) {
@@ -455,79 +549,145 @@ class NasabahController extends Controller
         }
 
         if (empty($uploadedFiles)) {
-            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai.');
         }
 
-        $count = 0;
-        DB::transaction(function () use ($uploadedFiles, &$count) {
-            foreach ($uploadedFiles as $file) {
-                $spreadsheet = IOFactory::load($file->getRealPath());
-                $rows = $spreadsheet->getActiveSheet()->toArray();
-                array_shift($rows); // Skip header
+        $successCount = 0;
+        $failedCount = 0;
+        $errors = [];
+        $formatMismatch = false;
 
-                foreach ($rows as $data) {
-                    if (empty($data[0]) || empty($data[1])) continue;
+        try {
+            DB::transaction(function () use ($uploadedFiles, &$successCount, &$failedCount, &$errors, &$formatMismatch) {
+                foreach ($uploadedFiles as $file) {
+                    $spreadsheet = IOFactory::load($file->getRealPath());
+                    $rows = $spreadsheet->getActiveSheet()->toArray();
 
-                    $name       = trim($data[0]);
-                    $identifier = trim($data[1]);
-                    $norekInput = isset($data[2]) && trim((string)$data[2]) !== '' ? trim((string)$data[2]) : null;
-                    $user_type  = trim($data[3] ?? 'siswa');
-                    $rombelId   = $data[4] ?: null;
-                    $phone      = $data[5] ?: null;
-                    $alamat     = $data[6] ?: null;
-                    $saldo_awal = $data[7] ?? 0;
-
-                    $norek = $norekInput ?: $identifier;
-
-                    $nis = $user_type === 'siswa' ? $identifier : null;
-                    $nip = $user_type === 'guru'  ? $identifier : null;
-
-                    if (User::where('nis', $identifier)->orWhere('nip', $identifier)->exists())
+                    if (empty($rows) || count($rows) < 2) {
+                        $failedCount++;
+                        $errors[] = "Berkas '{$file->getClientOriginalName()}' kosong atau tidak memiliki baris data.";
                         continue;
-
-                    if (Nasabah::where('nomor_rekening', $norek)->exists())
-                        continue;
-
-                    $user = User::create([
-                        'name'      => $name,
-                        'username'  => $identifier,
-                        'email'     => $identifier . '@bankmini.smk',
-                        'password'  => $identifier,
-                        'role'      => 'nasabah',
-                        'phone'     => $phone,
-                        'user_type' => $user_type,
-                        'nis'       => $nis,
-                        'nip'       => $nip,
-                        'status'    => 'active',
-                    ]);
-
-                    // Get jurusan_id from rombel
-                    $jurusanId = null;
-                    if ($rombelId) {
-                        $rombel    = \App\Models\Rombel::find($rombelId);
-                        $jurusanId = $rombel ? $rombel->jurusan_id : null;
                     }
 
-                    Nasabah::create([
-                        'user_id'         => $user->id,
-                        'nomor_rekening'  => $norek,
-                        'saldo'           => $saldo_awal,
-                        'saldo_minimum'   => 10000,
-                        'jurusan_id'      => $jurusanId,
-                        'rombel_id'       => $rombelId,
-                        'alamat'          => $alamat,
-                        'tanggal_buka'    => now(),
-                        'status'          => 'aktif',
-                    ]);
+                    // Check Header Row
+                    $header = array_map(fn($h) => strtolower(trim((string)$h)), $rows[0]);
+                    $hasName = in_array('name', $header) || in_array('nama', $header);
+                    $hasIdentifier = in_array('nis_or_nip', $header) || in_array('nis', $header) || in_array('nip', $header) || in_array('identifier', $header);
 
-                    $count++;
+                    if (!$hasName && !$hasIdentifier && count(array_filter($header)) < 2) {
+                        $formatMismatch = true;
+                        $failedCount += (count($rows) - 1);
+                        $errors[] = "Format kolom pada '{$file->getClientOriginalName()}' tidak sesuai template.";
+                        continue;
+                    }
+
+                    // Remove header
+                    array_shift($rows);
+
+                    foreach ($rows as $index => $data) {
+                        $rowNum = $index + 2;
+
+                        // Check if row is completely empty
+                        if (empty(array_filter($data, fn($v) => $v !== null && trim((string)$v) !== ''))) {
+                            continue;
+                        }
+
+                        $name       = isset($data[0]) ? trim((string)$data[0]) : '';
+                        $identifier = isset($data[1]) ? trim((string)$data[1]) : '';
+                        $norekInput = isset($data[2]) && trim((string)$data[2]) !== '' ? trim((string)$data[2]) : null;
+                        $user_type  = isset($data[3]) && trim((string)$data[3]) !== '' ? strtolower(trim((string)$data[3])) : 'siswa';
+                        $rombelId   = isset($data[4]) && trim((string)$data[4]) !== '' ? trim((string)$data[4]) : null;
+                        $phone      = isset($data[5]) && trim((string)$data[5]) !== '' ? trim((string)$data[5]) : null;
+                        $alamat     = isset($data[6]) && trim((string)$data[6]) !== '' ? trim((string)$data[6]) : null;
+                        $saldo_awal = isset($data[7]) && is_numeric($data[7]) ? (float)$data[7] : 0;
+
+                        if (empty($name) || empty($identifier)) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Kolom Nama atau NIS/NIP tidak boleh kosong";
+                            continue;
+                        }
+
+                        $norek = $norekInput ?: $identifier;
+                        $nis = $user_type === 'siswa' ? $identifier : null;
+                        $nip = $user_type === 'guru'  ? $identifier : null;
+
+                        // Check duplicate identifier in users
+                        if (User::where('nis', $identifier)->orWhere('nip', $identifier)->orWhere('username', $identifier)->exists()) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: NIS/NIP '{$identifier}' sudah terdaftar";
+                            continue;
+                        }
+
+                        // Check duplicate nomor_rekening in nasabah
+                        if (Nasabah::where('nomor_rekening', $norek)->exists()) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Nomor rekening '{$norek}' sudah digunakan";
+                            continue;
+                        }
+
+                        $user = User::create([
+                            'name'      => $name,
+                            'username'  => $identifier,
+                            'email'     => $identifier . '@bankmini.smk',
+                            'password'  => $identifier,
+                            'role'      => 'nasabah',
+                            'phone'     => $phone,
+                            'user_type' => in_array($user_type, ['siswa', 'guru', 'kelas', 'organisasi', 'pembayaran']) ? $user_type : 'siswa',
+                            'nis'       => $nis,
+                            'nip'       => $nip,
+                            'status'    => 'active',
+                        ]);
+
+                        // Get jurusan_id from rombel
+                        $jurusanId = null;
+                        if ($rombelId) {
+                            $rombel    = \App\Models\Rombel::find($rombelId);
+                            $jurusanId = $rombel ? $rombel->jurusan_id : null;
+                        }
+
+                        Nasabah::create([
+                            'user_id'         => $user->id,
+                            'nomor_rekening'  => $norek,
+                            'saldo'           => $saldo_awal,
+                            'saldo_minimum'   => 10000,
+                            'jurusan_id'      => $jurusanId,
+                            'rombel_id'       => $rombelId,
+                            'alamat'          => $alamat,
+                            'tanggal_buka'    => now(),
+                            'status'          => 'aktif',
+                        ]);
+
+                        $successCount++;
+                    }
                 }
-            }
-        });
+            });
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan template Excel).');
+        }
 
-        AuditTrail::log("Import {$count} nasabah baru via Excel", 'Nasabah');
+        if ($successCount > 0) {
+            AuditTrail::log("Import {$successCount} nasabah baru via Excel", 'Nasabah');
+        }
 
-        return back()->with('success', "Berhasil mengimport {$count} nasabah");
+        if ($formatMismatch && $successCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan tombol Download Template).');
+        }
+
+        if ($successCount === 0 && $failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? '. Kendala: ' . implode('; ', array_slice($errors, 0, 3)) : '';
+            return back()->with('error', "Gagal mengimport data: 0 berhasil, {$failedCount} gagal/dilewati{$sampleErrors}. Mohon masukkan file dengan format sesuai.");
+        }
+
+        if ($successCount === 0 && $failedCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai.');
+        }
+
+        if ($failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? ' (Catatan: ' . implode('; ', array_slice($errors, 0, 2)) . ')' : '';
+            return back()->with('success', "Proses import selesai: {$successCount} nasabah berhasil, {$failedCount} data gagal/dilewati{$sampleErrors}.");
+        }
+
+        return back()->with('success', "Berhasil mengimport {$successCount} nasabah.");
     }
 
     public function downloadTemplate()
@@ -585,5 +745,211 @@ class NasabahController extends Controller
         }, 'daftar_rombel.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    /**
+     * Bulk update kelas/rombel for selected nasabahs.
+     */
+    public function bulkUpdateKelas(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:nasabah,id',
+            'rombel_id' => 'required|exists:rombels,id',
+        ]);
+
+        $rombel = \App\Models\Rombel::with('jurusan')->findOrFail($request->rombel_id);
+        $nasabahs = Nasabah::with('user')->whereIn('id', $request->ids)->get();
+
+        $count = 0;
+        DB::transaction(function () use ($nasabahs, $rombel, &$count) {
+            foreach ($nasabahs as $nasabah) {
+                $nasabah->update([
+                    'rombel_id' => $rombel->id,
+                    'jurusan_id' => $rombel->jurusan_id,
+                ]);
+                $count++;
+            }
+        });
+
+        AuditTrail::log("Memindahkan {$count} nasabah ke kelas {$rombel->nama_kelas}", 'Nasabah');
+
+        return back()->with('success', "Berhasil memindahkan {$count} nasabah ke kelas {$rombel->nama_kelas}");
+    }
+
+    /**
+     * Bulk promote selected nasabahs.
+     */
+    public function bulkPromote(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:nasabah,id',
+        ]);
+
+        $nasabahs = Nasabah::with(['user', 'rombelRel'])
+            ->whereIn('id', $request->ids)
+            ->get();
+
+        $promotedCount = 0;
+        $graduatedCount = 0;
+        $failedCount = 0;
+        $errors = [];
+
+        DB::transaction(function () use ($nasabahs, &$promotedCount, &$graduatedCount, &$failedCount, &$errors) {
+            foreach ($nasabahs as $nasabah) {
+                if ($nasabah->user->user_type !== 'siswa') {
+                    $failedCount++;
+                    continue;
+                }
+
+                if (!$nasabah->rombelRel) {
+                    $failedCount++;
+                    $errors[] = "Nasabah {$nasabah->user->name} belum memiliki data rombel/kelas.";
+                    continue;
+                }
+
+                $currentTingkat = (string)$nasabah->rombelRel->tingkat;
+                $newTingkat = match ($currentTingkat) {
+                    '10' => '11',
+                    '11' => '12',
+                    '12' => 'Alumni',
+                    default => $currentTingkat
+                };
+
+                if ($newTingkat === $currentTingkat || $currentTingkat === 'Alumni') {
+                    $failedCount++;
+                    continue;
+                }
+
+                if ($newTingkat === 'Alumni') {
+                    $nasabah->update(['tanggal_lulus' => now()]);
+                    $graduatedCount++;
+                    AuditTrail::log(
+                        "Kelulusan nasabah {$nasabah->user->name}: Tingkat {$currentTingkat} -> Alumni",
+                        'Nasabah',
+                        $nasabah->id
+                    );
+                } else {
+                    // Find rombel in the next level with same jurusan
+                    $nextRombel = Rombel::where('jurusan_id', $nasabah->jurusan_id)
+                        ->where('tingkat', $newTingkat)
+                        ->first();
+
+                    if ($nextRombel) {
+                        $nasabah->update(['rombel_id' => $nextRombel->id]);
+                        $promotedCount++;
+                        AuditTrail::log(
+                            "Naik kelas nasabah {$nasabah->user->name}: Tingkat {$currentTingkat} -> {$newTingkat}",
+                            'Nasabah',
+                            $nasabah->id
+                        );
+                    } else {
+                        $failedCount++;
+                        $errors[] = "Rombel tingkat {$newTingkat} untuk jurusan nasabah {$nasabah->user->name} belum tersedia.";
+                    }
+                }
+            }
+        });
+
+        $totalSuccess = $promotedCount + $graduatedCount;
+        if ($totalSuccess === 0 && $failedCount > 0) {
+            return back()->with('error', 'Gagal menaikkan kelas: ' . (count($errors) > 0 ? implode(', ', array_slice($errors, 0, 2)) : 'Nasabah tidak valid atau sudah di tingkat tertinggi.'));
+        }
+
+        $message = "Berhasil memproses {$totalSuccess} nasabah";
+        if ($promotedCount > 0 && $graduatedCount > 0) {
+            $message .= " ({$promotedCount} naik kelas, {$graduatedCount} lulus/alumni)";
+        } elseif ($graduatedCount > 0) {
+            $message .= " ({$graduatedCount} lulus/alumni)";
+        }
+        if ($failedCount > 0) {
+            $message .= " ({$failedCount} dilewati)";
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Bulk update status for selected nasabahs (aktif/nonaktif).
+     */
+    public function bulkStatus(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:nasabah,id',
+            'status' => 'required|in:aktif,nonaktif',
+        ]);
+
+        $nasabahs = Nasabah::with('user')->whereIn('id', $request->ids)->get();
+        $targetStatus = $request->status;
+        $userTargetStatus = $targetStatus === 'aktif' ? 'active' : 'inactive';
+        $count = 0;
+
+        DB::transaction(function () use ($nasabahs, $targetStatus, $userTargetStatus, &$count) {
+            foreach ($nasabahs as $nasabah) {
+                $nasabah->update(['status' => $targetStatus]);
+                $nasabah->user->update(['status' => $userTargetStatus]);
+                $count++;
+            }
+
+            AuditTrail::log(
+                ($targetStatus === 'aktif' ? 'Mengaktifkan' : 'Menonaktifkan') . " {$count} akun nasabah secara massal",
+                'Nasabah'
+            );
+        });
+
+        $statusText = $targetStatus === 'aktif' ? 'diaktifkan' : 'dinonaktifkan';
+        return back()->with('success', "Berhasil {$statusText} {$count} nasabah");
+    }
+
+    /**
+     * Bulk delete accounts for selected nasabahs.
+     * Only deletes accounts with 0 saldo.
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:nasabah,id',
+        ]);
+
+        $nasabahs = Nasabah::with('user')->whereIn('id', $request->ids)->get();
+
+        $deletedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($nasabahs, &$deletedCount, &$skippedCount) {
+            foreach ($nasabahs as $nasabah) {
+                if ((float)$nasabah->saldo > 0) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $userName = $nasabah->user->name;
+                $userId = $nasabah->user_id;
+
+                AuditTrail::log(
+                    "Menghapus rekening nasabah secara permanen: {$userName}",
+                    'Nasabah',
+                    $nasabah->id
+                );
+
+                $nasabah->forceDelete();
+                DB::table('users')->where('id', $userId)->delete();
+                $deletedCount++;
+            }
+        });
+
+        if ($deletedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', "Semua {$skippedCount} nasabah yang dipilih masih memiliki sisa saldo dan tidak dapat dihapus.");
+        }
+
+        $message = "Berhasil menghapus {$deletedCount} rekening nasabah secara permanen";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} nasabah dilewati karena masih memiliki saldo)";
+        }
+
+        return back()->with('success', $message);
     }
 }

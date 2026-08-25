@@ -233,11 +233,18 @@ class PetugasController extends Controller
 
     public function import(Request $request)
     {
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'files'   => 'nullable|array',
             'files.*' => 'mimes:xlsx,xls',
             'file'    => 'nullable|mimes:xlsx,xls',
+        ], [
+            'files.*.mimes' => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
+            'file.mimes'    => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
         ]);
+
+        if ($validator->fails()) {
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).');
+        }
 
         $uploadedFiles = [];
         if ($request->hasFile('files')) {
@@ -249,46 +256,113 @@ class PetugasController extends Controller
         }
 
         if (empty($uploadedFiles)) {
-            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai.');
         }
 
-        $count = 0;
-        DB::transaction(function () use ($uploadedFiles, &$count) {
-            foreach ($uploadedFiles as $file) {
-                $spreadsheet = IOFactory::load($file->getRealPath());
-                $rows = $spreadsheet->getActiveSheet()->toArray();
-                array_shift($rows); // Skip header
+        $successCount = 0;
+        $failedCount = 0;
+        $errors = [];
+        $formatMismatch = false;
 
-                foreach ($rows as $data) {
-                    if (count(array_filter($data, fn($v) => $v !== null)) < 5) continue;
+        try {
+            DB::transaction(function () use ($uploadedFiles, &$successCount, &$failedCount, &$errors, &$formatMismatch) {
+                foreach ($uploadedFiles as $file) {
+                    $spreadsheet = IOFactory::load($file->getRealPath());
+                    $rows = $spreadsheet->getActiveSheet()->toArray();
 
-                    $name     = trim($data[0] ?? '');
-                    $email    = trim($data[1] ?? '');
-                    $role     = trim($data[2] ?? '');
-                    $password = trim($data[3] ?? '');
-                    $phone    = trim($data[4] ?? '');
+                    if (empty($rows) || count($rows) < 2) {
+                        $failedCount++;
+                        $errors[] = "Berkas '{$file->getClientOriginalName()}' kosong atau tidak memiliki baris data.";
+                        continue;
+                    }
 
-                    if (empty($email) || empty($password)) continue;
-                    if (User::where('email', $email)->exists()) continue;
+                    // Check Header Row
+                    $header = array_map(fn($h) => strtolower(trim((string)$h)), $rows[0]);
+                    $hasEmail = in_array('email', $header);
+                    $hasName = in_array('name', $header) || in_array('nama', $header);
 
-                    User::create([
-                        'name'     => $name,
-                        'username' => explode('@', $email)[0],
-                        'email'    => $email,
-                        'role'     => in_array($role, ['admin', 'teller']) ? $role : 'teller',
-                        'password' => Hash::make($password),
-                        'phone'    => $phone ?: null,
-                        'status'   => 'active',
-                    ]);
+                    if (!$hasEmail && !$hasName && count(array_filter($header)) < 2) {
+                        $formatMismatch = true;
+                        $failedCount += (count($rows) - 1);
+                        $errors[] = "Format kolom pada '{$file->getClientOriginalName()}' tidak sesuai template.";
+                        continue;
+                    }
 
-                    $count++;
+                    // Remove header
+                    array_shift($rows);
+
+                    foreach ($rows as $index => $data) {
+                        $rowNum = $index + 2;
+
+                        if (empty(array_filter($data, fn($v) => $v !== null && trim((string)$v) !== ''))) {
+                            continue;
+                        }
+
+                        $name     = isset($data[0]) ? trim((string)$data[0]) : '';
+                        $email    = isset($data[1]) ? trim((string)$data[1]) : '';
+                        $role     = isset($data[2]) ? strtolower(trim((string)$data[2])) : 'teller';
+                        $password = isset($data[3]) ? trim((string)$data[3]) : '';
+                        $phone    = isset($data[4]) ? trim((string)$data[4]) : null;
+
+                        if (empty($name) || empty($email) || empty($password)) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Nama, email, dan password wajib diisi";
+                            continue;
+                        }
+
+                        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Format email '{$email}' tidak valid";
+                            continue;
+                        }
+
+                        if (User::where('email', $email)->exists()) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Email '{$email}' sudah terdaftar";
+                            continue;
+                        }
+
+                        User::create([
+                            'name'     => $name,
+                            'username' => explode('@', $email)[0],
+                            'email'    => $email,
+                            'role'     => in_array($role, ['admin', 'teller']) ? $role : 'teller',
+                            'password' => Hash::make($password),
+                            'phone'    => $phone ?: null,
+                            'status'   => 'active',
+                        ]);
+
+                        $successCount++;
+                    }
                 }
-            }
-        });
+            });
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan template Excel).');
+        }
 
-        AuditTrail::log("Import {$count} petugas baru via Excel", 'User');
+        if ($successCount > 0) {
+            AuditTrail::log("Import {$successCount} petugas baru via Excel", 'User');
+        }
 
-        return back()->with('success', "Berhasil mengimport {$count} petugas");
+        if ($formatMismatch && $successCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan tombol Download Template).');
+        }
+
+        if ($successCount === 0 && $failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? '. Kendala: ' . implode('; ', array_slice($errors, 0, 3)) : '';
+            return back()->with('error', "Gagal mengimport data: 0 berhasil, {$failedCount} gagal/dilewati{$sampleErrors}. Mohon masukkan file dengan format sesuai.");
+        }
+
+        if ($successCount === 0 && $failedCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai.');
+        }
+
+        if ($failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? ' (Catatan: ' . implode('; ', array_slice($errors, 0, 2)) . ')' : '';
+            return back()->with('success', "Proses import selesai: {$successCount} petugas berhasil, {$failedCount} data gagal/dilewati{$sampleErrors}.");
+        }
+
+        return back()->with('success', "Berhasil mengimport {$successCount} petugas.");
     }
 
     public function downloadTemplate()
@@ -310,5 +384,127 @@ class PetugasController extends Controller
         }, 'template_petugas.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    /**
+     * Bulk update status for selected petugas.
+     */
+    public function bulkStatus(Request $request)
+    {
+        $currentUser = auth()->user();
+
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:users,id',
+            'status' => 'required|in:active,inactive,suspended',
+        ]);
+
+        $users = User::whereIn('id', $request->ids)->get();
+        $targetStatus = $request->status;
+        $updatedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($users, $targetStatus, $currentUser, &$updatedCount, &$skippedCount) {
+            foreach ($users as $user) {
+                // Cannot change self
+                if ($user->id === $currentUser->id) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                // Role restrictions
+                if ($currentUser->role === 'admin') {
+                    if ($user->role === 'superadmin' || $user->role === 'admin') {
+                        $skippedCount++;
+                        continue;
+                    }
+                }
+
+                $user->update(['status' => $targetStatus]);
+                $updatedCount++;
+            }
+
+            if ($updatedCount > 0) {
+                AuditTrail::log(
+                    "Mengubah status {$updatedCount} akun petugas menjadi {$targetStatus}",
+                    'User'
+                );
+            }
+        });
+
+        $statusText = match($targetStatus) {
+            'active' => 'diaktifkan',
+            'inactive' => 'dinonaktifkan',
+            'suspended' => 'diblokir',
+        };
+
+        if ($updatedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', 'Tidak ada akun petugas yang dapat diubah karena batasan hak akses.');
+        }
+
+        $message = "Berhasil {$statusText} {$updatedCount} petugas";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} dilewati karena batasan hak akses atau akun sendiri)";
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Bulk delete selected petugas accounts.
+     */
+    public function bulkDelete(Request $request)
+    {
+        $currentUser = auth()->user();
+
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:users,id',
+        ]);
+
+        $users = User::whereIn('id', $request->ids)->get();
+        $deletedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($users, $currentUser, &$deletedCount, &$skippedCount) {
+            foreach ($users as $user) {
+                // Cannot delete self
+                if ($user->id === $currentUser->id) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                // Superadmin protection & admin permission limits
+                if ($user->role === 'superadmin') {
+                    $skippedCount++;
+                    continue;
+                }
+
+                if ($currentUser->role === 'admin' && $user->role !== 'teller') {
+                    $skippedCount++;
+                    continue;
+                }
+
+                AuditTrail::log(
+                    "Menghapus akun petugas: {$user->email} ({$user->role})",
+                    'User',
+                    $user->id
+                );
+
+                $user->delete();
+                $deletedCount++;
+            }
+        });
+
+        if ($deletedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', 'Tidak ada akun petugas yang dapat dihapus karena batasan hak akses atau akun sendiri.');
+        }
+
+        $message = "Berhasil menghapus {$deletedCount} akun petugas";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} dilewati karena batasan hak akses/akun sendiri)";
+        }
+
+        return back()->with('success', $message);
     }
 }

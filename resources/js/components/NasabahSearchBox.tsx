@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { formatRombelName } from '@/lib/utils';
 
 interface NasabahSearchBoxProps {
     value: string;
@@ -16,11 +17,7 @@ export default function NasabahSearchBox({ value, onChange, onSelect, placeholde
 
     const getKelasName = (item: any) => {
         if (item.rombel_rel || item.rombelRel) {
-            const rombel = item.rombel_rel || item.rombelRel;
-            if (rombel.nama_kelas) return rombel.nama_kelas;
-            if (rombel.nama) return rombel.nama;
-            const jurusanKode = rombel.jurusan?.kode || rombel.jurusan_rel?.kode || '';
-            return `${rombel.tingkat || ''} ${jurusanKode}`.trim();
+            return formatRombelName(item.rombel_rel || item.rombelRel);
         }
         if (item.jurusan_rel || item.jurusanRel) {
             return (item.jurusan_rel || item.jurusanRel).kode || '';

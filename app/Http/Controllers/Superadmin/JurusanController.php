@@ -96,11 +96,18 @@ class JurusanController extends Controller
 
     public function import(Request $request)
     {
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'files'   => 'nullable|array',
             'files.*' => 'mimes:xlsx,xls',
             'file'    => 'nullable|mimes:xlsx,xls',
+        ], [
+            'files.*.mimes' => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
+            'file.mimes'    => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
         ]);
+
+        if ($validator->fails()) {
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).');
+        }
 
         $uploadedFiles = [];
         if ($request->hasFile('files')) {
@@ -112,44 +119,106 @@ class JurusanController extends Controller
         }
 
         if (empty($uploadedFiles)) {
-            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai.');
         }
 
-        $count = 0;
-        DB::transaction(function () use ($uploadedFiles, &$count) {
-            foreach ($uploadedFiles as $file) {
-                $spreadsheet = IOFactory::load($file->getRealPath());
-                $rows = $spreadsheet->getActiveSheet()->toArray();
-                array_shift($rows); // Skip header
+        $successCount = 0;
+        $failedCount = 0;
+        $errors = [];
+        $formatMismatch = false;
 
-                foreach ($rows as $data) {
-                    if (empty($data[0]) || empty($data[1])) continue;
+        try {
+            DB::transaction(function () use ($uploadedFiles, &$successCount, &$failedCount, &$errors, &$formatMismatch) {
+                foreach ($uploadedFiles as $file) {
+                    $spreadsheet = IOFactory::load($file->getRealPath());
+                    $rows = $spreadsheet->getActiveSheet()->toArray();
 
-                    $kode = strtoupper(trim($data[0]));
-                    $nama = trim($data[1]);
+                    if (empty($rows) || count($rows) < 2) {
+                        $failedCount++;
+                        $errors[] = "Berkas '{$file->getClientOriginalName()}' kosong atau tidak memiliki baris data.";
+                        continue;
+                    }
 
-                    if (Jurusan::where('kode', $kode)->exists()) continue;
+                    // Check Header Row
+                    $header = array_map(fn($h) => strtolower(trim((string)$h)), $rows[0]);
+                    $hasKode = in_array('kode', $header);
+                    $hasNama = in_array('nama', $header) || in_array('name', $header);
 
-                    Jurusan::create([
-                        'kode' => $kode,
-                        'nama' => $nama,
-                    ]);
+                    if (!$hasKode && !$hasNama && count(array_filter($header)) < 2) {
+                        $formatMismatch = true;
+                        $failedCount += (count($rows) - 1);
+                        $errors[] = "Format kolom pada '{$file->getClientOriginalName()}' tidak sesuai template.";
+                        continue;
+                    }
 
-                    $count++;
+                    // Remove header
+                    array_shift($rows);
+
+                    foreach ($rows as $index => $data) {
+                        $rowNum = $index + 2;
+
+                        if (empty(array_filter($data, fn($v) => $v !== null && trim((string)$v) !== ''))) {
+                            continue;
+                        }
+
+                        $kode = isset($data[0]) ? strtoupper(trim((string)$data[0])) : '';
+                        $nama = isset($data[1]) ? trim((string)$data[1]) : '';
+
+                        if (empty($kode) || empty($nama)) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Kode dan nama jurusan wajib diisi";
+                            continue;
+                        }
+
+                        if (Jurusan::where('kode', $kode)->exists()) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Kode jurusan '{$kode}' sudah ada";
+                            continue;
+                        }
+
+                        Jurusan::create([
+                            'kode' => $kode,
+                            'nama' => $nama,
+                        ]);
+
+                        $successCount++;
+                    }
                 }
-            }
-        });
+            });
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan template Excel).');
+        }
 
-        AuditLog::logActivity(
-            'import_jurusan',
-            "Import {$count} jurusan baru via Excel",
-            'success',
-            Auth::id(),
-            Auth::user()->name,
-            Auth::user()->role
-        );
+        if ($successCount > 0) {
+            AuditLog::logActivity(
+                'import_jurusan',
+                "Import {$successCount} jurusan baru via Excel",
+                'success',
+                Auth::id(),
+                Auth::user()->name,
+                Auth::user()->role
+            );
+        }
 
-        return back()->with('success', "Berhasil mengimport {$count} jurusan");
+        if ($formatMismatch && $successCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan tombol Download Template).');
+        }
+
+        if ($successCount === 0 && $failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? '. Kendala: ' . implode('; ', array_slice($errors, 0, 3)) : '';
+            return back()->with('error', "Gagal mengimport data: 0 berhasil, {$failedCount} gagal/dilewati{$sampleErrors}. Mohon masukkan file dengan format sesuai.");
+        }
+
+        if ($successCount === 0 && $failedCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai.');
+        }
+
+        if ($failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? ' (Catatan: ' . implode('; ', array_slice($errors, 0, 2)) . ')' : '';
+            return back()->with('success', "Proses import selesai: {$successCount} jurusan berhasil, {$failedCount} data gagal/dilewati{$sampleErrors}.");
+        }
+
+        return back()->with('success', "Berhasil mengimport {$successCount} jurusan.");
     }
 
     public function downloadTemplate()
@@ -271,11 +340,18 @@ class JurusanController extends Controller
 
     public function importRombel(Request $request, Jurusan $jurusan)
     {
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'files'   => 'nullable|array',
             'files.*' => 'mimes:xlsx,xls',
             'file'    => 'nullable|mimes:xlsx,xls',
+        ], [
+            'files.*.mimes' => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
+            'file.mimes'    => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
         ]);
+
+        if ($validator->fails()) {
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).');
+        }
 
         $uploadedFiles = [];
         if ($request->hasFile('files')) {
@@ -287,53 +363,121 @@ class JurusanController extends Controller
         }
 
         if (empty($uploadedFiles)) {
-            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai.');
         }
 
-        $count = 0;
-        DB::transaction(function () use ($uploadedFiles, &$count, $jurusan) {
-            foreach ($uploadedFiles as $file) {
-                $spreadsheet = IOFactory::load($file->getRealPath());
-                $rows = $spreadsheet->getActiveSheet()->toArray();
-                array_shift($rows); // Skip header
+        $successCount = 0;
+        $failedCount = 0;
+        $errors = [];
+        $formatMismatch = false;
 
-                foreach ($rows as $data) {
-                    if (empty($data[0]) || empty($data[1]) || empty($data[2])) continue;
+        try {
+            DB::transaction(function () use ($uploadedFiles, &$successCount, &$failedCount, &$errors, &$formatMismatch, $jurusan) {
+                foreach ($uploadedFiles as $file) {
+                    $spreadsheet = IOFactory::load($file->getRealPath());
+                    $rows = $spreadsheet->getActiveSheet()->toArray();
 
-                    $tahunAjaran = trim($data[0]);
-                    $tingkat = trim($data[1]);
-                    $namaInput = isset($data[2]) && trim((string)$data[2]) !== '' ? trim((string)$data[2]) : null;
-                    $nama = $namaInput ?: trim("{$tingkat} {$jurusan->kode}");
+                    if (empty($rows) || count($rows) < 2) {
+                        $failedCount++;
+                        $errors[] = "Berkas '{$file->getClientOriginalName()}' kosong atau tidak memiliki baris data.";
+                        continue;
+                    }
 
-                    // Validate if combinations already exist
-                    if (\App\Models\Rombel::where('jurusan_id', $jurusan->id)
-                        ->where('tahun_ajaran', $tahunAjaran)
-                        ->where('tingkat', $tingkat)
-                        ->where('nama', $nama)
-                        ->exists()) continue;
+                    // Check Header Row
+                    $header = array_map(fn($h) => strtolower(trim((string)$h)), $rows[0]);
+                    $hasTahun = in_array('tahun_ajaran', $header) || in_array('tahun', $header) || in_array('angkatan', $header);
+                    $hasTingkat = in_array('tingkat', $header) || in_array('kelas', $header);
 
-                    \App\Models\Rombel::create([
-                        'jurusan_id' => $jurusan->id,
-                        'tahun_ajaran' => $tahunAjaran,
-                        'tingkat' => $tingkat,
-                        'nama' => $nama,
-                    ]);
+                    if (!$hasTahun && !$hasTingkat && count(array_filter($header)) < 2) {
+                        $formatMismatch = true;
+                        $failedCount += (count($rows) - 1);
+                        $errors[] = "Format kolom pada '{$file->getClientOriginalName()}' tidak sesuai template.";
+                        continue;
+                    }
 
-                    $count++;
+                    // Remove header
+                    array_shift($rows);
+
+                    foreach ($rows as $index => $data) {
+                        $rowNum = $index + 2;
+
+                        if (empty(array_filter($data, fn($v) => $v !== null && trim((string)$v) !== ''))) {
+                            continue;
+                        }
+
+                        $tahunAjaran = isset($data[0]) ? trim((string)$data[0]) : '';
+                        $tingkat     = isset($data[1]) ? trim((string)$data[1]) : '';
+                        $namaInput   = isset($data[2]) && trim((string)$data[2]) !== '' ? trim((string)$data[2]) : null;
+                        $nama        = $namaInput ?: trim("{$tingkat} {$jurusan->kode}");
+
+                        if (empty($tahunAjaran) || empty($tingkat)) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Tahun ajaran dan tingkat wajib diisi";
+                            continue;
+                        }
+
+                        if (!in_array($tingkat, ['10', '11', '12'])) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Tingkat harus 10, 11, atau 12";
+                            continue;
+                        }
+
+                        // Validate if combination already exists
+                        if (\App\Models\Rombel::where('jurusan_id', $jurusan->id)
+                            ->where('tahun_ajaran', $tahunAjaran)
+                            ->where('tingkat', $tingkat)
+                            ->where('nama', $nama)
+                            ->exists()) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Rombel '{$nama}' ({$tahunAjaran}) sudah ada";
+                            continue;
+                        }
+
+                        \App\Models\Rombel::create([
+                            'jurusan_id'   => $jurusan->id,
+                            'tahun_ajaran' => $tahunAjaran,
+                            'tingkat'      => (int)$tingkat,
+                            'nama'         => $nama,
+                        ]);
+
+                        $successCount++;
+                    }
                 }
-            }
-        });
+            });
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan template Excel).');
+        }
 
-        AuditLog::logActivity(
-            'import_rombel',
-            "Import {$count} rombel baru untuk jurusan {$jurusan->nama} via Excel",
-            'success',
-            Auth::id(),
-            Auth::user()->name,
-            Auth::user()->role
-        );
+        if ($successCount > 0) {
+            AuditLog::logActivity(
+                'import_rombel',
+                "Import {$successCount} rombel baru untuk jurusan {$jurusan->nama} via Excel",
+                'success',
+                Auth::id(),
+                Auth::user()->name,
+                Auth::user()->role
+            );
+        }
 
-        return back()->with('success', "Berhasil mengimport {$count} rombel");
+        if ($formatMismatch && $successCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan tombol Download Template).');
+        }
+
+        if ($successCount === 0 && $failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? '. Kendala: ' . implode('; ', array_slice($errors, 0, 3)) : '';
+            return back()->with('error', "Gagal mengimport data: 0 berhasil, {$failedCount} gagal/dilewati{$sampleErrors}. Mohon masukkan file dengan format sesuai.");
+        }
+
+        if ($successCount === 0 && $failedCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai.');
+        }
+
+        if ($failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? ' (Catatan: ' . implode('; ', array_slice($errors, 0, 2)) . ')' : '';
+            return back()->with('success', "Proses import selesai: {$successCount} rombel berhasil, {$failedCount} data gagal/dilewati{$sampleErrors}.");
+        }
+
+        return back()->with('success', "Berhasil mengimport {$successCount} rombel.");
     }
 
     public function downloadRombelTemplate(Jurusan $jurusan)
@@ -394,11 +538,18 @@ class JurusanController extends Controller
      */
     public function importRombelAll(Request $request)
     {
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'files'   => 'nullable|array',
             'files.*' => 'mimes:xlsx,xls',
             'file'    => 'nullable|mimes:xlsx,xls',
+        ], [
+            'files.*.mimes' => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
+            'file.mimes'    => 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).',
         ]);
+
+        if ($validator->fails()) {
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai (.xlsx atau .xls).');
+        }
 
         $uploadedFiles = [];
         if ($request->hasFile('files')) {
@@ -410,77 +561,294 @@ class JurusanController extends Controller
         }
 
         if (empty($uploadedFiles)) {
-            return back()->withErrors(['file' => 'Berkas Excel wajib diunggah.']);
+            return back()->with('error', 'Mohon masukkan file dengan format yang sesuai.');
         }
 
-        $count = 0;
+        $successCount = 0;
+        $failedCount = 0;
         $errors = [];
+        $formatMismatch = false;
 
-        DB::transaction(function () use ($uploadedFiles, &$count, &$errors) {
-            foreach ($uploadedFiles as $file) {
-                $spreadsheet = IOFactory::load($file->getRealPath());
-                $rows = $spreadsheet->getActiveSheet()->toArray();
-                array_shift($rows); // Skip header
+        try {
+            DB::transaction(function () use ($uploadedFiles, &$successCount, &$failedCount, &$errors, &$formatMismatch) {
+                foreach ($uploadedFiles as $file) {
+                    $spreadsheet = IOFactory::load($file->getRealPath());
+                    $rows = $spreadsheet->getActiveSheet()->toArray();
 
-                foreach ($rows as $rowIndex => $data) {
-                    $rowNumber = $rowIndex + 2; // +2 because header is row 1, data starts at row 2
-
-                    if (empty($data[0]) || empty($data[1]) || empty($data[2]) || empty($data[3])) continue;
-
-                    $jurusanId = (int)trim($data[0]);
-                    $tahunAjaran = trim($data[1]);
-                    $tingkat = trim($data[2]);
-                    $nama = trim($data[3]);
-
-                    // Validate jurusan exists
-                    $jurusan = Jurusan::find($jurusanId);
-                    if (!$jurusan) {
-                        $errors[] = "Baris {$rowNumber}: Jurusan ID {$jurusanId} tidak ditemukan";
+                    if (empty($rows) || count($rows) < 2) {
+                        $failedCount++;
+                        $errors[] = "Berkas '{$file->getClientOriginalName()}' kosong atau tidak memiliki baris data.";
                         continue;
                     }
 
-                    // Validate tingkat
-                    if (!in_array($tingkat, ['10', '11', '12'])) {
-                        $errors[] = "Baris {$rowNumber}: Tingkat harus 10, 11, atau 12";
+                    // Check Header Row
+                    $header = array_map(fn($h) => strtolower(trim((string)$h)), $rows[0]);
+                    $hasJurusan = in_array('jurusan_id', $header) || in_array('jurusan', $header);
+                    $hasTahun = in_array('tahun_ajaran', $header) || in_array('tahun', $header) || in_array('angkatan', $header);
+
+                    if (!$hasJurusan && !$hasTahun && count(array_filter($header)) < 2) {
+                        $formatMismatch = true;
+                        $failedCount += (count($rows) - 1);
+                        $errors[] = "Format kolom pada '{$file->getClientOriginalName()}' tidak sesuai template.";
                         continue;
                     }
 
-                    // Check if combination already exists
-                    if (\App\Models\Rombel::where('jurusan_id', $jurusanId)
-                        ->where('tahun_ajaran', $tahunAjaran)
-                        ->where('tingkat', $tingkat)
-                        ->where('nama', $nama)
-                        ->exists()) {
-                        continue; // Skip duplicates silently
+                    // Remove header
+                    array_shift($rows);
+
+                    foreach ($rows as $index => $data) {
+                        $rowNum = $index + 2;
+
+                        if (empty(array_filter($data, fn($v) => $v !== null && trim((string)$v) !== ''))) {
+                            continue;
+                        }
+
+                        $jurusanId   = isset($data[0]) ? (int)trim((string)$data[0]) : 0;
+                        $tahunAjaran = isset($data[1]) ? trim((string)$data[1]) : '';
+                        $tingkat     = isset($data[2]) ? trim((string)$data[2]) : '';
+                        $namaInput   = isset($data[3]) && trim((string)$data[3]) !== '' ? trim((string)$data[3]) : null;
+
+                        if (empty($jurusanId) || empty($tahunAjaran) || empty($tingkat)) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Kolom Jurusan ID, Tahun Ajaran, dan Tingkat wajib diisi";
+                            continue;
+                        }
+
+                        $jurusan = Jurusan::find($jurusanId);
+                        if (!$jurusan) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Jurusan ID {$jurusanId} tidak ditemukan";
+                            continue;
+                        }
+
+                        if (!in_array($tingkat, ['10', '11', '12'])) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Tingkat harus 10, 11, atau 12";
+                            continue;
+                        }
+
+                        $nama = $namaInput ?: trim("{$tingkat} {$jurusan->kode}");
+
+                        if (\App\Models\Rombel::where('jurusan_id', $jurusanId)
+                            ->where('tahun_ajaran', $tahunAjaran)
+                            ->where('tingkat', $tingkat)
+                            ->where('nama', $nama)
+                            ->exists()) {
+                            $failedCount++;
+                            $errors[] = "Baris {$rowNum}: Rombel '{$nama}' ({$tahunAjaran}) sudah ada";
+                            continue;
+                        }
+
+                        \App\Models\Rombel::create([
+                            'jurusan_id'   => $jurusanId,
+                            'tahun_ajaran' => $tahunAjaran,
+                            'tingkat'      => (int)$tingkat,
+                            'nama'         => $nama,
+                        ]);
+
+                        $successCount++;
                     }
-
-                    \App\Models\Rombel::create([
-                        'jurusan_id' => $jurusanId,
-                        'tahun_ajaran' => $tahunAjaran,
-                        'tingkat' => $tingkat,
-                        'nama' => $nama,
-                    ]);
-
-                    $count++;
                 }
+            });
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan template Excel).');
+        }
+
+        if ($successCount > 0) {
+            AuditLog::logActivity(
+                'import_rombel_all',
+                "Import {$successCount} rombel baru untuk semua jurusan via Excel",
+                'success',
+                Auth::id(),
+                Auth::user()->name,
+                Auth::user()->role
+            );
+        }
+
+        if ($formatMismatch && $successCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan tombol Download Template).');
+        }
+
+        if ($successCount === 0 && $failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? '. Kendala: ' . implode('; ', array_slice($errors, 0, 3)) : '';
+            return back()->with('error', "Gagal mengimport data: 0 berhasil, {$failedCount} gagal/dilewati{$sampleErrors}. Mohon masukkan file dengan format sesuai.");
+        }
+
+        if ($successCount === 0 && $failedCount === 0) {
+            return back()->with('error', 'Mohon masukkan file dengan format sesuai.');
+        }
+
+        if ($failedCount > 0) {
+            $sampleErrors = count($errors) > 0 ? ' (Catatan: ' . implode('; ', array_slice($errors, 0, 2)) . ')' : '';
+            return back()->with('success', "Proses import selesai: {$successCount} rombel berhasil, {$failedCount} data gagal/dilewati{$sampleErrors}.");
+        }
+
+        return back()->with('success', "Berhasil mengimport {$successCount} rombel.");
+    }
+
+    /**
+     * Bulk delete jurusans.
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:jurusans,id',
+        ]);
+
+        $jurusans = Jurusan::withCount('nasabah')->whereIn('id', $request->ids)->get();
+        $deletedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($jurusans, &$deletedCount, &$skippedCount) {
+            foreach ($jurusans as $jurusan) {
+                if ($jurusan->nasabah_count > 0) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $nama = $jurusan->nama;
+                $jurusan->delete();
+
+                AuditLog::logActivity(
+                    'delete_jurusan',
+                    "Menghapus jurusan: {$nama}",
+                    'success',
+                    Auth::id(),
+                    Auth::user()->name,
+                    Auth::user()->role
+                );
+
+                $deletedCount++;
             }
         });
 
-        AuditLog::logActivity(
-            'import_rombel_all',
-            "Import {$count} rombel baru untuk semua jurusan via Excel",
-            'success',
-            Auth::id(),
-            Auth::user()->name,
-            Auth::user()->role
-        );
+        if ($deletedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', "Gagal: {$skippedCount} jurusan masih digunakan oleh data nasabah aktif.");
+        }
 
-        $message = "Berhasil mengimport {$count} rombel";
-        if (!empty($errors)) {
-            $message .= ". Beberapa baris dilewati: " . implode(', ', array_slice($errors, 0, 3));
-            if (count($errors) > 3) {
-                $message .= " dan " . (count($errors) - 3) . " error lainnya";
+        $message = "Berhasil menghapus {$deletedCount} jurusan";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} jurusan dilewati karena masih memiliki nasabah)";
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Bulk delete rombels for a specific jurusan
+     */
+    public function bulkDestroyRombel(Request $request, Jurusan $jurusan)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:rombels,id',
+        ]);
+
+        $rombels = \App\Models\Rombel::withCount('nasabah')
+            ->where('jurusan_id', $jurusan->id)
+            ->whereIn('id', $request->ids)
+            ->get();
+
+        $deletedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($rombels, $jurusan, &$deletedCount, &$skippedCount) {
+            foreach ($rombels as $rombel) {
+                if ($rombel->nasabah_count > 0) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $rombelName = $rombel->nama ?? "Tingkat {$rombel->tingkat}";
+                $rombel->delete();
+
+                AuditLog::logActivity(
+                    'delete_rombel',
+                    "Menghapus rombel {$rombelName} dari jurusan {$jurusan->nama}",
+                    'success',
+                    Auth::id(),
+                    Auth::user()->name,
+                    Auth::user()->role
+                );
+
+                $deletedCount++;
             }
+        });
+
+        if ($deletedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', "Gagal: {$skippedCount} rombel masih memiliki siswa terdaftar.");
+        }
+
+        $message = "Berhasil menghapus {$deletedCount} rombel";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} dilewati karena masih memiliki siswa)";
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Bulk promote rombels for a specific jurusan
+     */
+    public function bulkPromoteRombel(Request $request, Jurusan $jurusan)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:rombels,id',
+        ]);
+
+        $rombels = \App\Models\Rombel::where('jurusan_id', $jurusan->id)
+            ->whereIn('id', $request->ids)
+            ->get();
+
+        $promotedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($rombels, $jurusan, &$promotedCount, &$skippedCount) {
+            foreach ($rombels as $rombel) {
+                $currentTingkat = (string)$rombel->tingkat;
+                $newTingkat = match ($currentTingkat) {
+                    '10' => '11',
+                    '11' => '12',
+                    default => null
+                };
+
+                if (!$newTingkat) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $oldNama = $rombel->nama;
+                $newNama = $oldNama ? preg_replace('/^' . preg_quote($currentTingkat, '/') . '\b/', $newTingkat, $oldNama) : "{$newTingkat} {$jurusan->kode}";
+
+                $rombel->update([
+                    'tingkat' => $newTingkat,
+                    'nama' => $newNama
+                ]);
+
+                $promotedCount++;
+            }
+
+            if ($promotedCount > 0) {
+                AuditLog::logActivity(
+                    'update_rombel',
+                    "Menaikkan tingkat {$promotedCount} rombel di jurusan {$jurusan->nama}",
+                    'success',
+                    Auth::id(),
+                    Auth::user()->name,
+                    Auth::user()->role
+                );
+            }
+        });
+
+        if ($promotedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', 'Semua rombel yang dipilih sudah berada di tingkat tertinggi (12).');
+        }
+
+        $message = "Berhasil menaikkan tingkat {$promotedCount} rombel";
+        if ($skippedCount > 0) {
+            $message .= " ({$skippedCount} rombel dilewati karena sudah tingkat 12)";
         }
 
         return back()->with('success', $message);

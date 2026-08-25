@@ -14,14 +14,21 @@ interface FlashMessageProps {
 }
 
 export default function FlashMessage({ manualSuccess, manualError, onClose, ignored = false }: FlashMessageProps) {
-    const { flash: pageFlash } = usePage<{ flash?: FlashMessages }>().props;
+    const pageProps = usePage<{ flash?: FlashMessages; errors?: Record<string, string> }>().props;
+    const pageFlash = pageProps.flash;
+    const pageErrors = pageProps.errors;
     const [visible, setVisible] = useState(false);
     const [localMessage, setLocalMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     useEffect(() => {
         if (ignored) return;
         const success = manualSuccess || pageFlash?.success;
-        const error = manualError || pageFlash?.error;
+        
+        let error = manualError || pageFlash?.error;
+        if (!error && pageErrors && Object.keys(pageErrors).length > 0) {
+            const firstErrorKey = Object.keys(pageErrors)[0];
+            error = pageErrors[firstErrorKey];
+        }
 
         if (success || error) {
             setLocalMessage(success ? { type: 'success', text: success } : { type: 'error', text: error! });
@@ -29,11 +36,11 @@ export default function FlashMessage({ manualSuccess, manualError, onClose, igno
             const timer = setTimeout(() => {
                 setVisible(false);
                 if (onClose) onClose();
-            }, 5000);
+            }, 6000);
 
             return () => clearTimeout(timer);
         }
-    }, [pageFlash, manualSuccess, manualError]);
+    }, [pageFlash, pageErrors, manualSuccess, manualError, ignored]);
 
     if (!visible || !localMessage) {
         return null;

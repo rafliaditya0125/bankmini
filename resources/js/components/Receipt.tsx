@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import { isSupported as isWebUSBSupported, printToPassbook, type PassbookTransaction } from '@/lib/passbookPrinter';
+import { formatRombelName } from '@/lib/utils';
 
 interface ReceiptData {
     kode_transaksi: string;
@@ -169,8 +170,8 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
         if (!nasabah) return '-';
         
         // Jika ada rombel_rel
-        if (nasabah.rombel_rel) {
-            return nasabah.rombel_rel.nama_kelas || `${nasabah.rombel_rel.tingkat} ${nasabah.rombel_rel.jurusan?.kode || ''}`.trim() || '-';
+        if (nasabah.rombel_rel || nasabah.rombelRel) {
+            return formatRombelName(nasabah.rombel_rel || nasabah.rombelRel);
         }
         
         // Jika user_type ada, tampilkan

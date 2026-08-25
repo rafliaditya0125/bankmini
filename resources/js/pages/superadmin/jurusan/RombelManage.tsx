@@ -1,9 +1,11 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import Modal from '@/components/Modal';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
+import ConfirmModal from '@/components/ConfirmModal';
 import type { Jurusan } from '@/types';
+import { formatRombelName } from '@/lib/utils';
 
 interface Rombel {
     id: number;
@@ -28,7 +30,75 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
     const [importOpen, setImportOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<Rombel | null>(null);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [confirmModal, setConfirmModal] = useState<{
+        show: boolean;
+        title: string;
+        message: string;
+        variant: 'danger' | 'warning' | 'info' | 'success';
+        onConfirm: () => void;
+    }>({
+        show: false,
+        title: '',
+        message: '',
+        variant: 'info',
+        onConfirm: () => {}
+    });
 
+    const isAllSelected = rombels.length > 0 && rombels.every(r => selectedIds.includes(r.id));
+
+    const handleToggleSelect = (id: number) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (isAllSelected) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(rombels.map(r => r.id));
+        }
+    };
+
+    const handleBulkPromote = () => {
+        if (selectedIds.length === 0) return;
+        setConfirmModal({
+            show: true,
+            title: 'Naikkan Tingkat Rombel Massal',
+            message: `Apakah Anda yakin ingin menaikkan tingkat ${selectedIds.length} rombel yang dipilih? (Tingkat 10 -> 11, 11 -> 12).`,
+            variant: 'info',
+            onConfirm: () => {
+                router.post(`/${rolePrefix}/jurusan/${jurusan.id}/rombel/bulk-promote`, { ids: selectedIds }, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setSelectedIds([]);
+                        setConfirmModal(prev => ({ ...prev, show: false }));
+                    }
+                });
+            }
+        });
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedIds.length === 0) return;
+        setConfirmModal({
+            show: true,
+            title: 'Hapus Rombel Massal',
+            message: `Apakah Anda yakin ingin MENGHAPUS ${selectedIds.length} rombel yang dipilih? Rombel yang masih memiliki siswa terdaftar akan otomatis dilewati.`,
+            variant: 'danger',
+            onConfirm: () => {
+                router.post(`/${rolePrefix}/jurusan/${jurusan.id}/rombel/bulk-delete`, { ids: selectedIds }, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setSelectedIds([]);
+                        setConfirmModal(prev => ({ ...prev, show: false }));
+                    }
+                });
+            }
+        });
+    };
 
     const handleTahunAjaranChange = (value: string) => {
         // Remove non-digits
@@ -109,7 +179,18 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
             onSuccess: () => {
                 setImportOpen(false);
                 importForm.reset();
+                if (fileInputRef.current) fileInputRef.current.value = '';
             },
+            onError: () => {
+                setImportOpen(false);
+                importForm.reset();
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            },
+            onFinish: () => {
+                setImportOpen(false);
+                importForm.reset();
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
         });
     };
 
@@ -119,19 +200,25 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
         setEditData('tingkat', rombel.tingkat.toString());
         setEditData('nama', rombel.nama || '');
         setEditOpen(true);
-        setOpenDropdownId(null);
     };
 
     const handleDelete = (rombel: Rombel) => {
-        if (confirm(`Hapus rombel ${getRombelName(rombel)}?`)) {
-            router.delete(`/${rolePrefix}/jurusan/${jurusan.id}/rombel/${rombel.id}`, {
-                preserveScroll: true,
-            });
-        }
+        setConfirmModal({
+            show: true,
+            title: 'Hapus Rombel',
+            message: `Apakah Anda yakin ingin menghapus rombel ${getRombelName(rombel)}? Tindakan ini tidak dapat dibatalkan.`,
+            variant: 'danger',
+            onConfirm: () => {
+                router.delete(`/${rolePrefix}/jurusan/${jurusan.id}/rombel/${rombel.id}`, {
+                    preserveScroll: true,
+                    onSuccess: () => setConfirmModal(prev => ({ ...prev, show: false }))
+                });
+            }
+        });
     };
 
     const getRombelName = (rombel: Rombel) => {
-        return rombel.nama || `${rombel.tingkat} ${jurusan.kode}`;
+        return formatRombelName({ ...rombel, jurusan });
     };
 
     // Group rombels by tahun_ajaran
@@ -158,6 +245,20 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                         <p className="mt-1 text-sm text-slate-500">Atur rombel per angkatan untuk jurusan {jurusan.kode}</p>
                     </div>
                     <div className="flex items-center gap-2">
+                        {rombels.length > 0 && (
+                            <button
+                                onClick={handleSelectAll}
+                                className="inline-flex items-center gap-2 rounded-full bg-slate-100 border border-slate-200 px-4 py-2 text-[10px] font-semibold text-slate-700 uppercase tracking-[0.2em] hover:bg-slate-200 transition-all shadow-sm"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={isAllSelected}
+                                    onChange={() => {}}
+                                    className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 pointer-events-none"
+                                />
+                                <span>{isAllSelected ? 'Batal Pilih' : 'Pilih Semua'}</span>
+                            </button>
+                        )}
                         <button
                             onClick={() => setImportOpen(true)}
                             className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 px-4 py-2 text-[10px] font-semibold text-slate-600 uppercase tracking-[0.2em] hover:bg-slate-50 transition-all shadow-sm"
@@ -185,6 +286,46 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
             <Head title={`Kelola Rombel - ${jurusan.nama}`} />
 
             <div className="space-y-6">
+                {/* Bulk Action Bar */}
+                {selectedIds.length > 0 && (
+                    <div className="bg-slate-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl border border-slate-800 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center gap-3">
+                            <span className="inline-flex items-center justify-center bg-emerald-500 text-slate-900 font-black text-xs h-7 min-w-7 px-2 rounded-xl">
+                                {selectedIds.length}
+                            </span>
+                            <span className="text-xs font-semibold uppercase tracking-wider text-slate-200">
+                                Rombel Terpilih
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                onClick={handleBulkPromote}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                </svg>
+                                Naikkan Tingkat
+                            </button>
+                            <button
+                                onClick={handleBulkDelete}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95"
+                            >
+                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Hapus Rombel
+                            </button>
+                            <button
+                                onClick={() => setSelectedIds([])}
+                                className="px-3 py-2 text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest transition-colors"
+                            >
+                                Batal
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {Object.keys(groupedRombels).length === 0 ? (
                     <div className="rounded-2xl bg-white border border-slate-200/70 p-12 text-center">
                         <svg className="h-16 w-16 text-slate-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -199,13 +340,26 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                             <h2 className="text-lg font-bold text-slate-900 uppercase tracking-tight">Angkatan {tahun}</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {rombelList.map((rombel) => (
-                                    <div key={rombel.id} className="rounded-2xl bg-white border border-slate-200/70 p-4 hover:shadow-md transition-all">
+                                    <div
+                                        key={rombel.id}
+                                        className={`rounded-2xl bg-white border p-4 hover:shadow-md transition-all ${
+                                            selectedIds.includes(rombel.id) ? 'border-emerald-500 ring-2 ring-emerald-200/60 bg-emerald-50/20' : 'border-slate-200/70'
+                                        }`}
+                                    >
                                         <div className="flex items-start justify-between mb-3">
-                                            <div>
-                                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">{getRombelName(rombel)}</h3>
-                                                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-1">
-                                                    Tingkat {rombel.tingkat}
-                                                </p>
+                                            <div className="flex items-start gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.includes(rombel.id)}
+                                                    onChange={() => handleToggleSelect(rombel.id)}
+                                                    className="mt-0.5 h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer transition-all"
+                                                />
+                                                <div>
+                                                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">{getRombelName(rombel)}</h3>
+                                                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mt-1">
+                                                        Tingkat {rombel.tingkat}
+                                                    </p>
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/70">
@@ -214,35 +368,35 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                                                     </svg>
                                                     {rombel.nasabah_count} siswa
                                                 </span>
+                                                <Dropdown
+                                                    trigger={
+                                                        <button className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all">
+                                                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                                            </svg>
+                                                        </button>
+                                                    }
+                                                >
+                                                    <DropdownItem
+                                                        onClick={() => openEditModal(rombel)}
+                                                        className="text-gray-500 hover:text-amber-600"
+                                                        icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>}
+                                                    >
+                                                        <span className="font-black text-[10px] uppercase tracking-widest">Edit</span>
+                                                    </DropdownItem>
+                                                    <DropdownItem
+                                                        onClick={() => handleDelete(rombel)}
+                                                        className="text-rose-600 hover:bg-rose-50 border-t border-gray-100"
+                                                        icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>}
+                                                    >
+                                                        <span className="font-black text-[10px] uppercase tracking-widest">Hapus</span>
+                                                    </DropdownItem>
+                                                </Dropdown>
                                             </div>
-                                            <Dropdown
-                                                trigger={
-                                                    <button className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all">
-                                                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                                                        </svg>
-                                                    </button>
-                                                }
-                                            >
-                                                <DropdownItem
-                                                    onClick={() => openEditModal(rombel)}
-                                                    className="text-gray-500 hover:text-amber-600"
-                                                    icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>}
-                                                >
-                                                    <span className="font-black text-[10px] uppercase tracking-widest">Edit</span>
-                                                </DropdownItem>
-                                                <DropdownItem
-                                                    onClick={() => handleDelete(rombel)}
-                                                    className="text-rose-600 hover:bg-rose-50 border-t border-gray-100"
-                                                    icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>}
-                                                >
-                                                    <span className="font-black text-[10px] uppercase tracking-widest">Hapus</span>
-                                                </DropdownItem>
-                                            </Dropdown>
                                         </div>
                                     </div>
                                 ))}
@@ -251,6 +405,16 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                     ))
                 )}
             </div>
+
+            {/* Confirm Modal */}
+            <ConfirmModal
+                show={confirmModal.show}
+                onClose={() => setConfirmModal(prev => ({ ...prev, show: false }))}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                variant={confirmModal.variant}
+            />
 
             {/* Modal Tambah Rombel */}
             <Modal
@@ -381,6 +545,7 @@ export default function RombelManage({ jurusan, rombels, tahun_ajaran_list }: Ro
                         <div className="mt-6">
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">File Excel (.xlsx, .xls) - Bisa pilih lebih dari 1 file</label>
                             <input
+                                ref={fileInputRef}
                                 type="file"
                                 accept=".xlsx,.xls"
                                 multiple

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatRombelName } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
 import Receipt from '@/components/Receipt';
@@ -283,9 +283,9 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm font-black text-gray-900 tracking-tight">
                                                     {transaction.nasabah?.user?.name || 'N/A'}
-                                                    {(transaction.nasabah_kelas || transaction.nasabah?.rombel_rel?.nama_kelas) && (
+                                                    {(transaction.nasabah_kelas || transaction.nasabah?.rombel_rel || (transaction.nasabah as any)?.rombelRel) && (
                                                         <span className="ml-1 text-[10px] font-bold text-gray-400 uppercase tracking-tight italic">
-                                                            ({transaction.nasabah_kelas || transaction.nasabah?.rombel_rel?.nama_kelas})
+                                                            ({transaction.nasabah_kelas || formatRombelName(transaction.nasabah?.rombel_rel || (transaction.nasabah as any)?.rombelRel)})
                                                         </span>
                                                     )}
                                                 </div>
