@@ -6,12 +6,13 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasPushSubscriptions;
+    use HasFactory, Notifiable, HasPushSubscriptions, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -30,9 +31,13 @@ class User extends Authenticatable implements MustVerifyEmail
         'nip',
         'status',
         'profile_photo_path',
+        'email_verified_at',
         'last_login_at',
         'failed_login_attempts',
         'locked_until',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
     ];
 
     /**
@@ -43,6 +48,8 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -54,6 +61,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'profile_photo_url',
         'is_active',
         'is_email_verified',
+        'two_factor_enabled',
     ];
 
     /**
@@ -69,6 +77,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'last_login_at' => 'datetime',
             'locked_until' => 'datetime',
             'failed_login_attempts' => 'integer',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 
@@ -104,6 +113,14 @@ class User extends Authenticatable implements MustVerifyEmail
             \App\Models\Setting::get('notification_email_active', '1') === '0' &&
             \App\Models\Setting::get('notification_whatsapp_active', '0') === '0'
         );
+    }
+
+    /**
+     * Get the 2FA status for frontend
+     */
+    public function getTwoFactorEnabledAttribute(): bool
+    {
+        return !is_null($this->two_factor_secret) && !is_null($this->two_factor_confirmed_at);
     }
 
     /**

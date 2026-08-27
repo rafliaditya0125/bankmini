@@ -22,6 +22,20 @@ export default function Profile() {
     const [showPhotoModal, setShowPhotoModal] = useState(false);
     const [stagedPhoto, setStagedPhoto] = useState<File | null>(null);
 
+    // 2FA / MFA States
+    const [showTwoFactorSetupModal, setShowTwoFactorSetupModal] = useState(false);
+    const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false);
+    const [showDisableTwoFactorModal, setShowDisableTwoFactorModal] = useState(false);
+    const [twoFactorStep, setTwoFactorStep] = useState<1 | 2 | 3>(1); // 1: QR & Secret, 2: Confirm OTP, 3: Show Recovery Codes
+    const [twoFactorQrSvg, setTwoFactorQrSvg] = useState<string>('');
+    const [twoFactorSecretKey, setTwoFactorSecretKey] = useState<string>('');
+    const [twoFactorOtp, setTwoFactorOtp] = useState<string>('');
+    const [twoFactorRecoveryCodes, setTwoFactorRecoveryCodes] = useState<string[]>([]);
+    const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+    const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
+    const [secretCopied, setSecretCopied] = useState(false);
+    const [recoveryCopied, setRecoveryCopied] = useState(false);
+
     // Modal Flow States
     const [phoneStep, setPhoneStep] = useState(1); // 1: Input Phone, 2: Input OTP
     const [emailStep, setEmailStep] = useState(1); // 1: Verify Old, 2: Verify New
@@ -127,6 +141,212 @@ export default function Profile() {
             });
         }
     };
+
+    // 2FA Functions
+    // Inertia apps don't use a csrf-token meta tag.
+    // Laravel's VerifyCsrfToken middleware accepts the XSRF-TOKEN cookie value
+    // via the X-XSRF-TOKEN header (it decodes/decrypts it automatically).
+    const getXsrfToken = () => {
+        if (typeof document === 'undefined') return '';
+        const match = document.cookie.match(new RegExp('(^|;\\s*)XSRF-TOKEN=([^;]*)'));
+        return match ? decodeURIComponent(match[2]) : '';
+    };
+
+    const startTwoFactorSetup = async () => {
+        setShowTwoFactorSetupModal(true);
+        setTwoFactorStep(1);
+        setTwoFactorLoading(true);
+        setTwoFactorError(null);
+        try {
+            const res = await fetch(route(`${routePrefix}.profil.two-factor.enable`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': getXsrfToken(),
+                },
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setTwoFactorQrSvg(data.svg);
+                setTwoFactorSecretKey(data.secretKey);
+                setTwoFactorStep(1);
+                setTwoFactorOtp('');
+            } else {
+                setTwoFactorError(data.message || 'Gagal memulai aktivasi 2FA.');
+            }
+        } catch (err: any) {
+            setTwoFactorError(err?.message || 'Terjadi kesalahan koneksi saat memulai 2FA.');
+        } finally {
+            setTwoFactorLoading(false);
+        }
+    };
+
+    const confirmTwoFactorOtp = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!twoFactorOtp || twoFactorOtp.length !== 6) {
+            setTwoFactorError('Masukkan 6 digit kode dari aplikasi authenticator.');
+            return;
+        }
+        setTwoFactorLoading(true);
+        setTwoFactorError(null);
+        try {
+            const res = await fetch(route(`${routePrefix}.profil.two-factor.confirm`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': getXsrfToken(),
+                },
+                body: JSON.stringify({ code: twoFactorOtp }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setTwoFactorRecoveryCodes(data.recoveryCodes || []);
+                setTwoFactorStep(3);
+                router.reload({ preserveScroll: true });
+            } else {
+                setTwoFactorError(data.message || 'Kode autentikasi tidak valid. Periksa kembali aplikasi Anda.');
+            }
+        } catch (err: any) {
+            setTwoFactorError(err?.message || 'Terjadi kesalahan koneksi saat memverifikasi kode 2FA.');
+        } finally {
+            setTwoFactorLoading(false);
+        }
+    };
+
+    const viewRecoveryCodes = async () => {
+        setShowRecoveryCodesModal(true);
+        setTwoFactorLoading(true);
+        setTwoFactorError(null);
+        try {
+            const res = await fetch(route(`${routePrefix}.profil.two-factor.recovery-codes`), {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setTwoFactorRecoveryCodes(data.recoveryCodes || []);
+            } else {
+                setTwoFactorError(data.message || 'Gagal memuat kode pemulihan.');
+            }
+        } catch (err: any) {
+            setTwoFactorError(err?.message || 'Gagal menghubungi server.');
+        } finally {
+            setTwoFactorLoading(false);
+        }
+    };
+
+    const regenerateRecoveryCodes = async () => {
+        if (!confirm('Apakah Anda yakin ingin membuat kode pemulihan baru? Semua kode pemulihan sebelumnya tidak akan dapat digunakan lagi.')) return;
+        setTwoFactorLoading(true);
+        try {
+            const res = await fetch(route(`${routePrefix}.profil.two-factor.regenerate-recovery-codes`), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': getXsrfToken(),
+                },
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setTwoFactorRecoveryCodes(data.recoveryCodes || []);
+                alert('Kode pemulihan baru berhasil dibuat. Harap salin dan simpan di tempat yang aman.');
+            } else {
+                alert(data.message || 'Gagal membuat kode baru.');
+            }
+        } catch (err) {
+            alert('Terjadi kesalahan saat membuat kode pemulihan baru.');
+        } finally {
+            setTwoFactorLoading(false);
+        }
+    };
+
+    const disableTwoFactor = () => {
+        router.delete(route(`${routePrefix}.profil.two-factor.disable`), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowDisableTwoFactorModal(false);
+                setShowTwoFactorSetupModal(false);
+                setShowRecoveryCodesModal(false);
+            },
+        });
+    };
+
+    const copySecretKey = () => {
+        if (twoFactorSecretKey) {
+            navigator.clipboard.writeText(twoFactorSecretKey);
+            setSecretCopied(true);
+            setTimeout(() => setSecretCopied(false), 2500);
+        }
+    };
+
+    const copyRecoveryCodes = () => {
+        if (twoFactorRecoveryCodes.length > 0) {
+            navigator.clipboard.writeText(twoFactorRecoveryCodes.join('\n'));
+            setRecoveryCopied(true);
+            setTimeout(() => setRecoveryCopied(false), 2500);
+        }
+    };
+
+    const downloadRecoveryCodesTxt = () => {
+        const content = `====================================================
+KODE PEMULIHAN 2FA (TWO-FACTOR RECOVERY CODES)
+Bank Mini
+====================================================
+Pengguna : ${user.name} (${user.username || user.email || '-'})
+Tanggal  : ${new Date().toLocaleString('id-ID')}
+
+PENTING:
+- Simpan kode ini di tempat yang sangat aman.
+- Setiap kode hanya dapat digunakan 1 (satu) kali jika Anda kehilangan
+  akses ke Google Authenticator, Microsoft Authenticator, atau Authy.
+----------------------------------------------------
+${twoFactorRecoveryCodes.join('\n')}
+====================================================`;
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `bankmini-2fa-recovery-codes-${user.username || 'user'}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    // Auto open 2FA setup if opened with #two-factor or ?setup_2fa=1
+    const checkAndTriggerTwoFactor = () => {
+        if (typeof window === 'undefined') return;
+        const hash = window.location.hash;
+        const searchParams = new URLSearchParams(window.location.search);
+        if (hash === '#two-factor' || searchParams.get('setup_2fa') === '1' || searchParams.get('action') === '2fa') {
+            const el = document.getElementById('two-factor-section');
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+            }
+            if (!user.two_factor_enabled) {
+                startTwoFactorSetup();
+            } else {
+                viewRecoveryCodes();
+            }
+        }
+    };
+
+    useEffect(() => {
+        checkAndTriggerTwoFactor();
+        window.addEventListener('hashchange', checkAndTriggerTwoFactor);
+        return () => {
+            window.removeEventListener('hashchange', checkAndTriggerTwoFactor);
+        };
+    }, [user.two_factor_enabled]);
 
     const handlePasswordSubmit = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -677,33 +897,33 @@ export default function Profile() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {/* Phone Button */}
                     <button 
                         onClick={() => setShowPhoneModal(true)}
-                        className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-emerald-100 transition-all cursor-pointer group"
+                        className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-emerald-100 dark:hover:border-slate-700 transition-all cursor-pointer group"
                     >
-                        <div className="h-12 w-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 mb-3 group-hover:scale-110 transition-transform">
+                        <div className="h-12 w-12 bg-emerald-50 dark:bg-emerald-950/50 rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-3 group-hover:scale-110 transition-transform">
                             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                             </svg>
                         </div>
-                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-1">No. Telepon</h3>
-                        <p className="text-[10px] text-slate-500">Update nomor HP</p>
+                        <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mb-1">No. Telepon</h3>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Update nomor HP</p>
                     </button>
 
                     {/* Email Button */}
                     <button 
                         onClick={() => setShowEmailModal(true)}
-                        className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-blue-100 transition-all cursor-pointer group"
+                        className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-blue-100 dark:hover:border-slate-700 transition-all cursor-pointer group"
                     >
-                        <div className="h-12 w-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 mb-3 group-hover:scale-110 transition-transform">
+                        <div className="h-12 w-12 bg-blue-50 dark:bg-blue-950/50 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 mb-3 group-hover:scale-110 transition-transform">
                             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                         </div>
-                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-1">Email</h3>
-                        <p className="text-[10px] text-slate-500">Ganti alamat email</p>
+                        <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mb-1">Email</h3>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Ganti alamat email</p>
                     </button>
 
                     {/* Password Button */}
@@ -713,16 +933,145 @@ export default function Profile() {
                             setPasswordMode('change');
                             setShowPasswordModal(true);
                         }}
-                        className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-slate-200 transition-all cursor-pointer group"
+                        className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md hover:border-slate-200 dark:hover:border-slate-700 transition-all cursor-pointer group"
                     >
-                        <div className="h-12 w-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 mb-3 group-hover:scale-110 transition-transform">
+                        <div className="h-12 w-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-700 dark:text-slate-300 mb-3 group-hover:scale-110 transition-transform">
                             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                         </div>
-                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-1">Ganti Password</h3>
-                        <p className="text-[10px] text-slate-500">Update sandi rutin</p>
+                        <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mb-1">Ganti Password</h3>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Update sandi rutin</p>
                     </button>
+
+                    {/* 2FA Quick Action Button */}
+                    <button
+                        onClick={() => {
+                            if (user.two_factor_enabled) {
+                                viewRecoveryCodes();
+                            } else {
+                                startTwoFactorSetup();
+                            }
+                        }}
+                        className={`rounded-[2rem] p-6 border shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition-all cursor-pointer group ${
+                            user.two_factor_enabled
+                                ? 'bg-white dark:bg-slate-900 border-emerald-200/80 dark:border-emerald-800/40 hover:border-emerald-300'
+                                : 'bg-gradient-to-b from-amber-50/50 to-white dark:from-amber-950/20 dark:to-slate-900 border-amber-200 dark:border-amber-900/40 hover:border-amber-300'
+                        }`}
+                    >
+                        <div className={`h-12 w-12 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform ${
+                            user.two_factor_enabled
+                                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'
+                        }`}>
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mb-1">Otentikasi 2FA</h3>
+                        <p className={`text-[10px] font-bold uppercase tracking-wider ${
+                            user.two_factor_enabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+                        }`}>
+                            {user.two_factor_enabled ? 'Aktif & Terlindungi' : 'Belum Aktif'}
+                        </p>
+                    </button>
+                </div>
+
+                {/* Dedicated 2FA / MFA Management Card */}
+                <div id="two-factor-section" className="rounded-[2.5rem] bg-white dark:bg-slate-900 p-8 md:p-10 border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                        <div className="space-y-3 max-w-2xl">
+                            <div className="flex items-center gap-3">
+                                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${
+                                    user.two_factor_enabled 
+                                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400' 
+                                        : 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'
+                                }`}>
+                                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2.5">
+                                        <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                                            Otentikasi Dua Faktor (2FA / MFA)
+                                        </h3>
+                                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                                            user.two_factor_enabled
+                                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                                                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'
+                                        }`}>
+                                            {user.two_factor_enabled ? 'Aktif & Terlindungi' : 'Belum Aktif'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                        Perlindungan ganda akun Anda menggunakan kode OTP 6-digit dari aplikasi authenticator di ponsel Anda.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="pt-2 flex flex-wrap gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+                                    <span className="h-2 w-2 rounded-full bg-emerald-500"></span> Google Authenticator
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+                                    <span className="h-2 w-2 rounded-full bg-blue-500"></span> Microsoft Authenticator
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+                                    <span className="h-2 w-2 rounded-full bg-red-500"></span> Twilio Authy
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            {user.two_factor_enabled ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={viewRecoveryCodes}
+                                        disabled={twoFactorLoading}
+                                        className="px-5 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+                                    >
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                        </svg>
+                                        Kode Pemulihan
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowDisableTwoFactorModal(true)}
+                                        className="px-5 py-3.5 bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-all active:scale-95 cursor-pointer"
+                                    >
+                                        Nonaktifkan 2FA
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={startTwoFactorSetup}
+                                    disabled={twoFactorLoading}
+                                    className="px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-200 dark:shadow-none transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+                                >
+                                    {twoFactorLoading ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Memuat...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            Aktifkan 2FA Sekarang
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -941,6 +1290,377 @@ export default function Profile() {
                             className="w-full py-4 text-slate-500 text-[11px] font-black uppercase tracking-widest hover:text-rose-600 transition-all rounded-2xl border-2 border-slate-50 hover:border-rose-100 hover:bg-rose-50 cursor-pointer"
                         >
                             Tidak Sekarang (Keluar / Logout)
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+            {/* 2FA Setup Modal */}
+            <Modal
+                show={showTwoFactorSetupModal}
+                onClose={() => {
+                    if (twoFactorStep === 3) {
+                        setShowTwoFactorSetupModal(false);
+                    } else if (confirm('Batalkan proses aktivasi 2FA?')) {
+                        setShowTwoFactorSetupModal(false);
+                        setTwoFactorStep(1);
+                        setTwoFactorError(null);
+                    }
+                }}
+                title={
+                    twoFactorStep === 1
+                        ? '1. Pindai Kode QR Authenticator'
+                        : twoFactorStep === 2
+                        ? '2. Verifikasi Kode OTP 6-Digit'
+                        : '🎉 2FA Berhasil Diaktifkan!'
+                }
+                description={
+                    twoFactorStep === 1
+                        ? 'Gunakan Google Authenticator, Microsoft Authenticator, atau Authy'
+                        : twoFactorStep === 2
+                        ? 'Masukkan kode yang muncul di aplikasi authenticator Anda'
+                        : 'Simpan kode pemulihan darurat ini di tempat yang aman'
+                }
+                maxWidth="md"
+            >
+                <div className="space-y-6">
+                    {twoFactorError && (
+                        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 rounded-2xl text-xs font-black text-rose-600 dark:text-rose-400 space-y-2">
+                            <div className="flex items-center gap-2">
+                                <svg className="h-4 w-4 shrink-0 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>{twoFactorError}</span>
+                            </div>
+                            {twoFactorStep === 1 && (
+                                <button
+                                    type="button"
+                                    onClick={startTwoFactorSetup}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-rose-700 active:scale-95 transition-all cursor-pointer"
+                                >
+                                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Coba Lagi
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {twoFactorStep === 1 && (
+                        <div className="space-y-6 text-center">
+                            {/* QR Code container */}
+                            <div className="p-4 bg-white rounded-3xl shadow-inner border border-slate-100 dark:border-slate-800 flex justify-center items-center max-w-[240px] mx-auto min-h-[220px]">
+                                {twoFactorLoading ? (
+                                    <div className="h-48 w-48 flex flex-col items-center justify-center gap-3 text-slate-400 text-xs">
+                                        <svg className="animate-spin h-8 w-8 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Menyiapkan QR Code...</span>
+                                    </div>
+                                ) : twoFactorQrSvg ? (
+                                    <div
+                                        className="[&>svg]:w-full [&>svg]:h-full [&>svg]:rounded-xl"
+                                        dangerouslySetInnerHTML={{ __html: twoFactorQrSvg }}
+                                    />
+                                ) : (
+                                    <div className="h-48 w-48 flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
+                                        <span>Gagal memuat QR Code.</span>
+                                        <button
+                                            type="button"
+                                            onClick={startTwoFactorSetup}
+                                            className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-[10px] font-bold"
+                                        >
+                                            Muat Ulang
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Manual Setup Key */}
+                            <div className="space-y-2 text-left">
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                    Kunci Pengaturan Manual (Jika tidak bisa scan QR)
+                                </label>
+                                <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+                                    <span className="font-mono text-xs font-black tracking-widest text-slate-800 dark:text-slate-100 break-all select-all">
+                                        {twoFactorLoading ? 'Membuat kunci keamanan...' : twoFactorSecretKey || '...'}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        disabled={twoFactorLoading || !twoFactorSecretKey}
+                                        onClick={copySecretKey}
+                                        className="ml-3 shrink-0 px-3 py-1.5 bg-emerald-600 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-700 active:scale-95 transition-all cursor-pointer"
+                                    >
+                                        {secretCopied ? 'Tersalin!' : 'Salin'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* App Compatibility Badges */}
+                            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 text-left space-y-2">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                    Kompatibel Dengan:
+                                </p>
+                                <div className="flex flex-wrap gap-2 text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                                    <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 border border-slate-200/60 dark:border-slate-600">
+                                        ✓ Google Authenticator
+                                    </span>
+                                    <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 border border-slate-200/60 dark:border-slate-600">
+                                        ✓ Microsoft Authenticator
+                                    </span>
+                                    <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 border border-slate-200/60 dark:border-slate-600">
+                                        ✓ Twilio Authy
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowTwoFactorSetupModal(false)}
+                                    className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={twoFactorLoading || !twoFactorQrSvg}
+                                    onClick={() => setTwoFactorStep(2)}
+                                    className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-200 dark:shadow-none transition-all active:scale-95 cursor-pointer"
+                                >
+                                    Lanjut ke Verifikasi Kode &rarr;
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {twoFactorStep === 2 && (
+                        <form onSubmit={confirmTwoFactorOtp} className="space-y-6">
+                            <div className="space-y-3">
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">
+                                    Masukkan 6 Digit Kode Authenticator
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={6}
+                                    value={twoFactorOtp}
+                                    onChange={(e) => {
+                                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                        setTwoFactorOtp(val);
+                                    }}
+                                    placeholder="000000"
+                                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl p-4 text-center text-3xl font-black tracking-[0.4em] font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500"
+                                    autoFocus
+                                    required
+                                />
+                                <p className="text-[11px] text-slate-400 text-center font-medium">
+                                    Buka aplikasi authenticator dan ketik kode 6-digit yang sedang aktif.
+                                </p>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setTwoFactorStep(1)}
+                                    className="px-6 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer"
+                                >
+                                    Kembali
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={twoFactorLoading || twoFactorOtp.length < 6}
+                                    className={`flex-1 py-4 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer ${
+                                        twoFactorLoading || twoFactorOtp.length < 6
+                                            ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
+                                            : 'bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200 dark:shadow-none'
+                                    }`}
+                                >
+                                    {twoFactorLoading ? 'Memverifikasi...' : 'Konfirmasi & Aktifkan 2FA'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
+
+                    {twoFactorStep === 3 && (
+                        <div className="space-y-6">
+                            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/40 text-center space-y-1">
+                                <p className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-tight">
+                                    Simpan Kode Pemulihan (Recovery Codes)
+                                </p>
+                                <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                                    Gunakan kode darurat ini jika sewaktu-waktu kehilangan akses ke ponsel atau aplikasi authenticator Anda.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 font-mono text-xs text-center font-black text-slate-800 dark:text-slate-100">
+                                {twoFactorRecoveryCodes.map((code, index) => (
+                                    <div
+                                        key={index}
+                                        className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-xs select-all"
+                                    >
+                                        {code}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={copyRecoveryCodes}
+                                    className="flex-1 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                                >
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                    </svg>
+                                    {recoveryCopied ? 'Semua Kode Tersalin!' : 'Salin Semua Kode'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={downloadRecoveryCodesTxt}
+                                    className="flex-1 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                                >
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Unduh (.txt)
+                                </button>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowTwoFactorSetupModal(false);
+                                    setTwoFactorStep(1);
+                                    setTwoFactorError(null);
+                                }}
+                                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-200 dark:shadow-none transition-all active:scale-95 cursor-pointer"
+                            >
+                                Selesai & Tutup
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </Modal>
+
+            {/* Recovery Codes View & Management Modal */}
+            <Modal
+                show={showRecoveryCodesModal}
+                onClose={() => setShowRecoveryCodesModal(false)}
+                title="Kode Pemulihan 2FA (Recovery Codes)"
+                description="Gunakan salah satu kode ini jika kehilangan akses ke aplikasi authenticator Anda."
+                maxWidth="md"
+            >
+                <div className="space-y-6">
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200/80 dark:border-amber-900/40">
+                        <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                            Setiap kode hanya dapat digunakan <b>1 (satu) kali</b> saat login. Simpan di tempat yang aman dan rahasia.
+                        </p>
+                    </div>
+
+                    {twoFactorLoading ? (
+                        <div className="p-8 flex flex-col items-center justify-center gap-3 text-slate-400 text-xs">
+                            <svg className="animate-spin h-8 w-8 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Memuat kode pemulihan...</span>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-2 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 font-mono text-xs text-center font-black text-slate-800 dark:text-slate-100">
+                            {twoFactorRecoveryCodes.map((code, index) => (
+                                <div
+                                    key={index}
+                                    className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-xs select-all"
+                                >
+                                    {code}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                            type="button"
+                            disabled={twoFactorLoading || twoFactorRecoveryCodes.length === 0}
+                            onClick={copyRecoveryCodes}
+                            className="flex-1 py-3.5 bg-slate-100 dark:bg-slate-800 disabled:opacity-50 text-slate-700 dark:text-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                        >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            {recoveryCopied ? 'Semua Kode Tersalin!' : 'Salin Semua Kode'}
+                        </button>
+                        <button
+                            type="button"
+                            disabled={twoFactorLoading || twoFactorRecoveryCodes.length === 0}
+                            onClick={downloadRecoveryCodesTxt}
+                            className="flex-1 py-3.5 bg-slate-100 dark:bg-slate-800 disabled:opacity-50 text-slate-700 dark:text-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                        >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Unduh File (.txt)
+                        </button>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                        <button
+                            type="button"
+                            onClick={regenerateRecoveryCodes}
+                            disabled={twoFactorLoading}
+                            className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                        >
+                            Buat Kode Baru (Regenerate)
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowRecoveryCodesModal(false)}
+                            className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all cursor-pointer"
+                        >
+                            Tutup
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Disable 2FA Confirmation Modal */}
+            <Modal
+                show={showDisableTwoFactorModal}
+                onClose={() => setShowDisableTwoFactorModal(false)}
+                title="Nonaktifkan Otentikasi 2FA?"
+                maxWidth="sm"
+            >
+                <div className="space-y-6 text-center p-2">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+                        <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77-1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                            Peringatan Keamanan
+                        </h4>
+                        <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                            Menonaktifkan 2FA akan menghapus lapisan keamanan ganda pada akun Anda. Akun Anda hanya akan dilindungi oleh password saja.
+                        </p>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowDisableTwoFactorModal(false)}
+                            className="flex-1 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="button"
+                            onClick={disableTwoFactor}
+                            className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-rose-200 dark:shadow-none transition-all cursor-pointer"
+                        >
+                            Ya, Nonaktifkan 2FA
                         </button>
                     </div>
                 </div>

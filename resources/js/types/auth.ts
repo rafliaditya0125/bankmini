@@ -11,6 +11,8 @@ export type User = {
     status: 'active' | 'inactive';
     is_active: boolean;
     is_email_verified: boolean;
+    two_factor_enabled: boolean;
+    two_factor_confirmed_at?: string | null;
     avatar?: string;
     profile_photo_url?: string;
     profile_photo_path?: string;

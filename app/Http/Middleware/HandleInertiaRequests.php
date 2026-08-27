@@ -61,6 +61,21 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'transaction' => fn () => $request->session()->get('transaction'),
             ],
+            'honeypot' => fn () => config('honeypot.enabled', true) ? [
+                'enabled' => true,
+                'nameFieldName' => app(\Spatie\Honeypot\Honeypot::class)->nameFieldName(),
+                'validFromFieldName' => app(\Spatie\Honeypot\Honeypot::class)->validFromFieldName(),
+                'encryptedValidFrom' => app(\Spatie\Honeypot\Honeypot::class)->encryptedValidFrom(),
+            ] : [
+                'enabled' => false,
+                'nameFieldName' => 'my_name',
+                'validFromFieldName' => 'valid_from',
+                'encryptedValidFrom' => '',
+            ],
+            'turnstile' => [
+                'enabled' => config('turnstile.enabled', true),
+                'siteKey' => config('turnstile.site_key'),
+            ],
         ];
     }
 }

@@ -28,11 +28,15 @@ Route::get('/', function () {
 // Authentication Routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
-    Route::post('/login', [LoginController::class, 'store'])->middleware(['log']);
+    Route::post('/login', [LoginController::class, 'store'])->middleware(['honeypot', 'log']);
 
     // Forgot Password Routes
-    Route::post('/forgot-password/otp', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetOtp'])->name('password.otp');
-    Route::post('/reset-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'reset'])->name('password.update');
+    Route::post('/forgot-password/otp', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetOtp'])->middleware(['honeypot'])->name('password.otp');
+    Route::post('/reset-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'reset'])->middleware(['honeypot'])->name('password.update');
+
+    // Two-Factor Authentication Challenge
+    Route::get('/two-factor-challenge', [\App\Http\Controllers\Auth\TwoFactorAuthenticatedSessionController::class, 'create'])->name('two-factor.login');
+    Route::post('/two-factor-challenge', [\App\Http\Controllers\Auth\TwoFactorAuthenticatedSessionController::class, 'store'])->middleware(['honeypot', 'log'])->name('two-factor.login.store');
 });
 
 Route::post('/logout', [LoginController::class, 'destroy'])
@@ -91,6 +95,12 @@ Route::middleware(['auth', 'role:nasabah', 'verified', 'force_password_change'])
     Route::post('/profil/email-otp', [SharedProfileController::class, 'requestEmailChangeOtp'])->name('profil.email-otp');
     Route::post('/profil/email-verify-old', [SharedProfileController::class, 'verifyOldEmailOtp'])->name('profil.email-verify-old');
     Route::put('/profil/email', [SharedProfileController::class, 'updateEmail'])->name('profil.email');
+    Route::post('/profil/two-factor-authentication', [SharedProfileController::class, 'enableTwoFactor'])->name('profil.two-factor.enable');
+    Route::post('/profil/two-factor-confirm', [SharedProfileController::class, 'confirmTwoFactor'])->name('profil.two-factor.confirm');
+    Route::delete('/profil/two-factor-authentication', [SharedProfileController::class, 'disableTwoFactor'])->name('profil.two-factor.disable');
+    Route::get('/profil/two-factor-qr-code', [SharedProfileController::class, 'getTwoFactorQrCode'])->name('profil.two-factor.qr-code');
+    Route::get('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'getTwoFactorRecoveryCodes'])->name('profil.two-factor.recovery-codes');
+    Route::post('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'regenerateTwoFactorRecoveryCodes'])->name('profil.two-factor.regenerate-recovery-codes');
 });
 
 // Teller Routes
@@ -129,6 +139,12 @@ Route::middleware(['auth', 'role:teller', 'verified'])->prefix('teller')->name('
     Route::post('/profil/email-otp', [SharedProfileController::class, 'requestEmailChangeOtp'])->name('profil.email-otp');
     Route::post('/profil/email-verify-old', [SharedProfileController::class, 'verifyOldEmailOtp'])->name('profil.email-verify-old');
     Route::put('/profil/email', [SharedProfileController::class, 'updateEmail'])->name('profil.email');
+    Route::post('/profil/two-factor-authentication', [SharedProfileController::class, 'enableTwoFactor'])->name('profil.two-factor.enable');
+    Route::post('/profil/two-factor-confirm', [SharedProfileController::class, 'confirmTwoFactor'])->name('profil.two-factor.confirm');
+    Route::delete('/profil/two-factor-authentication', [SharedProfileController::class, 'disableTwoFactor'])->name('profil.two-factor.disable');
+    Route::get('/profil/two-factor-qr-code', [SharedProfileController::class, 'getTwoFactorQrCode'])->name('profil.two-factor.qr-code');
+    Route::get('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'getTwoFactorRecoveryCodes'])->name('profil.two-factor.recovery-codes');
+    Route::post('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'regenerateTwoFactorRecoveryCodes'])->name('profil.two-factor.regenerate-recovery-codes');
 });
 
 // Admin Routes (Sub-Admin)
@@ -212,6 +228,12 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::post('/profil/email-otp', [SharedProfileController::class, 'requestEmailChangeOtp'])->name('profil.email-otp');
     Route::post('/profil/email-verify-old', [SharedProfileController::class, 'verifyOldEmailOtp'])->name('profil.email-verify-old');
     Route::put('/profil/email', [SharedProfileController::class, 'updateEmail'])->name('profil.email');
+    Route::post('/profil/two-factor-authentication', [SharedProfileController::class, 'enableTwoFactor'])->name('profil.two-factor.enable');
+    Route::post('/profil/two-factor-confirm', [SharedProfileController::class, 'confirmTwoFactor'])->name('profil.two-factor.confirm');
+    Route::delete('/profil/two-factor-authentication', [SharedProfileController::class, 'disableTwoFactor'])->name('profil.two-factor.disable');
+    Route::get('/profil/two-factor-qr-code', [SharedProfileController::class, 'getTwoFactorQrCode'])->name('profil.two-factor.qr-code');
+    Route::get('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'getTwoFactorRecoveryCodes'])->name('profil.two-factor.recovery-codes');
+    Route::post('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'regenerateTwoFactorRecoveryCodes'])->name('profil.two-factor.regenerate-recovery-codes');
 });
 
 // Superadmin Exclusive Routes
@@ -307,4 +329,10 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     Route::post('/profil/email-otp', [SharedProfileController::class, 'requestEmailChangeOtp'])->name('profil.email-otp');
     Route::post('/profil/email-verify-old', [SharedProfileController::class, 'verifyOldEmailOtp'])->name('profil.email-verify-old');
     Route::put('/profil/email', [SharedProfileController::class, 'updateEmail'])->name('profil.email');
+    Route::post('/profil/two-factor-authentication', [SharedProfileController::class, 'enableTwoFactor'])->name('profil.two-factor.enable');
+    Route::post('/profil/two-factor-confirm', [SharedProfileController::class, 'confirmTwoFactor'])->name('profil.two-factor.confirm');
+    Route::delete('/profil/two-factor-authentication', [SharedProfileController::class, 'disableTwoFactor'])->name('profil.two-factor.disable');
+    Route::get('/profil/two-factor-qr-code', [SharedProfileController::class, 'getTwoFactorQrCode'])->name('profil.two-factor.qr-code');
+    Route::get('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'getTwoFactorRecoveryCodes'])->name('profil.two-factor.recovery-codes');
+    Route::post('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'regenerateTwoFactorRecoveryCodes'])->name('profil.two-factor.regenerate-recovery-codes');
 });
