@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Setting;
+use App\Services\CaptchaService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -72,9 +73,16 @@ class HandleInertiaRequests extends Middleware
                 'validFromFieldName' => 'valid_from',
                 'encryptedValidFrom' => '',
             ],
-            'turnstile' => [
-                'enabled' => config('turnstile.enabled', true),
-                'siteKey' => config('turnstile.site_key'),
+            'captcha' => fn () => [
+                'primary'   => Setting::get('captcha_primary', 'turnstile'),
+                'turnstile' => [
+                    'enabled' => config('turnstile.enabled', true),
+                    'siteKey' => Setting::get('turnstile_site_key', config('turnstile.site_key')),
+                ],
+                'recaptcha' => [
+                    'enabled' => config('recaptcha.enabled', true),
+                    'siteKey' => Setting::get('recaptcha_site_key', config('recaptcha.site_key')),
+                ],
             ],
         ];
     }

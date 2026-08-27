@@ -1,19 +1,19 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { usePage } from '@inertiajs/react';
-
-interface TurnstileConfig {
-    enabled: boolean;
-    siteKey: string;
-}
 
 interface TurnstileWidgetProps {
     onVerify: (token: string) => void;
     onExpire?: () => void;
     onError?: () => void;
-    /** Widget appearance size. Defaults to 'normal'. */
+    /** Called when the Cloudflare script itself fails to load (network error). Use to trigger fallback. */
+    onLoadError?: () => void;
+    /** Widget appearance size. Defaults to 'flexible'. */
     size?: 'normal' | 'compact' | 'flexible';
     /** Widget theme. Defaults to 'light'. */
     theme?: 'light' | 'dark' | 'auto';
+    /** Site key (overrides Inertia prop — used by CaptchaWidget). */
+    siteKey?: string;
+    /** Whether this widget is enabled (overrides Inertia prop). */
+    enabled?: boolean;
 }
 
 declare global {
@@ -29,9 +29,8 @@ declare global {
 
 const SCRIPT_ID = 'cf-turnstile-script';
 
-function ensureScript(onLoad: () => void) {
+function ensureScript(onLoad: () => void, onError: () => void) {
     if (document.getElementById(SCRIPT_ID)) {
-        // Script already in DOM — if Turnstile is already ready, call immediately
         if (window.turnstile) {
             onLoad();
         } else {
@@ -52,6 +51,7 @@ function ensureScript(onLoad: () => void) {
         'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit';
     script.async = true;
     script.defer = true;
+    script.onerror = onError;
     document.head.appendChild(script);
 }
 
@@ -59,35 +59,33 @@ export default function TurnstileWidget({
     onVerify,
     onExpire,
     onError,
+    onLoadError,
     size = 'flexible',
     theme = 'light',
+    siteKey: siteKeyProp,
+    enabled: enabledProp,
 }: TurnstileWidgetProps) {
-    const { turnstile } = usePage<any>().props as { turnstile?: TurnstileConfig };
     const containerRef = useRef<HTMLDivElement>(null);
     const widgetIdRef = useRef<string | null>(null);
 
     const renderWidget = useCallback(() => {
         if (!containerRef.current || !window.turnstile) return;
-        if (widgetIdRef.current) return; // already rendered
+        if (widgetIdRef.current) return;
 
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
-            sitekey: turnstile?.siteKey,
+            sitekey: siteKeyProp,
             callback: onVerify,
-            'expired-callback': () => {
-                onExpire?.();
-            },
-            'error-callback': () => {
-                onError?.();
-            },
+            'expired-callback': () => onExpire?.(),
+            'error-callback':   () => onError?.(),
             size,
             theme,
         });
-    }, [turnstile?.siteKey, onVerify, onExpire, onError, size, theme]);
+    }, [siteKeyProp, onVerify, onExpire, onError, size, theme]);
 
     useEffect(() => {
-        if (!turnstile?.enabled || !turnstile?.siteKey) return;
+        if (!enabledProp || !siteKeyProp) return;
 
-        ensureScript(renderWidget);
+        ensureScript(renderWidget, () => onLoadError?.());
 
         return () => {
             if (widgetIdRef.current && window.turnstile) {
@@ -96,9 +94,9 @@ export default function TurnstileWidget({
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [turnstile?.enabled, turnstile?.siteKey]);
+    }, [enabledProp, siteKeyProp]);
 
-    if (!turnstile?.enabled) return null;
+    if (!enabledProp || !siteKeyProp) return null;
 
     return (
         <div

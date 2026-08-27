@@ -6,47 +6,45 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class TurnstileService
+class RecaptchaService
 {
     /**
-     * Verify a Cloudflare Turnstile token.
+     * Verify a Google reCAPTCHA v2 token.
      *
-     * Returns true if the token is valid, or if Turnstile is disabled,
-     * or if the Cloudflare API is unreachable (fail-open policy).
+     * Returns true if the token is valid, or if reCAPTCHA is disabled,
+     * or if the Google API is unreachable (fail-open policy).
      */
     public static function verify(?string $token, string $ip): bool
     {
-        if (!config('turnstile.enabled', true)) {
+        if (!config('recaptcha.enabled', true)) {
             return true;
         }
 
-        // Empty token = bot / JS disabled
         if (empty($token)) {
             return false;
         }
 
         try {
-            $secretKey = Setting::get('turnstile_secret_key', config('turnstile.secret_key'));
-            $response = Http::timeout(config('turnstile.timeout', 10))
+            $secretKey = Setting::get('recaptcha_secret_key', config('recaptcha.secret_key'));
+            $response = Http::timeout(config('recaptcha.timeout', 10))
                 ->asForm()
-                ->post(config('turnstile.verify_url'), [
+                ->post(config('recaptcha.verify_url'), [
                     'secret'   => $secretKey,
                     'response' => $token,
                     'remoteip' => $ip,
                 ]);
 
             if (!$response->successful()) {
-                // Fail-open: don't block users due to upstream API issues
-                Log::warning('Turnstile: HTTP error from Cloudflare API', [
+                Log::warning('reCAPTCHA: HTTP error from Google API', [
                     'status' => $response->status(),
                 ]);
-                return true;
+                return true; // fail-open
             }
 
             $result = $response->json();
 
             if (!($result['success'] ?? false)) {
-                Log::info('Turnstile: verification failed', [
+                Log::info('reCAPTCHA: verification failed', [
                     'error-codes' => $result['error-codes'] ?? [],
                     'ip'          => $ip,
                 ]);
@@ -54,11 +52,10 @@ class TurnstileService
 
             return $result['success'] ?? false;
         } catch (\Exception $e) {
-            // Fail-open: network issues should not lock out real users
-            Log::warning('Turnstile: exception during verification, failing open', [
+            Log::warning('reCAPTCHA: exception during verification, failing open', [
                 'error' => $e->getMessage(),
             ]);
-            return true;
+            return true; // fail-open
         }
     }
 }
