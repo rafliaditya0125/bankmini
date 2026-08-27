@@ -20,6 +20,7 @@
         "laravel/wayfinder": "^0.1.11",
         "phpoffice/phpspreadsheet": "*",
         "resend/resend-php": "*",
+        "spatie/laravel-honeypot": "*",
         "symfony/http-client": "*",
         "symfony/mailgun-mailer": "*",
         "tightenco/ziggy": "*"

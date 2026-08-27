@@ -1,5 +1,7 @@
 import { Head, useForm, Link } from '@inertiajs/react';
 import { useState, useRef, useEffect, FormEventHandler } from 'react';
+import { useHoneypot } from '@/hooks/useHoneypot';
+import HoneypotInputs from '@/components/HoneypotInputs';
 
 interface PageProps {
     status?: string;
@@ -9,10 +11,12 @@ interface PageProps {
 
 export default function TwoFactorChallenge({ status, user_name, user_email }: PageProps) {
     const [recovery, setRecovery] = useState(false);
+    const { honeypotData } = useHoneypot();
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         code: '',
         recovery_code: '',
+        ...honeypotData,
     });
 
     const codeInputRef = useRef<HTMLInputElement>(null);
@@ -85,6 +89,7 @@ export default function TwoFactorChallenge({ status, user_name, user_email }: Pa
                     </div>
 
                     <form onSubmit={submit} className="space-y-6">
+                        <HoneypotInputs setData={setData} />
                         {!recovery ? (
                             <div className="space-y-2">
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">

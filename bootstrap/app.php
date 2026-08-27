@@ -26,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => CheckRole::class,
             'log' => LogActivity::class,
             'force_password_change' => ForceNasabahPasswordChange::class,
+            'honeypot' => \Spatie\Honeypot\ProtectAgainstSpam::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

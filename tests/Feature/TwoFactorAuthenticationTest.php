@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
+use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
 class TwoFactorAuthenticationTest extends TestCase
@@ -25,7 +25,13 @@ class TwoFactorAuthenticationTest extends TestCase
             'password' => bcrypt('password123'),
             'role' => 'admin',
             'status' => 'active',
+            'email_verified_at' => now(),
         ]);
+    }
+
+    protected function getCurrentOtp(string $secret): string
+    {
+        return (new Google2FA())->getCurrentOtp($secret);
     }
 
     /** @test */
@@ -61,8 +67,7 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->user->refresh();
 
         // Generate valid OTP
-        $provider = app(TwoFactorAuthenticationProvider::class);
-        $validOtp = $provider->getCurrentOtp(decrypt($this->user->two_factor_secret));
+        $validOtp = $this->getCurrentOtp(decrypt($this->user->two_factor_secret));
 
         // Confirm
         $response = $this->actingAs($this->user)
@@ -92,15 +97,14 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->actingAs($this->user)->postJson(route('admin.profil.two-factor.enable'));
         $this->user->refresh();
 
-        $provider = app(TwoFactorAuthenticationProvider::class);
-        $validOtp = $provider->getCurrentOtp(decrypt($this->user->two_factor_secret));
+        $validOtp = $this->getCurrentOtp(decrypt($this->user->two_factor_secret));
         $this->actingAs($this->user)->postJson(route('admin.profil.two-factor.confirm'), ['code' => $validOtp]);
 
         // Logout
         auth()->logout();
 
         // Attempt login
-        $response = $this->post(route('login.post'), [
+        $response = $this->post(route('login'), [
             'login' => 'admintest',
             'password' => 'password123',
         ]);
@@ -117,14 +121,15 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->actingAs($this->user)->postJson(route('admin.profil.two-factor.enable'));
         $this->user->refresh();
 
-        $provider = app(TwoFactorAuthenticationProvider::class);
-        $validOtp = $provider->getCurrentOtp(decrypt($this->user->two_factor_secret));
+        $validOtp = $this->getCurrentOtp(decrypt($this->user->two_factor_secret));
         $this->actingAs($this->user)->postJson(route('admin.profil.two-factor.confirm'), ['code' => $validOtp]);
 
-        // Set up session for 2FA challenge
+        // Logout and set up session for 2FA challenge
+        auth()->logout();
         session()->put('login.id', $this->user->id);
+        cache()->flush();
 
-        $currentOtp = $provider->getCurrentOtp(decrypt($this->user->two_factor_secret));
+        $currentOtp = $this->getCurrentOtp(decrypt($this->user->two_factor_secret));
 
         $response = $this->post(route('two-factor.login.store'), [
             'code' => $currentOtp,
@@ -141,14 +146,14 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->actingAs($this->user)->postJson(route('admin.profil.two-factor.enable'));
         $this->user->refresh();
 
-        $provider = app(TwoFactorAuthenticationProvider::class);
-        $validOtp = $provider->getCurrentOtp(decrypt($this->user->two_factor_secret));
+        $validOtp = $this->getCurrentOtp(decrypt($this->user->two_factor_secret));
         $confirmRes = $this->actingAs($this->user)->postJson(route('admin.profil.two-factor.confirm'), ['code' => $validOtp]);
 
         $recoveryCodes = $confirmRes->json('recoveryCodes');
         $firstCode = $recoveryCodes[0];
 
-        // Set up session for 2FA challenge
+        // Logout and set up session for 2FA challenge
+        auth()->logout();
         session()->put('login.id', $this->user->id);
 
         $response = $this->post(route('two-factor.login.store'), [
@@ -158,10 +163,10 @@ class TwoFactorAuthenticationTest extends TestCase
         $response->assertRedirect(route('admin.dashboard'));
         $this->assertAuthenticatedAs($this->user);
 
-        // Verify used recovery code is consumed
+        // Verify used recovery code is replaced with a fresh one
         $this->user->refresh();
         $this->assertNotContains($firstCode, $this->user->recoveryCodes());
-        $this->assertCount(7, $this->user->recoveryCodes());
+        $this->assertCount(8, $this->user->recoveryCodes());
     }
 
     /** @test */
@@ -171,8 +176,7 @@ class TwoFactorAuthenticationTest extends TestCase
         $this->actingAs($this->user)->postJson(route('admin.profil.two-factor.enable'));
         $this->user->refresh();
 
-        $provider = app(TwoFactorAuthenticationProvider::class);
-        $validOtp = $provider->getCurrentOtp(decrypt($this->user->two_factor_secret));
+        $validOtp = $this->getCurrentOtp(decrypt($this->user->two_factor_secret));
         $this->actingAs($this->user)->postJson(route('admin.profil.two-factor.confirm'), ['code' => $validOtp]);
 
         $this->assertTrue($this->user->fresh()->hasEnabledTwoFactorAuthentication());

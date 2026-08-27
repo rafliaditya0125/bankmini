@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
+import { useHoneypot } from '@/hooks/useHoneypot';
 
 interface UsePasswordManagementProps {
     initialLogin?: string;
@@ -10,6 +11,7 @@ interface UsePasswordManagementProps {
 }
 
 export const usePasswordManagement = ({ initialLogin = '', routePath, onSuccessCallback, otpChannel, method = 'post' }: UsePasswordManagementProps) => {
+    const { honeypotData } = useHoneypot();
     const { data, setData, post, put, processing, errors, reset } = useForm({
         login: initialLogin,
         otp: '',
@@ -17,6 +19,7 @@ export const usePasswordManagement = ({ initialLogin = '', routePath, onSuccessC
         password_confirmation: '',
         current_password: '', // Only for 'change' mode
         channel: otpChannel || 'whatsapp',
+        ...honeypotData,
     });
 
     const [otpSent, setOtpSent] = useState(false);

@@ -4,6 +4,8 @@ import FlashMessage from '@/components/FlashMessage';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import Modal from '@/components/Modal';
 import { usePasswordManagement } from '@/hooks/usePasswordManagement';
+import { useHoneypot } from '@/hooks/useHoneypot';
+import HoneypotInputs from '@/components/HoneypotInputs';
 
 interface PageProps {
     status?: string;
@@ -14,10 +16,12 @@ interface PageProps {
 
 export default function Login() {
     const { status, name, session_lifetime, otp_channel } = usePage<PageProps>().props;
+    const { honeypotData } = useHoneypot();
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         login: '',
         password: '',
         remember: false,
+        ...honeypotData,
     });
 
     // Forgot Password Logic using custom hook
@@ -205,6 +209,7 @@ export default function Login() {
                                 )}
 
                                 <form onSubmit={submit} className="space-y-6">
+                                    <HoneypotInputs setData={setData} />
                                     {/* Login Field */}
                                     <div className="space-y-2">
                                         <label htmlFor="login" className="block text-xs font-semibold text-slate-500">
@@ -366,6 +371,7 @@ export default function Login() {
                 maxWidth="sm"
             >
                 <form onSubmit={submitForgotPasswordReset} className="space-y-6">
+                    <HoneypotInputs setData={setForgotPasswordData} />
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Username / NIS / NIP / Email / No. Rekening</label>

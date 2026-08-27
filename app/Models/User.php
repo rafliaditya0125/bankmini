@@ -31,6 +31,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'nip',
         'status',
         'profile_photo_path',
+        'email_verified_at',
         'last_login_at',
         'failed_login_attempts',
         'locked_until',

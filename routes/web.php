@@ -28,15 +28,15 @@ Route::get('/', function () {
 // Authentication Routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
-    Route::post('/login', [LoginController::class, 'store'])->middleware(['log']);
+    Route::post('/login', [LoginController::class, 'store'])->middleware(['honeypot', 'log']);
 
     // Forgot Password Routes
-    Route::post('/forgot-password/otp', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetOtp'])->name('password.otp');
-    Route::post('/reset-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'reset'])->name('password.update');
+    Route::post('/forgot-password/otp', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetOtp'])->middleware(['honeypot'])->name('password.otp');
+    Route::post('/reset-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'reset'])->middleware(['honeypot'])->name('password.update');
 
     // Two-Factor Authentication Challenge
     Route::get('/two-factor-challenge', [\App\Http\Controllers\Auth\TwoFactorAuthenticatedSessionController::class, 'create'])->name('two-factor.login');
-    Route::post('/two-factor-challenge', [\App\Http\Controllers\Auth\TwoFactorAuthenticatedSessionController::class, 'store'])->middleware(['log'])->name('two-factor.login.store');
+    Route::post('/two-factor-challenge', [\App\Http\Controllers\Auth\TwoFactorAuthenticatedSessionController::class, 'store'])->middleware(['honeypot', 'log'])->name('two-factor.login.store');
 });
 
 Route::post('/logout', [LoginController::class, 'destroy'])
