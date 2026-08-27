@@ -225,6 +225,13 @@ class PengaturanController extends Controller
             'alumni_retention_days' => (int) Setting::get('alumni_retention_days', 0),
             'session_lifetime' => (int) Setting::get('session_lifetime', 7),
 
+            // CAPTCHA (superadmin only)
+            'captcha_primary'      => Setting::get('captcha_primary', 'turnstile'),
+            'turnstile_site_key'   => Setting::get('turnstile_site_key', config('turnstile.site_key', '')),
+            'turnstile_secret_key' => Setting::get('turnstile_secret_key', config('turnstile.secret_key', '')),
+            'recaptcha_site_key'   => Setting::get('recaptcha_site_key', config('recaptcha.site_key', '')),
+            'recaptcha_secret_key' => Setting::get('recaptcha_secret_key', config('recaptcha.secret_key', '')),
+
         ];
     }
 }

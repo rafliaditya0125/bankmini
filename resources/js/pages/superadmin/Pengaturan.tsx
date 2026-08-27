@@ -253,6 +253,63 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
                                             </p>
                                         </div>
                                     </div>
+
+                                    {/* CAPTCHA — superadmin only */}
+                                    {role === 'superadmin' && (
+                                        <div className="space-y-6 pt-8 border-t border-gray-50">
+                                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">CAPTCHA</h3>
+                                            <p className="text-xs text-gray-500">
+                                                Provider utama yang dipilih akan muncul di halaman login. Jika gagal load, otomatis beralih ke provider cadangan.
+                                            </p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {renderSelect('captcha_primary', 'Provider Utama CAPTCHA', [
+                                                    { value: 'turnstile', label: 'Cloudflare Turnstile (Rekomendasi)' },
+                                                    { value: 'recaptcha', label: 'Google reCAPTCHA v2' },
+                                                ])}
+                                            </div>
+
+                                            {/* Cloudflare Turnstile keys */}
+                                            <div className="p-5 rounded-2xl bg-orange-50 border border-orange-100 space-y-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-600">Cloudflare Turnstile</span>
+                                                    {data.captcha_primary === 'turnstile'
+                                                        ? <span className="text-[9px] bg-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded-full uppercase">Utama</span>
+                                                        : <span className="text-[9px] bg-gray-100 text-gray-500 font-black px-2 py-0.5 rounded-full uppercase">Cadangan</span>
+                                                    }
+                                                </div>
+                                                <p className="text-[10px] text-gray-500">Dapatkan keys di <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer" className="text-orange-600 underline">dash.cloudflare.com</a> → Turnstile</p>
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    {renderInput('turnstile_site_key', 'Turnstile Site Key', 'text', { placeholder: '0x4AAAAAAA...' })}
+                                                    {renderInput('turnstile_secret_key', 'Turnstile Secret Key', 'password', { placeholder: '0x4AAAAAAA...' })}
+                                                </div>
+                                            </div>
+
+                                            {/* Google reCAPTCHA keys */}
+                                            <div className="p-5 rounded-2xl bg-blue-50 border border-blue-100 space-y-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-600">Google reCAPTCHA v2</span>
+                                                    {data.captcha_primary === 'recaptcha'
+                                                        ? <span className="text-[9px] bg-emerald-100 text-emerald-700 font-black px-2 py-0.5 rounded-full uppercase">Utama</span>
+                                                        : <span className="text-[9px] bg-gray-100 text-gray-500 font-black px-2 py-0.5 rounded-full uppercase">Cadangan</span>
+                                                    }
+                                                </div>
+                                                <p className="text-[10px] text-gray-500">Dapatkan keys di <a href="https://www.google.com/recaptcha/admin/create" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">google.com/recaptcha</a> → v2 Checkbox</p>
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    {renderInput('recaptcha_site_key', 'reCAPTCHA Site Key', 'text', { placeholder: '6LeIxAcT...' })}
+                                                    {renderInput('recaptcha_secret_key', 'reCAPTCHA Secret Key', 'password', { placeholder: '6LeIxAcT...' })}
+                                                </div>
+                                            </div>
+
+                                            <div className="p-4 rounded-xl bg-amber-50 border border-amber-100">
+                                                <p className="text-xs text-amber-700 font-medium">
+                                                    <strong>Test Keys (Development):</strong><br/>
+                                                    Turnstile: <code className="text-[10px]">1x00000000000000000000AA</code><br/>
+                                                    reCAPTCHA: <code className="text-[10px]">6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI</code>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
                                 </>
                             )}
 

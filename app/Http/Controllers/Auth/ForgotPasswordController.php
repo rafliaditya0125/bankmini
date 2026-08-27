@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\CaptchaService;
 use App\Services\OtpService;
-use App\Services\TurnstileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -20,12 +20,11 @@ class ForgotPasswordController extends Controller
             'login' => 'required|string',
         ]);
 
-        // Cloudflare Turnstile verification
-        if (config('turnstile.enabled', true)) {
-            $token = $request->input('cf-turnstile-response', '');
-            if (!TurnstileService::verify($token, $request->ip())) {
+        // CAPTCHA verification
+        if (CaptchaService::enabled()) {
+            if (!CaptchaService::verify($request)) {
                 return back()->withErrors([
-                    'turnstile' => 'Verifikasi CAPTCHA gagal. Silakan coba lagi.',
+                    'captcha' => 'Verifikasi CAPTCHA gagal. Silakan coba lagi.',
                 ]);
             }
         }

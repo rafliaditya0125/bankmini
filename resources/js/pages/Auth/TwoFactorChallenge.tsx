@@ -2,7 +2,7 @@ import { Head, useForm, Link } from '@inertiajs/react';
 import { useState, useRef, useEffect, FormEventHandler } from 'react';
 import { useHoneypot } from '@/hooks/useHoneypot';
 import HoneypotInputs from '@/components/HoneypotInputs';
-import TurnstileWidget from '@/components/TurnstileWidget';
+import CaptchaWidget from '@/components/CaptchaWidget';
 
 interface PageProps {
     status?: string;
@@ -14,11 +14,13 @@ export default function TwoFactorChallenge({ status, user_name, user_email }: Pa
     const [recovery, setRecovery] = useState(false);
     const { honeypotData } = useHoneypot();
     const [turnstileToken, setTurnstileToken] = useState('');
+    const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         code: '',
         recovery_code: '',
         'cf-turnstile-response': '',
+        'g-recaptcha-response': '',
         ...honeypotData,
     });
 
@@ -43,6 +45,10 @@ export default function TwoFactorChallenge({ status, user_name, user_email }: Pa
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         post(route('two-factor.login.store'), {
+            onFinish: () => {
+                // Reset CAPTCHA after each attempt (tokens are one-time use)
+                setCaptchaResetKey((k) => k + 1);
+            },
             onError: () => {
                 if (!recovery) {
                     codeInputRef.current?.select();
@@ -91,20 +97,23 @@ export default function TwoFactorChallenge({ status, user_name, user_email }: Pa
                         </p>
                     </div>
 
+                    {/* CAPTCHA (primary + automatic fallback) */}
+                    <CaptchaWidget
+                        key={captchaResetKey}
+                        onVerifyTurnstile={(token) => setData('cf-turnstile-response', token)}
+                        onVerifyRecaptcha={(token) => setData('g-recaptcha-response', token)}
+                        onExpireTurnstile={() => setData('cf-turnstile-response', '')}
+                        onExpireRecaptcha={() => setData('g-recaptcha-response', '')}
+                        theme="dark"
+                    />
+                    {(errors as any).captcha && (
+                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-wider text-center mt-2">
+                            {(errors as any).captcha}
+                        </p>
+                    )}
+
                     <form onSubmit={submit} className="space-y-6">
                         <HoneypotInputs setData={setData} />
-                        {/* Turnstile CAPTCHA */}
-                        <TurnstileWidget
-                            onVerify={(token) => setTurnstileToken(token)}
-                            onExpire={() => setTurnstileToken('')}
-                            onError={() => setTurnstileToken('')}
-                            theme="dark"
-                        />
-                        {(errors as any).turnstile && (
-                            <p className="text-[10px] font-black text-rose-400 uppercase tracking-wider text-center">
-                                {(errors as any).turnstile}
-                            </p>
-                        )}
                         {!recovery ? (
                             <div className="space-y-2">
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">

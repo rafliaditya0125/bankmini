@@ -6,7 +6,7 @@ import Modal from '@/components/Modal';
 import { usePasswordManagement } from '@/hooks/usePasswordManagement';
 import { useHoneypot } from '@/hooks/useHoneypot';
 import HoneypotInputs from '@/components/HoneypotInputs';
-import TurnstileWidget from '@/components/TurnstileWidget';
+import CaptchaWidget from '@/components/CaptchaWidget';
 
 interface PageProps {
     status?: string;
@@ -18,13 +18,13 @@ interface PageProps {
 export default function Login() {
     const { status, name, session_lifetime, otp_channel } = usePage<PageProps>().props;
     const { honeypotData } = useHoneypot();
-    const [turnstileToken, setTurnstileToken] = useState('');
-    const [fpTurnstileToken, setFpTurnstileToken] = useState('');
+    const [captchaResetKey, setCaptchaResetKey] = useState(0);
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         login: '',
         password: '',
         remember: false,
         'cf-turnstile-response': '',
+        'g-recaptcha-response': '',
         ...honeypotData,
     });
 
@@ -47,7 +47,6 @@ export default function Login() {
         routePath: route('password.update'),
         otpChannel: otp_channel,
         onSuccessCallback: () => setShowForgotPasswordModal(false),
-        getTurnstileToken: () => fpTurnstileToken,
     });
 
     const isPasswordEmpty = forgotPasswordData.password.length === 0;
@@ -108,7 +107,10 @@ export default function Login() {
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         post(route('login'), {
-            onFinish: () => reset('password'),
+            onFinish: () => {
+                reset('password');
+                setCaptchaResetKey((k) => k + 1); // reset CAPTCHA after each attempt
+            },
         });
     };
 
@@ -215,20 +217,13 @@ export default function Login() {
 
                                 <form onSubmit={submit} className="space-y-6">
                                     <HoneypotInputs setData={setData} />
-                                    {/* Turnstile CAPTCHA */}
-                                    <TurnstileWidget
-                                        onVerify={(token) => {
-                                            setTurnstileToken(token);
-                                            setData('cf-turnstile-response', token);
-                                        }}
-                                        onExpire={() => {
-                                            setTurnstileToken('');
-                                            setData('cf-turnstile-response', '');
-                                        }}
-                                        onError={() => {
-                                            setTurnstileToken('');
-                                            setData('cf-turnstile-response', '');
-                                        }}
+                                    {/* CAPTCHA (primary + automatic fallback) */}
+                                    <CaptchaWidget
+                                        key={captchaResetKey}
+                                        onVerifyTurnstile={(token) => setData('cf-turnstile-response', token)}
+                                        onVerifyRecaptcha={(token) => setData('g-recaptcha-response', token)}
+                                        onExpireTurnstile={() => setData('cf-turnstile-response', '')}
+                                        onExpireRecaptcha={() => setData('g-recaptcha-response', '')}
                                     />
                                     {/* Login Field */}
                                     <div className="space-y-2">
@@ -324,9 +319,9 @@ export default function Login() {
 
                                     {/* Submit Button */}
                                     <div className="space-y-3">
-                                        {(errors as any).turnstile && (
+                                        {(errors as any).captcha && (
                                             <p className="text-center text-xs font-semibold text-rose-600">
-                                                {(errors as any).turnstile}
+                                                {(errors as any).captcha}
                                             </p>
                                         )}
                                         {lockoutSeconds > 0 && (
@@ -397,12 +392,13 @@ export default function Login() {
             >
                 <form onSubmit={submitForgotPasswordReset} className="space-y-6">
                     <HoneypotInputs setData={setForgotPasswordData} />
-                    {/* Turnstile CAPTCHA for OTP request */}
-                    <TurnstileWidget
-                        onVerify={(token) => setFpTurnstileToken(token)}
-                        onExpire={() => setFpTurnstileToken('')}
-                        onError={() => setFpTurnstileToken('')}
-                        size="compact"
+                    {/* CAPTCHA for forgot password */}
+                    <CaptchaWidget
+                        onVerifyTurnstile={(token) => setForgotPasswordData('cf-turnstile-response' as any, token)}
+                        onVerifyRecaptcha={(token) => setForgotPasswordData('g-recaptcha-response' as any, token)}
+                        onExpireTurnstile={() => setForgotPasswordData('cf-turnstile-response' as any, '')}
+                        onExpireRecaptcha={() => setForgotPasswordData('g-recaptcha-response' as any, '')}
+                        theme="light"
                     />
                     <div className="space-y-4">
                         <div className="space-y-2">

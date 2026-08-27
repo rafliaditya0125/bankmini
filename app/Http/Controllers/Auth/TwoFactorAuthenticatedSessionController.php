@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
-use App\Services\TurnstileService;
+use App\Services\CaptchaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -57,12 +57,11 @@ class TwoFactorAuthenticatedSessionController extends Controller
 
         $throttleKey = 'two-factor.' . $user->id . '.' . $request->ip();
 
-        // Cloudflare Turnstile verification
-        if (config('turnstile.enabled', true)) {
-            $token = $request->input('cf-turnstile-response', '');
-            if (!TurnstileService::verify($token, $request->ip())) {
+        // CAPTCHA verification
+        if (CaptchaService::enabled()) {
+            if (!CaptchaService::verify($request)) {
                 return back()->withErrors([
-                    'turnstile' => 'Verifikasi CAPTCHA gagal. Silakan coba lagi.',
+                    'captcha' => 'Verifikasi CAPTCHA gagal. Silakan coba lagi.',
                 ]);
             }
         }
