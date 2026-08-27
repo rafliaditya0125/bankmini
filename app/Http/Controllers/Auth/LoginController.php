@@ -72,6 +72,16 @@ class LoginController extends Controller
             RateLimiter::clear($throttleKey);
             cache()->forget($lockoutCountKey);
 
+            // If Two-Factor Authentication is enabled and confirmed, redirect to 2FA challenge
+            if ($user->hasEnabledTwoFactorAuthentication()) {
+                $request->session()->put([
+                    'login.id' => $user->getKey(),
+                    'login.remember' => $request->boolean('remember'),
+                ]);
+
+                return redirect()->route('two-factor.login');
+            }
+
             $identifier = $user->getIdentifier();
             $isUsingDefaultPassword = Hash::check($identifier, $user->password);
 

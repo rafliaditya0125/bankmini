@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Shared;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\OtpService;
 use Illuminate\Http\Request;
@@ -11,6 +12,10 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
+use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
+use Laravel\Fortify\Actions\GenerateNewRecoveryCodes;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 
 class ProfileController extends Controller
 {
@@ -311,4 +316,158 @@ class ProfileController extends Controller
         return back()->with('success', 'Alamat email berhasil diperbarui dan diverifikasi.');
     }
 
+    /**
+     * Enable Two-Factor Authentication and return QR code + secret key.
+     */
+    public function enableTwoFactor(Request $request)
+    {
+        $user = $request->user();
+
+        // Enable 2FA using Fortify action (generates encrypted secret & recovery codes)
+        app(EnableTwoFactorAuthentication::class)($user, true);
+
+        // Refresh user model from database
+        $user->refresh();
+
+        return response()->json([
+            'svg' => $user->twoFactorQrCodeSvg(),
+            'secretKey' => decrypt($user->two_factor_secret),
+            'url' => $user->twoFactorQrCodeUrl(),
+        ]);
+    }
+
+    /**
+     * Confirm Two-Factor Authentication with the 6-digit TOTP code.
+     */
+    public function confirmTwoFactor(Request $request)
+    {
+        $request->validate([
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = $request->user();
+
+        if (empty($user->two_factor_secret)) {
+            return response()->json([
+                'message' => 'Proses aktivasi 2FA belum dimulai. Silakan mulai ulang.',
+            ], 422);
+        }
+
+        $provider = app(TwoFactorAuthenticationProvider::class);
+        $secret = decrypt($user->two_factor_secret);
+        $code = preg_replace('/\s+/', '', (string) $request->code);
+
+        $isValid = $provider->verify($secret, $code);
+
+        if (!$isValid) {
+            return response()->json([
+                'message' => 'Kode autentikasi 6-digit tidak valid. Pastikan waktu pada perangkat dan aplikasi authenticator Anda telah sinkron.',
+            ], 422);
+        }
+
+        $user->forceFill([
+            'two_factor_confirmed_at' => now(),
+        ])->save();
+
+        AuditLog::logActivity(
+            '2fa_enabled',
+            'User berhasil mengaktifkan Otentikasi Dua Faktor (2FA / MFA)',
+            'success'
+        );
+
+        return response()->json([
+            'message' => 'Otentikasi Dua Faktor (2FA) berhasil diaktifkan.',
+            'recoveryCodes' => $user->recoveryCodes(),
+        ]);
+    }
+
+    /**
+     * Disable Two-Factor Authentication.
+     */
+    public function disableTwoFactor(Request $request)
+    {
+        $user = $request->user();
+
+        app(DisableTwoFactorAuthentication::class)($user);
+
+        AuditLog::logActivity(
+            '2fa_disabled',
+            'User menonaktifkan Otentikasi Dua Faktor (2FA / MFA)',
+            'warning'
+        );
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Otentikasi Dua Faktor (2FA) berhasil dinonaktifkan.',
+            ]);
+        }
+
+        return back()->with('success', 'Otentikasi Dua Faktor (2FA) berhasil dinonaktifkan.');
+    }
+
+    /**
+     * Get the SVG QR code and secret key for 2FA.
+     */
+    public function getTwoFactorQrCode(Request $request)
+    {
+        $user = $request->user();
+
+        if (empty($user->two_factor_secret)) {
+            return response()->json([
+                'message' => '2FA belum diaktifkan pada akun ini.',
+            ], 404);
+        }
+
+        return response()->json([
+            'svg' => $user->twoFactorQrCodeSvg(),
+            'secretKey' => decrypt($user->two_factor_secret),
+            'url' => $user->twoFactorQrCodeUrl(),
+        ]);
+    }
+
+    /**
+     * Get the current 2FA recovery codes.
+     */
+    public function getTwoFactorRecoveryCodes(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->hasEnabledTwoFactorAuthentication()) {
+            return response()->json([
+                'message' => '2FA belum aktif pada akun ini.',
+            ], 404);
+        }
+
+        return response()->json([
+            'recoveryCodes' => $user->recoveryCodes() ?? [],
+        ]);
+    }
+
+    /**
+     * Regenerate 2FA recovery codes.
+     */
+    public function regenerateTwoFactorRecoveryCodes(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->hasEnabledTwoFactorAuthentication()) {
+            return response()->json([
+                'message' => '2FA belum aktif pada akun ini.',
+            ], 404);
+        }
+
+        app(GenerateNewRecoveryCodes::class)($user);
+        $user->refresh();
+
+        AuditLog::logActivity(
+            '2fa_recovery_regenerated',
+            'User meregenerasi kode pemulihan (Recovery Codes) 2FA',
+            'info'
+        );
+
+        return response()->json([
+            'message' => 'Kode pemulihan baru berhasil dibuat.',
+            'recoveryCodes' => $user->recoveryCodes() ?? [],
+        ]);
+    }
 }

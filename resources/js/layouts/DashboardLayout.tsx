@@ -702,6 +702,43 @@ export default function DashboardLayout({ header, children }: DashboardLayoutPro
             {/* Main content */}
             <main className="pb-24 pt-10 md:pb-10">
                 <div className="mx-auto px-4 sm:px-6 lg:px-8">
+                    {/* 2FA Warning Banner */}
+                    {!auth.user.two_factor_enabled && (
+                        <div className="mb-6 rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-4 dark:border-amber-900/40 dark:from-amber-950/40 dark:via-orange-950/20 dark:to-amber-950/40 shadow-sm">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-md shadow-amber-200 dark:shadow-none">
+                                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77-1.333.192 3 1.732 3z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">
+                                                Otentikasi Dua Faktor (2FA / MFA) Belum Aktif
+                                            </h4>
+                                            <span className="inline-flex items-center rounded-full bg-amber-200/60 dark:bg-amber-800/50 px-2 py-0.5 text-[9px] font-black uppercase text-amber-800 dark:text-amber-200">
+                                                Disarankan
+                                            </span>
+                                        </div>
+                                        <p className="mt-0.5 text-[11px] font-medium text-amber-800/80 dark:text-amber-200/80">
+                                            Aktifkan 2FA sekarang untuk keamanan maksimal akun dan transaksi Anda.
+                                        </p>
+                                    </div>
+                                </div>
+                                <Link
+                                    href={`/${rolePrefix}/profil?setup_2fa=1#two-factor`}
+                                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-amber-600 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-white shadow-md shadow-amber-200 hover:bg-amber-700 transition-all active:scale-95 dark:shadow-none"
+                                >
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                    </svg>
+                                    Aktifkan 2FA Sekarang
+                                </Link>
+                            </div>
+                        </div>
+                    )}
+
                     {header && (
                         <div className="mb-8">
                             {header}
