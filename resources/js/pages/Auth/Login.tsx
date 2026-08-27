@@ -6,6 +6,7 @@ import Modal from '@/components/Modal';
 import { usePasswordManagement } from '@/hooks/usePasswordManagement';
 import { useHoneypot } from '@/hooks/useHoneypot';
 import HoneypotInputs from '@/components/HoneypotInputs';
+import TurnstileWidget from '@/components/TurnstileWidget';
 
 interface PageProps {
     status?: string;
@@ -17,10 +18,13 @@ interface PageProps {
 export default function Login() {
     const { status, name, session_lifetime, otp_channel } = usePage<PageProps>().props;
     const { honeypotData } = useHoneypot();
+    const [turnstileToken, setTurnstileToken] = useState('');
+    const [fpTurnstileToken, setFpTurnstileToken] = useState('');
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         login: '',
         password: '',
         remember: false,
+        'cf-turnstile-response': '',
         ...honeypotData,
     });
 
@@ -43,6 +47,7 @@ export default function Login() {
         routePath: route('password.update'),
         otpChannel: otp_channel,
         onSuccessCallback: () => setShowForgotPasswordModal(false),
+        getTurnstileToken: () => fpTurnstileToken,
     });
 
     const isPasswordEmpty = forgotPasswordData.password.length === 0;
@@ -210,6 +215,21 @@ export default function Login() {
 
                                 <form onSubmit={submit} className="space-y-6">
                                     <HoneypotInputs setData={setData} />
+                                    {/* Turnstile CAPTCHA */}
+                                    <TurnstileWidget
+                                        onVerify={(token) => {
+                                            setTurnstileToken(token);
+                                            setData('cf-turnstile-response', token);
+                                        }}
+                                        onExpire={() => {
+                                            setTurnstileToken('');
+                                            setData('cf-turnstile-response', '');
+                                        }}
+                                        onError={() => {
+                                            setTurnstileToken('');
+                                            setData('cf-turnstile-response', '');
+                                        }}
+                                    />
                                     {/* Login Field */}
                                     <div className="space-y-2">
                                         <label htmlFor="login" className="block text-xs font-semibold text-slate-500">
@@ -304,6 +324,11 @@ export default function Login() {
 
                                     {/* Submit Button */}
                                     <div className="space-y-3">
+                                        {(errors as any).turnstile && (
+                                            <p className="text-center text-xs font-semibold text-rose-600">
+                                                {(errors as any).turnstile}
+                                            </p>
+                                        )}
                                         {lockoutSeconds > 0 && (
                                             <p className="text-center text-xs font-semibold text-rose-600 animate-pulse">
                                                 Terlalu banyak percobaan, coba lagi dalam {formatTime(lockoutSeconds)}
@@ -372,6 +397,13 @@ export default function Login() {
             >
                 <form onSubmit={submitForgotPasswordReset} className="space-y-6">
                     <HoneypotInputs setData={setForgotPasswordData} />
+                    {/* Turnstile CAPTCHA for OTP request */}
+                    <TurnstileWidget
+                        onVerify={(token) => setFpTurnstileToken(token)}
+                        onExpire={() => setFpTurnstileToken('')}
+                        onError={() => setFpTurnstileToken('')}
+                        size="compact"
+                    />
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Username / NIS / NIP / Email / No. Rekening</label>

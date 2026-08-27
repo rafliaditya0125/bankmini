@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\TurnstileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -32,9 +33,19 @@ class LoginController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'login' => ['required', 'string'],
+            'login'    => ['required', 'string'],
             'password' => ['required'],
         ]);
+
+        // Cloudflare Turnstile verification
+        if (config('turnstile.enabled', true)) {
+            $token = $request->input('cf-turnstile-response', '');
+            if (!TurnstileService::verify($token, $request->ip())) {
+                return back()->withErrors([
+                    'turnstile' => 'Verifikasi CAPTCHA gagal. Silakan coba lagi.',
+                ])->onlyInput('login');
+            }
+        }
 
         $maxAttempts = (int) Setting::get('throttle_login_limit', 5);
         $throttleKey = $this->throttleKey($request);

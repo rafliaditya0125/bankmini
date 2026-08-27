@@ -8,9 +8,11 @@ interface UsePasswordManagementProps {
     onSuccessCallback?: () => void;
     otpChannel: string;
     method?: 'post' | 'put';
+    /** Optional getter for the current Cloudflare Turnstile token */
+    getTurnstileToken?: () => string;
 }
 
-export const usePasswordManagement = ({ initialLogin = '', routePath, onSuccessCallback, otpChannel, method = 'post' }: UsePasswordManagementProps) => {
+export const usePasswordManagement = ({ initialLogin = '', routePath, onSuccessCallback, otpChannel, method = 'post', getTurnstileToken }: UsePasswordManagementProps) => {
     const { honeypotData } = useHoneypot();
     const { data, setData, post, put, processing, errors, reset } = useForm({
         login: initialLogin,
@@ -19,6 +21,7 @@ export const usePasswordManagement = ({ initialLogin = '', routePath, onSuccessC
         password_confirmation: '',
         current_password: '', // Only for 'change' mode
         channel: otpChannel || 'whatsapp',
+        'cf-turnstile-response': '',
         ...honeypotData,
     });
 
@@ -44,6 +47,10 @@ export const usePasswordManagement = ({ initialLogin = '', routePath, onSuccessC
 
     const requestOtp = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
+        // Attach Turnstile token right before submission
+        if (getTurnstileToken) {
+            setData('cf-turnstile-response', getTurnstileToken());
+        }
         post(route('password.otp'), {
             onSuccess: (page: any) => {
                 if (page.props.flash.success) {

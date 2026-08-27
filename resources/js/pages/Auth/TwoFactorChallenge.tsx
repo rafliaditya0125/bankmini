@@ -2,6 +2,7 @@ import { Head, useForm, Link } from '@inertiajs/react';
 import { useState, useRef, useEffect, FormEventHandler } from 'react';
 import { useHoneypot } from '@/hooks/useHoneypot';
 import HoneypotInputs from '@/components/HoneypotInputs';
+import TurnstileWidget from '@/components/TurnstileWidget';
 
 interface PageProps {
     status?: string;
@@ -12,10 +13,12 @@ interface PageProps {
 export default function TwoFactorChallenge({ status, user_name, user_email }: PageProps) {
     const [recovery, setRecovery] = useState(false);
     const { honeypotData } = useHoneypot();
+    const [turnstileToken, setTurnstileToken] = useState('');
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         code: '',
         recovery_code: '',
+        'cf-turnstile-response': '',
         ...honeypotData,
     });
 
@@ -90,6 +93,18 @@ export default function TwoFactorChallenge({ status, user_name, user_email }: Pa
 
                     <form onSubmit={submit} className="space-y-6">
                         <HoneypotInputs setData={setData} />
+                        {/* Turnstile CAPTCHA */}
+                        <TurnstileWidget
+                            onVerify={(token) => setTurnstileToken(token)}
+                            onExpire={() => setTurnstileToken('')}
+                            onError={() => setTurnstileToken('')}
+                            theme="dark"
+                        />
+                        {(errors as any).turnstile && (
+                            <p className="text-[10px] font-black text-rose-400 uppercase tracking-wider text-center">
+                                {(errors as any).turnstile}
+                            </p>
+                        )}
                         {!recovery ? (
                             <div className="space-y-2">
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">
@@ -142,11 +157,10 @@ export default function TwoFactorChallenge({ status, user_name, user_email }: Pa
                             <button
                                 type="submit"
                                 disabled={processing || (!recovery && data.code.length < 6) || (recovery && !data.recovery_code)}
-                                className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white transition-all active:scale-[0.98] cursor-pointer ${
-                                    processing || (!recovery && data.code.length < 6) || (recovery && !data.recovery_code)
+                                className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white transition-all active:scale-[0.98] cursor-pointer ${processing || (!recovery && data.code.length < 6) || (recovery && !data.recovery_code)
                                         ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                                         : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-xl shadow-emerald-500/20'
-                                }`}
+                                    }`}
                             >
                                 {processing ? (
                                     <div className="flex items-center justify-center gap-2">

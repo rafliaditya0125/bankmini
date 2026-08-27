@@ -143,13 +143,11 @@ export default function Profile() {
     };
 
     // 2FA Functions
-    const getCsrfToken = () => {
+    // Inertia apps don't use a csrf-token meta tag.
+    // Laravel's VerifyCsrfToken middleware accepts the XSRF-TOKEN cookie value
+    // via the X-XSRF-TOKEN header (it decodes/decrypts it automatically).
+    const getXsrfToken = () => {
         if (typeof document === 'undefined') return '';
-        const metaTag = document.querySelector('meta[name="csrf-token"]');
-        if (metaTag) {
-            const token = metaTag.getAttribute('content');
-            if (token) return token;
-        }
         const match = document.cookie.match(new RegExp('(^|;\\s*)XSRF-TOKEN=([^;]*)'));
         return match ? decodeURIComponent(match[2]) : '';
     };
@@ -166,7 +164,7 @@ export default function Profile() {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'X-XSRF-TOKEN': getXsrfToken(),
                 },
             });
             const data = await res.json();
@@ -200,7 +198,7 @@ export default function Profile() {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'X-XSRF-TOKEN': getXsrfToken(),
                 },
                 body: JSON.stringify({ code: twoFactorOtp }),
             });
@@ -253,7 +251,7 @@ export default function Profile() {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'X-XSRF-TOKEN': getXsrfToken(),
                 },
             });
             const data = await res.json();

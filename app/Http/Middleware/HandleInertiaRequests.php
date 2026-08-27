@@ -72,6 +72,10 @@ class HandleInertiaRequests extends Middleware
                 'validFromFieldName' => 'valid_from',
                 'encryptedValidFrom' => '',
             ],
+            'turnstile' => [
+                'enabled' => config('turnstile.enabled', true),
+                'siteKey' => config('turnstile.site_key'),
+            ],
         ];
     }
 }
