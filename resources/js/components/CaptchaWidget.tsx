@@ -63,6 +63,8 @@ export default function CaptchaWidget({
 
             {showTurnstile && (
                 <TurnstileWidget
+                    siteKey={captcha.turnstile.siteKey}
+                    enabled={captcha.turnstile.enabled}
                     onVerify={(token) => {
                         onVerifyTurnstile(token);
                         onVerifyRecaptcha(''); // clear backup token
