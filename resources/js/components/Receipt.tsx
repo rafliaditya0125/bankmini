@@ -241,6 +241,16 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
         }
     };
 
+    // Determine label for kode transaksi (No. BKM / No. BKK / No. Transfer / No. Bayar / No. Transaksi)
+    const getKodeTransaksiLabel = (type: string, kode?: string) => {
+        const t = (type || '').toLowerCase();
+        if (t === 'setor' || kode?.startsWith('BKM')) return 'No. BKM';
+        if (t === 'tarik' || kode?.startsWith('BKK')) return 'No. BKK';
+        if (t === 'transfer' || kode?.startsWith('TRF')) return 'No. Transfer';
+        if (t === 'bayar' || t === 'terima_bayar' || kode?.startsWith('BYR')) return 'No. Bayar';
+        return 'No. Transaksi';
+    };
+
     // Format nominal dengan pemisah ribuan titik dan desimal koma
     const formatNominal = (value: number | string): string => {
         const num = typeof value === 'string' ? parseFloat(value) : value;
@@ -298,7 +308,7 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                         <span>: {normalized.no_urut}</span>
                     </div>
                     <div className="flex">
-                        <span className="w-24 font-bold">No BKK/BKM</span>
+                        <span className="w-24 font-bold">{getKodeTransaksiLabel(normalized.jenis_transaksi, normalized.kode_transaksi)}</span>
                         <span>: {normalized.kode_transaksi}</span>
                     </div>
                     <div className="flex">

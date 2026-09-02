@@ -13,25 +13,30 @@ use Illuminate\Support\Str;
 class TransactionService
 {
     /**
-     * Generate BKM/BKK number based on monthly cycle
+     * Generate BKM/BKK number based on monthly cycle: PREFIX[no urut]/[bulan]/[tahun]
+     * Format example: BKM001/09/26 or BKK001/09/26
      * Reset every 1st of the month
      * Find the smallest available number (including cancelled ones)
      */
-    private function generateBkkBkm(string $prefix): string
+    private function generateBkkBkm(string $prefix, ?string $tanggalTransaksi = null): string
     {
         $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
-        $currentMonth = now($timezone)->format('Ym'); // Format: 202607 for July 2026
+        $date = $tanggalTransaksi ? \Carbon\Carbon::parse($tanggalTransaksi, $timezone) : now($timezone);
+        $month = $date->format('m');
+        $year = $date->format('y');
         
-        // Find all used numbers for this month
-        $usedNumbers = Transaksi::where('kode_transaksi', 'like', $prefix . '%')
-            ->whereYear('created_at', now($timezone)->year)
-            ->whereMonth('created_at', now($timezone)->month)
+        // Find all used numbers for this prefix and this month/year
+        $usedNumbers = Transaksi::where('kode_transaksi', 'like', "{$prefix}%/{$month}/{$year}")
             ->where('status', '!=', 'cancelled')
             ->pluck('kode_transaksi')
-            ->map(function($kode) use ($prefix) {
-                // Extract number from BKM001, BKK002, etc
-                return (int) str_replace($prefix, '', $kode);
+            ->map(function($kode) use ($prefix, $month, $year) {
+                // Extract number from BKM001/09/26, BKK002/09/26, etc
+                if (preg_match('/^' . preg_quote($prefix, '/') . '(\d+)\/' . preg_quote($month, '/') . '\/' . preg_quote($year, '/') . '$/', $kode, $matches)) {
+                    return (int) $matches[1];
+                }
+                return null;
             })
+            ->filter(fn($num) => !is_null($num))
             ->sort()
             ->values()
             ->toArray();
@@ -46,7 +51,7 @@ class TransactionService
             }
         }
         
-        return $prefix . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+        return $prefix . str_pad($nextNumber, 3, '0', STR_PAD_LEFT) . '/' . $month . '/' . $year;
     }
 
     /**
@@ -70,9 +75,9 @@ class TransactionService
             // Generate kode transaksi based on mode
             $bkkBkmMode = \App\Models\Setting::get('bkk_bkm_mode', 'manual');
             if ($bkkBkmMode === 'manual') {
-                $kodeTransaksi = $data['kode_transaksi']; // Already validated and prefixed by controller
+                $kodeTransaksi = $data['kode_transaksi']; // Already validated and formatted by controller
             } else {
-                $kodeTransaksi = $this->generateBkkBkm('BKM');
+                $kodeTransaksi = $this->generateBkkBkm('BKM', $data['tanggal_transaksi'] ?? null);
             }
 
             $transaksi = Transaksi::create([
@@ -144,9 +149,9 @@ class TransactionService
             // Generate kode transaksi based on mode
             $bkkBkmMode = \App\Models\Setting::get('bkk_bkm_mode', 'manual');
             if ($bkkBkmMode === 'manual') {
-                $kodeTransaksi = $data['kode_transaksi']; // Already validated and prefixed by controller
+                $kodeTransaksi = $data['kode_transaksi']; // Already validated and formatted by controller
             } else {
-                $kodeTransaksi = $this->generateBkkBkm('BKK');
+                $kodeTransaksi = $this->generateBkkBkm('BKK', $data['tanggal_transaksi'] ?? null);
             }
 
             $transaksi = Transaksi::create([
