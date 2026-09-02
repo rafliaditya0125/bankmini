@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
@@ -62,6 +62,15 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
         tanggal_transaksi: new Date().toISOString().split('T')[0],
     });
 
+    const bkmSuffix = useMemo(() => {
+        if (!data.tanggal_transaksi) return '';
+        const parts = data.tanggal_transaksi.split('-');
+        if (parts.length === 3) {
+            return `/${parts[1]}/${parts[0].slice(-2)}`;
+        }
+        return '';
+    }, [data.tanggal_transaksi]);
+
     // Sync displayJumlah when data.jumlah changes (e.g. on reset or quick buttons)
     useEffect(() => {
         if (data.jumlah === '') {
@@ -122,7 +131,13 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
 
         bkmCheckTimeout.current = setTimeout(() => {
             axios
-                .get('/api/kode-transaksi/check', { params: { prefix: 'BKM', number: rawNumber } })
+                .get('/api/kode-transaksi/check', { 
+                    params: { 
+                        prefix: 'BKM', 
+                        number: rawNumber,
+                        tanggal: data.tanggal_transaksi 
+                    } 
+                })
                 .then((response) => {
                     if (requestId !== bkmCheckRequest.current) {
                         return;
@@ -130,12 +145,12 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
 
                     if (response.data?.exists) {
                         setBkmStatus('taken');
-                        setBkmStatusMessage('Nomor BKM ini sudah digunakan.');
+                        setBkmStatusMessage(`Nomor BKM (${response.data?.kode_transaksi}) sudah digunakan.`);
                         return;
                     }
 
                     setBkmStatus('available');
-                    setBkmStatusMessage('Nomor BKM tersedia.');
+                    setBkmStatusMessage(`Nomor BKM (${response.data?.kode_transaksi}) tersedia.`);
                 })
                 .catch(() => {
                     if (requestId !== bkmCheckRequest.current) {
@@ -152,7 +167,7 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
                 clearTimeout(bkmCheckTimeout.current);
             }
         };
-    }, [data.no_bkm, bkkBkmMode]);
+    }, [data.no_bkm, data.tanggal_transaksi, bkkBkmMode]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -305,26 +320,41 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
                                     {bkkBkmMode === 'manual' ? (
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">No. BKM</label>
-                                            <input
-                                                type="text"
-                                                value={data.no_bkm}
-                                                onChange={e => setData('no_bkm', e.target.value.replace(/\D/g, ''))}
-                                                maxLength={50}
-                                                className={`w-full px-4 py-4 bg-gray-50 border-2 border-transparent focus:border-emerald-600 focus:bg-white rounded-2xl outline-none transition-all font-black text-sm uppercase tracking-widest ${errors.no_bkm || bkmStatus === 'taken' || bkmStatus === 'error' ? 'border-red-500' : ''}`}
-                                                placeholder="CONTOH: 001"
-                                                required
-                                                style={{ fontSize: '0.95rem', paddingTop: '0.7rem', paddingBottom: '0.7rem' }}
-                                            />
+                                            <div className={`flex items-center bg-gray-50 border-2 rounded-2xl overflow-hidden focus-within:bg-white focus-within:border-emerald-600 transition-all ${errors.no_bkm || bkmStatus === 'taken' || bkmStatus === 'error' ? 'border-red-500' : 'border-transparent'}`}>
+                                                <span className="px-3 text-xs font-black text-gray-400 select-none bg-gray-100/80 border-r border-gray-200/80 py-3.5 tracking-wider">
+                                                    BKM
+                                                </span>
+                                                <input
+                                                    type="text"
+                                                    value={data.no_bkm}
+                                                    onChange={e => setData('no_bkm', e.target.value.replace(/\D/g, ''))}
+                                                    maxLength={20}
+                                                    className="w-full px-3 py-3.5 bg-transparent outline-none font-black text-sm uppercase tracking-wider"
+                                                    placeholder="001"
+                                                    required
+                                                    style={{ fontSize: '0.95rem' }}
+                                                />
+                                                <span className="px-3 text-xs font-black text-gray-500 select-none bg-gray-100/80 border-l border-gray-200/80 py-3.5 tracking-wider font-mono">
+                                                    {bkmSuffix || '/--/--'}
+                                                </span>
+                                            </div>
+                                            {data.no_bkm && (
+                                                <p className="text-[10px] font-bold text-gray-400 ml-1">
+                                                    Format: <span className="font-mono font-black text-emerald-700">BKM{data.no_bkm.padStart(3, '0')}{bkmSuffix}</span>
+                                                </p>
+                                            )}
                                             {bkmStatus === 'checking' && <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1 ml-1">{bkmStatusMessage}</p>}
                                             {bkmStatus === 'taken' && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-1 ml-1">{bkmStatusMessage}</p>}
+                                            {bkmStatus === 'available' && <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1 ml-1">{bkmStatusMessage}</p>}
                                             {bkmStatus === 'error' && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-1 ml-1">{bkmStatusMessage}</p>}
                                             {errors.no_bkm && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-1 ml-1">{errors.no_bkm}</p>}
                                         </div>
                                     ) : (
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">No. BKM</label>
-                                            <div className="w-full px-4 py-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-[10px] font-black text-emerald-700 uppercase tracking-widest">
-                                                Otomatis Digenerate Sistem
+                                            <div className="w-full px-4 py-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center justify-between">
+                                                <span>Otomatis Digenerate Sistem</span>
+                                                <span className="text-emerald-600 font-mono tracking-wider">BKM[xxx]{bkmSuffix}</span>
                                             </div>
                                         </div>
                                     )}

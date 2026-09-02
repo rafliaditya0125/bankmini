@@ -81,18 +81,25 @@ class TransactionController extends Controller
 
         $messages = [];
         if ($bkkBkmMode === 'manual') {
+            $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            $date = $request->filled('tanggal_transaksi')
+                ? \Carbon\Carbon::parse($request->tanggal_transaksi, $timezone)
+                : now($timezone);
+            $paddedNo = str_pad($request->no_bkm, 3, '0', STR_PAD_LEFT);
+            $kodeFormatted = 'BKM' . $paddedNo . '/' . $date->format('m') . '/' . $date->format('y');
+
             $request->merge([
-                'no_bkm_prefixed' => 'BKM' . $request->no_bkm,
+                'no_bkm_formatted' => $kodeFormatted,
             ]);
             $rules['no_bkm'] = 'required|numeric|digits_between:1,50';
-            $rules['no_bkm_prefixed'] = 'required|unique:transaksi,kode_transaksi';
-            $messages['no_bkm_prefixed.unique'] = 'Nomor BKM ini sudah digunakan.';
+            $rules['no_bkm_formatted'] = 'required|unique:transaksi,kode_transaksi';
+            $messages['no_bkm_formatted.unique'] = 'Nomor BKM ini (' . $kodeFormatted . ') sudah digunakan.';
         }
 
         $validated = $request->validate($rules, $messages);
-        $validated['kode_transaksi'] = $bkkBkmMode === 'manual'
-            ? $validated['no_bkm_prefixed']
-            : $this->generateKodeTransaksi('BKM');
+        if ($bkkBkmMode === 'manual') {
+            $validated['kode_transaksi'] = $request->no_bkm_formatted;
+        }
 
         try {
             $result = $this->transactionService->setor($validated, $this->getRole());
@@ -156,18 +163,25 @@ class TransactionController extends Controller
 
         $messages = [];
         if ($bkkBkmMode === 'manual') {
+            $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            $date = $request->filled('tanggal_transaksi')
+                ? \Carbon\Carbon::parse($request->tanggal_transaksi, $timezone)
+                : now($timezone);
+            $paddedNo = str_pad($request->no_bkk, 3, '0', STR_PAD_LEFT);
+            $kodeFormatted = 'BKK' . $paddedNo . '/' . $date->format('m') . '/' . $date->format('y');
+
             $request->merge([
-                'no_bkk_prefixed' => 'BKK' . $request->no_bkk,
+                'no_bkk_formatted' => $kodeFormatted,
             ]);
             $rules['no_bkk'] = 'required|numeric|digits_between:1,50';
-            $rules['no_bkk_prefixed'] = 'required|unique:transaksi,kode_transaksi';
-            $messages['no_bkk_prefixed.unique'] = 'Nomor BKK ini sudah digunakan.';
+            $rules['no_bkk_formatted'] = 'required|unique:transaksi,kode_transaksi';
+            $messages['no_bkk_formatted.unique'] = 'Nomor BKK ini (' . $kodeFormatted . ') sudah digunakan.';
         }
 
         $validated = $request->validate($rules, $messages);
-        $validated['kode_transaksi'] = $bkkBkmMode === 'manual'
-            ? $validated['no_bkk_prefixed']
-            : $this->generateKodeTransaksi('BKK');
+        if ($bkkBkmMode === 'manual') {
+            $validated['kode_transaksi'] = $request->no_bkk_formatted;
+        }
 
         try {
             $result = $this->transactionService->tarik($validated, $this->getRole());
