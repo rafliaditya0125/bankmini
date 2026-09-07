@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
-import { formatRupiah, formatNumber, parseNumber, formatRombelName } from '@/lib/utils';
+import { formatRupiah, formatNumber, parseNumber, formatRombelName, formatTransactionCode } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Receipt from '@/components/Receipt';
@@ -18,7 +18,7 @@ interface SetorPageProps {
 }
 
 export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPageProps) {
-    const { auth, name, flash, min_cash_denomination } = usePage<any>().props;
+    const { auth, name, flash, min_cash_denomination, bkk_bkm_display_format } = usePage<any>().props;
     const [searchAccount, setSearchAccount] = useState('');
     const searchTimeout = useRef<any>(null);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -339,9 +339,14 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
                                                 </span>
                                             </div>
                                             {data.no_bkm && (
-                                                <p className="text-[10px] font-bold text-gray-400 ml-1">
-                                                    Format: <span className="font-mono font-black text-emerald-700">BKM{data.no_bkm.padStart(3, '0')}{bkmSuffix}</span>
-                                                </p>
+                                                <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-gray-400 ml-1">
+                                                    <span>Kode: <strong className="font-mono font-black text-emerald-700">BKM{data.no_bkm.padStart(3, '0')}{bkmSuffix}</strong></span>
+                                                    {bkk_bkm_display_format && bkk_bkm_display_format !== 'full' && (
+                                                        <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-mono">
+                                                            Tampil di struk: {formatTransactionCode(`BKM${data.no_bkm.padStart(3, '0')}${bkmSuffix}`, bkk_bkm_display_format)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             )}
                                             {bkmStatus === 'checking' && <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1 ml-1">{bkmStatusMessage}</p>}
                                             {bkmStatus === 'taken' && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-1 ml-1">{bkmStatusMessage}</p>}
@@ -354,7 +359,9 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
                                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">No. BKM</label>
                                             <div className="w-full px-4 py-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-[10px] font-black text-emerald-700 uppercase tracking-widest flex items-center justify-between">
                                                 <span>Otomatis Digenerate Sistem</span>
-                                                <span className="text-emerald-600 font-mono tracking-wider">BKM[xxx]{bkmSuffix}</span>
+                                                <span className="text-emerald-600 font-mono tracking-wider">
+                                                    {formatTransactionCode(`BKM[xxx]${bkmSuffix}`, bkk_bkm_display_format)}
+                                                </span>
                                             </div>
                                         </div>
                                     )}

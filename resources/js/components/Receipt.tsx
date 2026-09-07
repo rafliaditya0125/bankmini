@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import { isSupported as isWebUSBSupported, printToPassbook, type PassbookTransaction } from '@/lib/passbookPrinter';
-import { formatRombelName } from '@/lib/utils';
+import { formatRombelName, formatTransactionCode } from '@/lib/utils';
 
 interface ReceiptData {
     kode_transaksi: string;
@@ -29,7 +29,7 @@ interface ReceiptProps {
 }
 
 export default function Receipt({ name, transaction, showPrint = true, showPassbookPrint = false, onPrint, onClose }: ReceiptProps) {
-    const { school_name, bank_city, bank_address, bank_phone } = usePage<any>().props;
+    const { school_name, bank_city, bank_address, bank_phone, bkk_bkm_display_format } = usePage<any>().props;
     const [passbookStatus, setPassbookStatus] = useState<'idle' | 'printing' | 'success' | 'error'>('idle');
     const [passbookError, setPassbookError] = useState<string | null>(null);
 
@@ -112,11 +112,11 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
         try {
             const passbookData: PassbookTransaction = {
                 tanggal: normalized.tanggal,
-                kode_transaksi: normalized.kode_transaksi,
+                kode_transaksi: formatTransactionCode(normalized.kode_transaksi, bkk_bkm_display_format),
                 jenis_transaksi: normalized.jenis_transaksi,
                 jumlah: normalized.jumlah,
                 saldo_sesudah: normalized.saldo_sesudah || 0,
-                keterangan: normalized.kode_transaksi,
+                keterangan: formatTransactionCode(normalized.kode_transaksi, bkk_bkm_display_format),
                 petugas: normalized.petugas,
             };
             await printToPassbook(passbookData);
@@ -309,7 +309,7 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                     </div>
                     <div className="flex">
                         <span className="w-24 font-bold">{getKodeTransaksiLabel(normalized.jenis_transaksi, normalized.kode_transaksi)}</span>
-                        <span>: {normalized.kode_transaksi}</span>
+                        <span>: {formatTransactionCode(normalized.kode_transaksi, bkk_bkm_display_format)}</span>
                     </div>
                     <div className="flex">
                         <span className="w-24 font-bold">Jenis Trans</span>

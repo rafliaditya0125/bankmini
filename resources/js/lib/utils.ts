@@ -63,3 +63,26 @@ export const formatRombelName = (rombel: any): string => {
     }
     return rawNama || '-';
 };
+
+/**
+ * Format BKM/BKK transaction code according to display format setting
+ * @param code e.g. "BKM001/09/26"
+ * @param format "full" | "month" | "number_only"
+ */
+export const formatTransactionCode = (code: string | undefined | null, format: string = 'full'): string => {
+    if (!code) return '';
+    if (!code.startsWith('BKM') && !code.startsWith('BKK')) {
+        return code;
+    }
+    const parts = code.split('/');
+    if (parts.length < 2) {
+        return code;
+    }
+    if (format === 'number_only') {
+        return parts[0];
+    }
+    if (format === 'month') {
+        return `${parts[0]}/${parts[1]}`;
+    }
+    return code;
+};

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
-import { formatRupiah, formatNumber, parseNumber, formatRombelName } from '@/lib/utils';
+import { formatRupiah, formatNumber, parseNumber, formatRombelName, formatTransactionCode } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Receipt from '@/components/Receipt';
@@ -19,7 +19,7 @@ interface TarikPageProps {
 }
 
 export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdraw }: TarikPageProps) {
-    const { auth, name, flash, min_cash_denomination } = usePage<any>().props;
+    const { auth, name, flash, min_cash_denomination, bkk_bkm_display_format } = usePage<any>().props;
     const [searchAccount, setSearchAccount] = useState('');
     const searchTimeout = useRef<any>(null);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -348,9 +348,14 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
                                                 </span>
                                             </div>
                                             {data.no_bkk && (
-                                                <p className="text-[10px] font-bold text-gray-400 ml-1">
-                                                    Format: <span className="font-mono font-black text-rose-700">BKK{data.no_bkk.padStart(3, '0')}{bkkSuffix}</span>
-                                                </p>
+                                                <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-gray-400 ml-1">
+                                                    <span>Kode: <strong className="font-mono font-black text-rose-700">BKK{data.no_bkk.padStart(3, '0')}{bkkSuffix}</strong></span>
+                                                    {bkk_bkm_display_format && bkk_bkm_display_format !== 'full' && (
+                                                        <span className="text-[9px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded font-mono">
+                                                            Tampil di struk: {formatTransactionCode(`BKK${data.no_bkk.padStart(3, '0')}${bkkSuffix}`, bkk_bkm_display_format)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             )}
                                             {bkkStatus === 'checking' && <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1 ml-1">{bkkStatusMessage}</p>}
                                             {bkkStatus === 'taken' && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-1 ml-1">{bkkStatusMessage}</p>}
@@ -363,7 +368,9 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
                                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">No. BKK</label>
                                             <div className="w-full px-4 py-4 bg-rose-50 border border-rose-200 rounded-2xl text-[10px] font-black text-rose-700 uppercase tracking-widest flex items-center justify-between">
                                                 <span>Otomatis Digenerate Sistem</span>
-                                                <span className="text-rose-600 font-mono tracking-wider">BKK[xxx]{bkkSuffix}</span>
+                                                <span className="text-rose-600 font-mono tracking-wider">
+                                                    {formatTransactionCode(`BKK[xxx]${bkkSuffix}`, bkk_bkm_display_format)}
+                                                </span>
                                             </div>
                                         </div>
                                     )}

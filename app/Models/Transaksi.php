@@ -99,4 +99,29 @@ class Transaksi extends Model
             }
         });
     }
+
+    /**
+     * Format BKM/BKK transaction code for display
+     * @param string|null $kode
+     * @param string|null $format "full" | "month" | "number_only"
+     */
+    public static function formatDisplayKode(?string $kode, ?string $format = null): string
+    {
+        if (!$kode) return '';
+        if (!str_starts_with($kode, 'BKM') && !str_starts_with($kode, 'BKK')) {
+            return $kode;
+        }
+        $parts = explode('/', $kode);
+        if (count($parts) < 2) {
+            return $kode;
+        }
+        $format = $format ?? Setting::get('bkk_bkm_display_format', 'full');
+        if ($format === 'number_only') {
+            return $parts[0];
+        }
+        if ($format === 'month') {
+            return $parts[0] . '/' . $parts[1];
+        }
+        return $kode;
+    }
 }
