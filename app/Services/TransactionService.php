@@ -402,20 +402,18 @@ class TransactionService
             if ($jenis === 'setor') {
                 $nasabah = Nasabah::findOrFail($transaksi->nasabah_id);
                 $nasabah->decrement('saldo', (float) $jumlah);
-                // Kosongkan kode_transaksi agar nomor BKM bisa dipakai lagi
+                // Status dibatalkan, nomor BKM otomatis gugur dan bisa dipakai kembali
                 $transaksi->update([
                     'status' => 'cancelled', 
                     'cancel_reason' => $reason,
-                    'kode_transaksi' => 'CANCELLED-' . $kodeTransaksi // Prefix agar tidak conflict
                 ]);
             } elseif ($jenis === 'tarik') {
                 $nasabah = Nasabah::findOrFail($transaksi->nasabah_id);
                 $nasabah->increment('saldo', (float) $jumlah);
-                // Kosongkan kode_transaksi agar nomor BKK bisa dipakai lagi
+                // Status dibatalkan, nomor BKK otomatis gugur dan bisa dipakai kembali
                 $transaksi->update([
                     'status' => 'cancelled', 
                     'cancel_reason' => $reason,
-                    'kode_transaksi' => 'CANCELLED-' . $kodeTransaksi
                 ]);
             } elseif ($jenis === 'transfer') {
                 // For transfers, we find both records (sender and receiver)
@@ -458,7 +456,7 @@ class TransactionService
                 "Pembatalan transaksi " . $kodeTransaksi . " dengan alasan: " . $reason,
                 'success',
                 Auth::id(),
-                Auth::user()->name,
+                Auth::user()?->name ?? 'System',
                 $role
             );
 

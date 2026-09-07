@@ -60,7 +60,7 @@ class PengaturanController extends Controller
             'monthly_interest_rate_siswa', 'monthly_interest_rate_kelas', 'monthly_interest_rate_organisasi', 'monthly_interest_rate_guru',
             'monthly_admin_fee_siswa', 'monthly_admin_fee_kelas', 'monthly_admin_fee_organisasi', 'monthly_admin_fee_guru',
             'monthly_process_day', 'monthly_process_hour',
-            'min_cash_denomination', 'transaction_types', 'bkk_bkm_mode',
+            'min_cash_denomination', 'transaction_types', 'bkk_bkm_mode', 'bkk_bkm_display_format',
             // LAPORAN
             'teacher_responsible_name',
             // NASABAH
@@ -176,6 +176,7 @@ class PengaturanController extends Controller
             'min_cash_denomination' => (int) Setting::get('min_cash_denomination', 100),
             'transaction_types' => Setting::get('transaction_types', 'Tunai, Transfer, Kliring, Cek / BG'),
             'bkk_bkm_mode' => Setting::get('bkk_bkm_mode', 'manual'),
+            'bkk_bkm_display_format' => Setting::get('bkk_bkm_display_format', 'full'),
 
             // LAPORAN
             'teacher_responsible_name' => Setting::get('teacher_responsible_name', 'Nama Guru Penanggung Jawab'),

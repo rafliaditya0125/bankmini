@@ -26,7 +26,7 @@ class TransactionCodeController extends Controller
         $year = $date->format('y');
 
         $kode = strtoupper($validated['prefix']) . $paddedNumber . '/' . $month . '/' . $year;
-        $exists = Transaksi::where('kode_transaksi', $kode)->exists();
+        $exists = Transaksi::where('kode_transaksi', $kode)->where('status', '!=', 'cancelled')->exists();
 
         return response()->json([
             'exists' => $exists,

@@ -8,6 +8,7 @@ use App\Models\Transaksi;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class TransactionController extends Controller
@@ -92,8 +93,11 @@ class TransactionController extends Controller
                 'no_bkm_formatted' => $kodeFormatted,
             ]);
             $rules['no_bkm'] = 'required|numeric|digits_between:1,50';
-            $rules['no_bkm_formatted'] = 'required|unique:transaksi,kode_transaksi';
-            $messages['no_bkm_formatted.unique'] = 'Nomor BKM ini (' . $kodeFormatted . ') sudah digunakan.';
+            $rules['no_bkm_formatted'] = [
+                'required',
+                Rule::unique('transaksi', 'kode_transaksi')->where(fn($q) => $q->where('status', '!=', 'cancelled')),
+            ];
+            $messages['no_bkm_formatted.unique'] = 'Nomor BKM ini (' . $kodeFormatted . ') sedang digunakan.';
         }
 
         $validated = $request->validate($rules, $messages);
@@ -174,8 +178,11 @@ class TransactionController extends Controller
                 'no_bkk_formatted' => $kodeFormatted,
             ]);
             $rules['no_bkk'] = 'required|numeric|digits_between:1,50';
-            $rules['no_bkk_formatted'] = 'required|unique:transaksi,kode_transaksi';
-            $messages['no_bkk_formatted.unique'] = 'Nomor BKK ini (' . $kodeFormatted . ') sudah digunakan.';
+            $rules['no_bkk_formatted'] = [
+                'required',
+                Rule::unique('transaksi', 'kode_transaksi')->where(fn($q) => $q->where('status', '!=', 'cancelled')),
+            ];
+            $messages['no_bkk_formatted.unique'] = 'Nomor BKK ini (' . $kodeFormatted . ') sedang digunakan.';
         }
 
         $validated = $request->validate($rules, $messages);
