@@ -293,28 +293,28 @@ export default function Bayar({
                                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
                                         Metode Pembayaran <span className="text-rose-500">*</span>
                                     </label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                        {metodeList.map((m) => {
-                                            const isSelected = data.metode_pembayaran === m.value;
-                                            return (
-                                                <button
-                                                    key={m.value}
-                                                    type="button"
-                                                    onClick={() => setData('metode_pembayaran', m.value)}
-                                                    className={`px-3.5 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all text-left flex flex-col justify-between h-16 ${
-                                                        isSelected
-                                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                                            : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-200'
-                                                    }`}
-                                                >
-                                                    <span className="line-clamp-1">{m.label}</span>
-                                                    <span className={`text-[8px] font-black tracking-widest ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>
-                                                        {m.value === 'potong_tabungan' ? 'AUTO-DEBIT' : 'LANGSUNG'}
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                    <select
+                                        value={data.metode_pembayaran}
+                                        onChange={(e) => setData('metode_pembayaran', e.target.value)}
+                                        required
+                                        className={`w-full px-4 py-3 bg-white border border-slate-200 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 rounded-2xl outline-none transition-all font-bold text-sm h-12 uppercase ${
+                                            errors.metode_pembayaran ? 'border-red-500' : ''
+                                        }`}
+                                    >
+                                        {metodeList.map((m) => (
+                                            <option key={m.value} value={m.value}>
+                                                {m.label} {m.value === 'potong_tabungan' ? '(AUTO-DEBIT)' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {data.metode_pembayaran === 'potong_tabungan' && (
+                                        <p className="text-[10px] text-indigo-600 font-semibold mt-1 ml-1 flex items-center gap-1">
+                                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                            Saldo akan dipotong otomatis dari Saldo Tabungan Utama nasabah.
+                                        </p>
+                                    )}
                                     {errors.metode_pembayaran && (
                                         <p className="text-[10px] font-black text-red-500 uppercase mt-1 ml-1">
                                             {errors.metode_pembayaran}
