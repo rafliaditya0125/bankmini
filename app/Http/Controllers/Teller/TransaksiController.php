@@ -69,9 +69,14 @@ class TransaksiController extends Controller
             return $data;
         })->withQueryString();
 
+        $statusFilter = $request->status ?? 'valid';
+
         return Inertia::render('teller/Transaksi', [
             'transactions' => $transactions,
-            'filters' => $request->only(['search', 'from_date', 'to_date', 'type']),
+            'filters' => array_merge(
+                $request->only(['search', 'from_date', 'to_date', 'type']),
+                ['status' => $statusFilter]
+            ),
         ]);
     }
 
@@ -96,6 +101,14 @@ class TransaksiController extends Controller
 
         // Tetap hanya untuk hari ini sesuai permintaan, tapi dukung timezone yang benar
         $query->whereDate('created_at', Carbon::today($timezone));
+
+        // Filter status: default hanya tampilkan yang valid / tidak dibatalkan
+        $statusFilter = $request->status ?? 'valid';
+        if ($statusFilter === 'valid') {
+            $query->where('status', '!=', 'cancelled');
+        } elseif ($statusFilter === 'cancelled' || $statusFilter === 'batal') {
+            $query->where('status', 'cancelled');
+        }
 
         if ($request->search) {
             $query->where(function($q) use ($request) {

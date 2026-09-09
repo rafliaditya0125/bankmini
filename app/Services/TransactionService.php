@@ -505,6 +505,7 @@ class TransactionService
                 if ($tabunganWallet) {
                     $tabunganWallet->debit($jumlah);
                 }
+                // Status dibatalkan, nomor BKM otomatis gugur dan bisa dipakai kembali
                 $transaksi->update([
                     'status' => 'cancelled', 
                     'cancel_reason' => $reason,
@@ -516,6 +517,7 @@ class TransactionService
                 if ($tabunganWallet) {
                     $tabunganWallet->credit($jumlah);
                 }
+                // Status dibatalkan, nomor BKK otomatis gugur dan bisa dipakai kembali
                 $transaksi->update([
                     'status' => 'cancelled', 
                     'cancel_reason' => $reason,
@@ -568,7 +570,7 @@ class TransactionService
                 "Pembatalan transaksi " . $kodeTransaksi . " dengan alasan: " . $reason,
                 'success',
                 Auth::id(),
-                Auth::user()->name,
+                Auth::user()?->name ?? 'System',
                 $role
             );
 

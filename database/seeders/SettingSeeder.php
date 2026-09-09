@@ -45,6 +45,7 @@ class SettingSeeder extends Seeder
             'min_cash_denomination' => '100',
             'transaction_types' => 'Tunai, Transfer, Kliring, Cek / BG',
             'bkk_bkm_mode' => 'manual',
+            'bkk_bkm_display_format' => 'full',
 
             // LAPORAN
             'teacher_responsible_name' => 'Guru Penanggung Jawab',

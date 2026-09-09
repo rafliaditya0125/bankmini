@@ -48,6 +48,7 @@ class HandleInertiaRequests extends Middleware
             'bank_phone' => Setting::get('phone', '(021) 1234-5678'),
             'is_maintenance' => Setting::get('maintenance_mode', '0') === '1',
             'min_cash_denomination' => (int) Setting::get('min_cash_denomination', 100),
+            'bkk_bkm_display_format' => Setting::get('bkk_bkm_display_format', 'full'),
             'max_field_length' => (int) Setting::get('max_field_length', 255),
             'session_lifetime' => (int) Setting::get('session_lifetime', 7),
             'auth' => [

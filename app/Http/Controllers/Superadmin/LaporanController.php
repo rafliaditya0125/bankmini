@@ -39,6 +39,14 @@ class LaporanController extends Controller
             $query->where('jenis_transaksi', $request->jenis_transaksi);
         }
 
+        // Filter status: default hanya tampilkan yang valid / tidak dibatalkan
+        $statusFilter = $request->status ?? 'valid';
+        if ($statusFilter === 'valid') {
+            $query->where('status', '!=', 'cancelled');
+        } elseif ($statusFilter === 'cancelled' || $statusFilter === 'batal') {
+            $query->where('status', 'cancelled');
+        }
+
         if ($request->date_from) {
             $query->whereDate('created_at', '>=', $request->date_from);
         }
@@ -99,7 +107,10 @@ class LaporanController extends Controller
                 return $data;
             })->withQueryString(),
             'reportFiles' => $archiveQuery->latest()->paginate(10, ['*'], 'report_page')->withQueryString(),
-            'filters' => $request->only(['search', 'archive_search', 'jenis_transaksi', 'date_from', 'date_to']),
+            'filters' => array_merge(
+                $request->only(['search', 'archive_search', 'jenis_transaksi', 'date_from', 'date_to']),
+                ['status' => $statusFilter]
+            ),
             'active_tab' => $request->tab ?? 'transaksi'
         ]);
     }

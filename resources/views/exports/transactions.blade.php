@@ -295,27 +295,32 @@
                         $identityClass = $groupName;
                     }
 
-                    // Hitung berdasarkan jenis transaksi
-                    if ($row->jenis_transaksi === 'setor') {
-                        $totalSetoranKeseluruhan += $row->jumlah;
-                        if (!isset($setoranByGroup[$groupName])) {
-                            $setoranByGroup[$groupName] = 0;
+                    // Hitung akumulasi hanya jika transaksi tidak dibatalkan
+                    if ($row->status !== 'cancelled') {
+                        if ($row->jenis_transaksi === 'setor') {
+                            $totalSetoranKeseluruhan += $row->jumlah;
+                            if (!isset($setoranByGroup[$groupName])) {
+                                $setoranByGroup[$groupName] = 0;
+                            }
+                            $setoranByGroup[$groupName] += $row->jumlah;
+                            $debit = 0;
+                            $kredit = $row->jumlah;
+                        } elseif ($row->jenis_transaksi === 'tarik') {
+                            $totalPenarikKeseluruhan += $row->jumlah;
+                            if (!isset($penarikByGroup[$groupName])) {
+                                $penarikByGroup[$groupName] = 0;
+                            }
+                            $penarikByGroup[$groupName] += $row->jumlah;
+                            $debit = $row->jumlah;
+                            $kredit = 0;
+                        } elseif ($row->jenis_transaksi === 'transfer') {
+                            $totalTransfer += $row->jumlah;
+                            $debit = 0;
+                            $kredit = 0;
+                        } else {
+                            $debit = 0;
+                            $kredit = 0;
                         }
-                        $setoranByGroup[$groupName] += $row->jumlah;
-                        $debit = 0;
-                        $kredit = $row->jumlah;
-                    } elseif ($row->jenis_transaksi === 'tarik') {
-                        $totalPenarikKeseluruhan += $row->jumlah;
-                        if (!isset($penarikByGroup[$groupName])) {
-                            $penarikByGroup[$groupName] = 0;
-                        }
-                        $penarikByGroup[$groupName] += $row->jumlah;
-                        $debit = $row->jumlah;
-                        $kredit = 0;
-                    } elseif ($row->jenis_transaksi === 'transfer') {
-                        $totalTransfer += $row->jumlah;
-                        $debit = 0;
-                        $kredit = 0;
                     } else {
                         $debit = 0;
                         $kredit = 0;

@@ -19,6 +19,7 @@ interface LaporanPageProps {
         jenis_transaksi?: string;
         date_from?: string;
         date_to?: string;
+        status?: string;
     };
 }
 
@@ -28,6 +29,7 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
 
     const [search, setSearch] = useState(filters.search || '');
     const [jenis, setJenis] = useState(filters.jenis_transaksi || '');
+    const [status, setStatus] = useState(filters.status || 'valid');
     const [dateFrom, setDateFrom] = useState(filters.date_from || '');
     const [dateTo, setDateTo] = useState(filters.date_to || '');
     const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
@@ -43,12 +45,14 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
             if (
                 search !== (filters.search || '') ||
                 jenis !== (filters.jenis_transaksi || '') ||
+                status !== (filters.status || 'valid') ||
                 dateFrom !== (filters.date_from || '') ||
                 dateTo !== (filters.date_to || '')
             ) {
-                router.get(`/${rolePrefix}/laporan`, {
+                router.get(window.location.pathname, {
                     search,
                     jenis_transaksi: jenis,
+                    status,
                     date_from: dateFrom,
                     date_to: dateTo
                 }, {
@@ -59,14 +63,15 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
             }
         }, 300);
         return () => clearTimeout(timeoutId);
-    }, [search, jenis, dateFrom, dateTo, rolePrefix]);
+    }, [search, jenis, status, dateFrom, dateTo]);
 
     const resetFilters = () => {
         setSearch('');
         setJenis('');
+        setStatus('valid');
         setDateFrom('');
         setDateTo('');
-        router.get(`/${rolePrefix}/laporan`);
+        router.get(window.location.pathname, { status: 'valid' });
     };
 
     const handleViewReceipt = (tx: any) => {
@@ -140,7 +145,7 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
             <div className="space-y-6">
                 {/* Real-time Filters */}
                 <div className="bg-white/80 rounded-2xl border border-slate-200/70 p-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         <div className="space-y-1">
                             <label className="text-[10px] font-semibold text-slate-400 uppercase ml-1 tracking-[0.2em]">Pencarian</label>
                             <div className="relative">
@@ -169,6 +174,18 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                             </select>
                         </div>
                         <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-slate-400 uppercase ml-1 tracking-[0.2em]">Status</label>
+                            <select
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value)}
+                                className="w-full px-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-medium h-11"
+                            >
+                                <option value="valid">Valid (Aktif)</option>
+                                <option value="cancelled">Dibatalkan</option>
+                                <option value="all">Semua Status</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1">
                             <label className="text-[10px] font-semibold text-slate-400 uppercase ml-1 tracking-[0.2em]">Dari Tanggal</label>
                             <input
                                 type="date"
@@ -186,7 +203,7 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                                     onChange={(e) => setDateTo(e.target.value)}
                                     className="w-full px-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all h-11"
                                 />
-                                <button onClick={resetFilters} className="p-2 text-slate-400 hover:text-rose-500 transition-colors border border-slate-200 rounded-xl bg-white">
+                                <button onClick={resetFilters} title="Reset Filter" className="p-2 text-slate-400 hover:text-rose-500 transition-colors border border-slate-200 rounded-xl bg-white">
                                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                 </button>
                             </div>
@@ -253,7 +270,6 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                                                     Number(tx.saldo_sesudah) >= Number(tx.saldo_sebelum) ? 'text-emerald-600' : 'text-rose-600'
                                                 )
                                             }`}>
-                                                {tx.status === 'cancelled' && <span className="block text-[8px] uppercase tracking-widest text-rose-500 mb-0.5">Dibatalkan</span>}
                                                 {Number(tx.saldo_sesudah) >= Number(tx.saldo_sebelum) ? '+' : '-'} {formatRupiah(tx.jumlah)}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">

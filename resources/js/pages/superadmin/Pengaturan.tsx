@@ -328,15 +328,91 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
                                         <div className="md:col-span-1">
                                             {renderInput('min_cash_denomination', 'Pecahan Tunai Terkecil (Rp)', 'number')}
                                         </div>
-                                        <div className="md:col-span-2">
-                                            {renderInput('transaction_types', 'Jenis Transaksi (Pisahkan dengan Koma)', 'text', { placeholder: 'Contoh: Tunai, Transfer, Kliring, Cek' })}
-                                        </div>
                                         <div className="md:col-span-1">
                                             {renderSelect('bkk_bkm_mode', 'Mode Nomor BKK & BKM', [
                                                 { value: 'manual', label: 'Manual Input' },
                                                 { value: 'auto', label: 'Otomatis' }
                                             ])}
                                         </div>
+                                        <div className="md:col-span-2">
+                                            {renderInput('transaction_types', 'Jenis Transaksi (Pisahkan dengan Koma)', 'text', { placeholder: 'Contoh: Tunai, Transfer, Kliring, Cek' })}
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            {renderSelect('bkk_bkm_display_format', 'Format Tampilan Nomor BKK & BKM', [
+                                                { value: 'full', label: 'Lengkap (Nomor / Bulan / Tahun) - Contoh: BKM001/09/26' },
+                                                { value: 'month', label: 'Sampai Bulan (Nomor / Bulan) - Contoh: BKM001/09' },
+                                                { value: 'number_only', label: 'Nomor Saja - Contoh: BKM001' }
+                                            ])}
+                                        </div>
+
+                                        {(() => {
+                                            const now = new Date();
+                                            const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+                                            const currentYear = String(now.getFullYear()).slice(-2);
+                                            const format = data.bkk_bkm_display_format || 'full';
+
+                                            let bkmPreview = `BKM001/${currentMonth}/${currentYear}`;
+                                            let bkkPreview = `BKK001/${currentMonth}/${currentYear}`;
+                                            let desc = 'Menampilkan format lengkap dengan nomor urut, bulan, dan tahun dua digit.';
+
+                                            if (format === 'number_only') {
+                                                bkmPreview = 'BKM001';
+                                                bkkPreview = 'BKK001';
+                                                desc = 'Hanya menampilkan prefix dan nomor urut transaksi pada UI dan struk.';
+                                            } else if (format === 'month') {
+                                                bkmPreview = `BKM001/${currentMonth}`;
+                                                bkkPreview = `BKK001/${currentMonth}`;
+                                                desc = 'Menampilkan nomor urut transaksi beserta bulan berjalan pada UI dan struk.';
+                                            }
+
+                                            return (
+                                                <div className="md:col-span-2 p-5 bg-gradient-to-br from-slate-50 to-emerald-50/40 border border-slate-200/80 rounded-2xl flex flex-col gap-3 transition-all">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">Contoh Format Tampilan (Live Preview)</span>
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800">
+                                                                Sebelum Disimpan
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[9px] font-mono font-bold text-slate-400">
+                                                            Database: BKM001/{currentMonth}/{currentYear}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div className="p-3.5 bg-white rounded-xl border border-emerald-200/80 shadow-xs flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block">Bukti Kas Masuk (Setoran)</span>
+                                                                <span className="text-base font-mono font-black text-emerald-700 tracking-tight">
+                                                                    {bkmPreview}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/50">BKM</span>
+                                                        </div>
+
+                                                        <div className="p-3.5 bg-white rounded-xl border border-rose-200/80 shadow-xs flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block">Bukti Kas Keluar (Penarikan)</span>
+                                                                <span className="text-base font-mono font-black text-rose-700 tracking-tight">
+                                                                    {bkkPreview}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/50">BKK</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-start gap-1.5 text-[10px] text-gray-500 mt-0.5">
+                                                        <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        <span>
+                                                            {desc} <strong className="font-bold text-slate-700">Catatan:</strong> Di database nomor tetap tersimpan lengkap agar penomoran bulanan tidak pernah bentrok (*duplicate entry*).
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                     <div className="space-y-6 pt-8 border-t border-gray-50">
                                         <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Sistem Bunga & Biaya Bulanan</h3>
