@@ -212,7 +212,7 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-200">Setor Tunai</p>
                             <h1 className="mt-2 text-3xl md:text-4xl font-black tracking-tight">Transaksi Setoran</h1>
-                            <p className="mt-2 text-sm text-emerald-100/80 max-w-xl">Layanan penerimaan dana nasabah SMEACIS dengan validasi cepat dan bukti transaksi instan.</p>
+                            <p className="mt-2 text-sm text-emerald-100/80 max-w-xl">Layanan penerimaan dana nasabah {name || 'Bank Mini'} dengan validasi cepat dan bukti transaksi instan.</p>
                         </div>
                     </div>
                 </div>

@@ -28,7 +28,7 @@
 
     <div class="header">
         <h1>Laporan Audit Trail</h1>
-        <h2>{{ \App\Models\Setting::get('bank_name', 'BANK MINI SMEACIS') }}</h2>
+        <h2>{{ \App\Models\Setting::get('bank_name', 'BANK MINI') }}</h2>
     </div>
 
     <table>

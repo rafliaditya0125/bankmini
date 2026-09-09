@@ -98,7 +98,7 @@ self.addEventListener('push', (event) => {
     data = { title: 'Bank Mini', body: event.data ? event.data.text() : '' };
   }
 
-  const title   = data.title   || 'Bank Mini SMEACIS';
+  const title   = data.title   || 'Bank Mini';
   const options = {
     body:  data.body    || '',
     icon:  data.icon    || '/images/bankmini-removebg-preview.png',

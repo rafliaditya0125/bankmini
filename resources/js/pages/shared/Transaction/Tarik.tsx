@@ -211,7 +211,7 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-rose-200">Tarik Tunai</p>
                             <h1 className="mt-2 text-3xl md:text-4xl font-black tracking-tight">Transaksi Penarikan</h1>
-                            <p className="mt-2 text-sm text-rose-100/80 max-w-xl">Layanan pengeluaran dana nasabah SMEACIS dengan kontrol keamanan berlapis.</p>
+                            <p className="mt-2 text-sm text-rose-100/80 max-w-xl">Layanan pengeluaran dana nasabah {name || 'Bank Mini'} dengan kontrol keamanan berlapis.</p>
                         </div>
                     </div>
                 </div>

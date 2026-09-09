@@ -131,7 +131,7 @@ export default function Login() {
                             <Link href={route('home')} className="inline-flex items-center gap-4">
                                 <img
                                     src="/images/bankmini-removebg-preview.png"
-                                    alt="Logo Bank Mini SMEACIS"
+                                    alt={`Logo ${name || 'Bank Mini'}`}
                                     className="h-14 w-auto object-contain drop-shadow-lg"
                                 />
                                 <div>
@@ -193,7 +193,7 @@ export default function Login() {
                             <div className="mb-8 flex items-center gap-3 lg:hidden">
                                 <img
                                     src="/images/bankmini-removebg-preview.png"
-                                    alt="Logo Bank Mini SMEACIS"
+                                    alt={`Logo ${name || 'Bank Mini'}`}
                                     className="h-10 w-auto object-contain drop-shadow"
                                 />
                                 <div>
