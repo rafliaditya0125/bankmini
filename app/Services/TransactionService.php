@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Nasabah;
 use App\Models\Transaksi;
 use App\Models\AuditLog;
+use App\Models\Wallet;
+use App\Models\WalletType;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -85,6 +87,7 @@ class TransactionService
                 'nasabah_id' => $nasabah->id,
                 'user_id' => Auth::id(),
                 'jenis_transaksi' => 'setor',
+                'metode_pembayaran' => $data['jenis_transaksi'] ?? 'tunai',
                 'jumlah' => $jumlah,
                 'saldo_sebelum' => $saldoSebelum,
                 'saldo_sesudah' => $saldoSesudah,
@@ -94,6 +97,13 @@ class TransactionService
             ]);
 
             $nasabah->update(['saldo' => $saldoSesudah]);
+
+            $tabunganType = WalletType::tabungan()->first();
+            if ($tabunganType) {
+                $tabunganWallet = $nasabah->getOrCreateWallet($tabunganType->id);
+                $tabunganWallet->update(['balance' => $saldoSesudah]);
+                $transaksi->update(['wallet_id' => $tabunganWallet->id]);
+            }
 
             AuditLog::logActivity(
                 'setor',
@@ -159,6 +169,7 @@ class TransactionService
                 'nasabah_id' => $nasabah->id,
                 'user_id' => Auth::id(),
                 'jenis_transaksi' => 'tarik',
+                'metode_pembayaran' => $data['jenis_transaksi'] ?? 'tunai',
                 'jumlah' => $jumlah,
                 'saldo_sebelum' => $saldoSebelum,
                 'saldo_sesudah' => $saldoSesudah,
@@ -168,6 +179,13 @@ class TransactionService
             ]);
 
             $nasabah->update(['saldo' => $saldoSesudah]);
+
+            $tabunganType = WalletType::tabungan()->first();
+            if ($tabunganType) {
+                $tabunganWallet = $nasabah->getOrCreateWallet($tabunganType->id);
+                $tabunganWallet->update(['balance' => $saldoSesudah]);
+                $transaksi->update(['wallet_id' => $tabunganWallet->id]);
+            }
 
             AuditLog::logActivity(
                 'tarik',
@@ -307,46 +325,127 @@ class TransactionService
     {
         return DB::transaction(function () use ($data, $role) {
             $pembayar = Nasabah::where('nomor_rekening', $data['pengirim_rekening'])->firstOrFail();
-            $penerima = Nasabah::where('nomor_rekening', $data['penerima_rekening'])->firstOrFail(); // The 'pembayaran' account
+
+            if ($pembayar->status !== 'aktif') {
+                throw new \Exception('Rekening pembayar tidak aktif');
+            }
+
+            $jumlah = (float) $data['jumlah'];
+            $metodePembayaran = strtolower($data['metode_pembayaran'] ?? 'tunai');
+            $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            $kodeTransaksi = '4' . now($timezone)->format('YmdHis') . strtoupper(Str::random(4));
+
+            // Jika pembayaran ke tipe kantong pembayaran (Pocket System)
+            if (!empty($data['wallet_type_id'])) {
+                $walletType = WalletType::findOrFail($data['wallet_type_id']);
+                $targetWallet = $pembayar->getOrCreateWallet($walletType->id);
+
+                if ($metodePembayaran === 'potong_tabungan') {
+                    if ($pembayar->saldo < $jumlah) {
+                        throw new \Exception('Saldo tabungan utama tidak mencukupi');
+                    }
+
+                    $saldoSebelum = $pembayar->saldo;
+                    $saldoSesudah = $saldoSebelum - $jumlah;
+                    $pembayar->update(['saldo' => $saldoSesudah]);
+
+                    $tabunganType = WalletType::tabungan()->first();
+                    if ($tabunganType) {
+                        $tabunganWallet = $pembayar->getOrCreateWallet($tabunganType->id);
+                        $tabunganWallet->update(['balance' => $saldoSesudah]);
+                    }
+
+                    $targetWallet->credit($jumlah);
+                } else {
+                    // Tunai / Transfer / Cek dll: tidak memotong tabungan utama
+                    $saldoSebelum = $targetWallet->balance;
+                    $targetWallet->credit($jumlah);
+                    $saldoSesudah = $targetWallet->balance;
+                }
+
+                $keteranganTag = "Pembayaran " . $walletType->name . ($data['keterangan'] ? " (" . $data['keterangan'] . ")" : "");
+
+                $transaksi = Transaksi::create([
+                    'kode_transaksi' => $kodeTransaksi,
+                    'nasabah_id' => $pembayar->id,
+                    'user_id' => Auth::id(),
+                    'jenis_transaksi' => 'bayar',
+                    'metode_pembayaran' => $metodePembayaran,
+                    'wallet_id' => $targetWallet->id,
+                    'jumlah' => $jumlah,
+                    'saldo_sebelum' => $saldoSebelum,
+                    'saldo_sesudah' => $saldoSesudah,
+                    'tanggal_transaksi' => $data['tanggal_transaksi'],
+                    'keterangan' => $keteranganTag,
+                    'nama_petugas' => $data['nama_petugas'],
+                    'nasabah_tujuan_id' => null,
+                ]);
+
+                AuditLog::logActivity(
+                    'bayar',
+                    "Pembayaran Rp " . number_format($jumlah, 0, ',', '.') . " (" . strtoupper($metodePembayaran) . ") dari " . $pembayar->nomor_rekening . " untuk kantong " . $walletType->name,
+                    'success',
+                    Auth::id(),
+                    Auth::user()->name,
+                    $role
+                );
+
+                NotificationService::sendTransactionNotification($pembayar->user_id, 'bayar', $jumlah, $kodeTransaksi);
+
+                return [
+                    'kode_transaksi' => $kodeTransaksi,
+                    'no_urut' => $transaksi->id,
+                    'nasabah_name' => $pembayar->user->name,
+                    'nasabah_norek' => $pembayar->nomor_rekening,
+                    'nasabah' => $pembayar->load(['user', 'rombelRel.jurusan']),
+                    'jenis_pembayaran' => $walletType->name,
+                    'wallet_name' => $walletType->name,
+                    'metode_pembayaran' => $metodePembayaran,
+                    'sub_jenis_transaksi' => strtoupper($metodePembayaran),
+                    'target_amount' => $walletType->target_amount,
+                    'penerima_name' => $walletType->name,
+                    'penerima_norek' => $targetWallet->wallet_number,
+                    'jumlah' => $jumlah,
+                    'saldo_sebelum' => $saldoSebelum,
+                    'saldo_sesudah' => $saldoSesudah,
+                    'saldo_kantong' => $targetWallet->balance,
+                    'jenis_transaksi' => 'bayar',
+                    'tanggal' => $transaksi->created_at->format('Y-m-d H:i:s'),
+                    'created_at' => $transaksi->created_at->toDateTimeString(),
+                    'petugas' => $data['nama_petugas'],
+                ];
+            }
+
+            // Fallback legacy jika masih memilih akun pembayaran rekening
+            $penerima = Nasabah::where('nomor_rekening', $data['penerima_rekening'])->firstOrFail();
 
             if ($pembayar->nomor_rekening === $penerima->nomor_rekening) {
                 throw new \Exception('Pembayar dan penerima tidak boleh sama');
             }
 
-            if ($pembayar->status !== 'aktif') throw new \Exception('Rekening pembayar tidak aktif');
-            if ($penerima->status !== 'aktif') throw new \Exception('Rekening penerima (pembayaran) tidak aktif');
-            if ($pembayar->saldo < $data['jumlah']) throw new \Exception('Saldo pembayar tidak mencukupi');
+            if ($penerima->status !== 'aktif') throw new \Exception('Rekening penerima tidak aktif');
+            if ($pembayar->saldo < $jumlah) throw new \Exception('Saldo pembayar tidak mencukupi');
 
-            $jumlah = $data['jumlah'];
-
-            $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
-            $kodeTransaksi = '4' . now($timezone)->format('YmdHis') . strtoupper(Str::random(4));
-
-            // Debit pembayar
             $saldoSebelumPembayar = $pembayar->saldo;
             $saldoSesudahPembayar = $saldoSebelumPembayar - $jumlah;
-
-            // Credit penerima (untuk update saldo)
             $saldoSebelumPenerima = $penerima->saldo;
             $saldoSesudahPenerima = $saldoSebelumPenerima + $jumlah;
 
-            // HANYA buat transaksi di sisi pembayar
-            // Riwayat hanya muncul 1 kali
             $transaksi = Transaksi::create([
                 'kode_transaksi' => $kodeTransaksi,
                 'nasabah_id' => $pembayar->id,
                 'user_id' => Auth::id(),
                 'jenis_transaksi' => 'bayar',
+                'metode_pembayaran' => $metodePembayaran,
                 'jumlah' => $jumlah,
                 'saldo_sebelum' => $saldoSebelumPembayar,
                 'saldo_sesudah' => $saldoSesudahPembayar,
                 'tanggal_transaksi' => $data['tanggal_transaksi'],
                 'keterangan' => "Pembayaran: " . $penerima->user->name . ($data['keterangan'] ? " (" . $data['keterangan'] . ")" : ""),
                 'nama_petugas' => $data['nama_petugas'],
-                'nasabah_tujuan_id' => $penerima->id, // Simpan referensi untuk struk
+                'nasabah_tujuan_id' => $penerima->id,
             ]);
 
-            // Update saldo kedua belah pihak
             $pembayar->update(['saldo' => $saldoSesudahPembayar]);
             $penerima->update(['saldo' => $saldoSesudahPenerima]);
 
@@ -359,7 +458,6 @@ class TransactionService
                 $role
             );
 
-            // Hanya kirim notifikasi ke pembayar (karena hanya dia yang punya transaksi)
             NotificationService::sendTransactionNotification($pembayar->user_id, 'bayar', $jumlah, $kodeTransaksi);
 
             return [
@@ -368,9 +466,10 @@ class TransactionService
                 'nasabah_name' => $pembayar->user->name,
                 'nasabah_norek' => $pembayar->nomor_rekening,
                 'nasabah' => $pembayar->load(['user', 'rombelRel.jurusan']),
-                'jenis_pembayaran' => $penerima->user->name, // Jenis pembayaran
+                'jenis_pembayaran' => $penerima->user->name,
                 'penerima_name' => $penerima->user->name,
                 'penerima_norek' => $penerima->nomor_rekening,
+                'metode_pembayaran' => $metodePembayaran,
                 'jumlah' => $jumlah,
                 'saldo_sebelum' => $saldoSebelumPembayar,
                 'saldo_sesudah' => $saldoSesudahPembayar,
@@ -381,6 +480,7 @@ class TransactionService
             ];
         });
     }
+
     /**
      * Cancel a transaction
      */
@@ -393,7 +493,6 @@ class TransactionService
                 throw new \Exception('Transaksi sudah dibatalkan');
             }
 
-
             $kodeTransaksi = $transaksi->kode_transaksi;
             $jenis = $transaksi->jenis_transaksi;
             $jumlah = $transaksi->jumlah;
@@ -402,6 +501,10 @@ class TransactionService
             if ($jenis === 'setor') {
                 $nasabah = Nasabah::findOrFail($transaksi->nasabah_id);
                 $nasabah->decrement('saldo', (float) $jumlah);
+                $tabunganWallet = $nasabah->tabunganWallet;
+                if ($tabunganWallet) {
+                    $tabunganWallet->debit($jumlah);
+                }
                 // Status dibatalkan, nomor BKM otomatis gugur dan bisa dipakai kembali
                 $transaksi->update([
                     'status' => 'cancelled', 
@@ -410,44 +513,55 @@ class TransactionService
             } elseif ($jenis === 'tarik') {
                 $nasabah = Nasabah::findOrFail($transaksi->nasabah_id);
                 $nasabah->increment('saldo', (float) $jumlah);
+                $tabunganWallet = $nasabah->tabunganWallet;
+                if ($tabunganWallet) {
+                    $tabunganWallet->credit($jumlah);
+                }
                 // Status dibatalkan, nomor BKK otomatis gugur dan bisa dipakai kembali
                 $transaksi->update([
                     'status' => 'cancelled', 
                     'cancel_reason' => $reason,
                 ]);
             } elseif ($jenis === 'transfer') {
-                // For transfers, we find both records (sender and receiver)
                 $relatedTransactions = Transaksi::where('kode_transaksi', $kodeTransaksi)->get();
 
                 foreach ($relatedTransactions as $tx) {
                     $nasabah = Nasabah::findOrFail($tx->nasabah_id);
 
-                    // Logic to detect if this record is the sender or receiver
-                    // Sender's amount is subtracted (saldo_sesudah < saldo_sebelum)
-                    // Receiver's amount is added (saldo_sesudah > saldo_sebelum)
                     if ($tx->saldo_sesudah < $tx->saldo_sebelum) {
-                        // This is the sender, add the money back
                         $nasabah->increment('saldo', (float) $jumlah);
                     } else {
-                        // This is the receiver, subtract the money
                         $nasabah->decrement('saldo', (float) $jumlah);
                     }
 
-                    // Transfer tidak menggunakan BKK/BKM, jadi tidak perlu kosongkan
+                    $tabunganWallet = $nasabah->tabunganWallet;
+                    if ($tabunganWallet) {
+                        $tabunganWallet->update(['balance' => $nasabah->saldo]);
+                    }
+
                     $tx->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
                 }
             } elseif ($jenis === 'bayar') {
-                // For payments, only 1 transaction record exists (pembayar side)
-                // But we need to reverse both balances
                 $pembayar = Nasabah::findOrFail($transaksi->nasabah_id);
-                $penerima = Nasabah::findOrFail($transaksi->nasabah_tujuan_id);
-                
-                // Add money back to pembayar
-                $pembayar->increment('saldo', (float) $jumlah);
-                // Subtract from penerima
-                $penerima->decrement('saldo', (float) $jumlah);
-                
-                // Pembayaran tidak menggunakan BKK/BKM, jadi tidak perlu kosongkan
+
+                if ($transaksi->wallet_id) {
+                    $targetWallet = Wallet::find($transaksi->wallet_id);
+                    if ($targetWallet) {
+                        $targetWallet->debit($jumlah);
+                    }
+                    if ($transaksi->metode_pembayaran === 'potong_tabungan') {
+                        $pembayar->increment('saldo', (float) $jumlah);
+                        $tabunganWallet = $pembayar->tabunganWallet;
+                        if ($tabunganWallet) {
+                            $tabunganWallet->credit($jumlah);
+                        }
+                    }
+                } elseif ($transaksi->nasabah_tujuan_id) {
+                    $penerima = Nasabah::findOrFail($transaksi->nasabah_tujuan_id);
+                    $pembayar->increment('saldo', (float) $jumlah);
+                    $penerima->decrement('saldo', (float) $jumlah);
+                }
+
                 $transaksi->update(['status' => 'cancelled', 'cancel_reason' => $reason]);
             }
 

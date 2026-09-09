@@ -12,7 +12,7 @@ class LaporanController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Transaksi::with(['nasabah.user', 'nasabah.rombelRel', 'petugas']);
+        $query = Transaksi::where('status', '!=', 'cancelled')->with(['nasabah.user', 'nasabah.rombelRel', 'petugas']);
         $archiveQuery = ReportLog::with('user');
 
         // Filters for transactions

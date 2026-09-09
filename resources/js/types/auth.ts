@@ -94,3 +94,30 @@ export type AuditTrail = {
 export type Auth = {
     user: User;
 };
+
+export type WalletType = {
+    id: number;
+    name: string;
+    category: 'tabungan' | 'pembayaran';
+    target_amount?: number | null;
+    target_audience: 'all' | 'siswa_all' | 'siswa_tingkat_10' | 'siswa_tingkat_11' | 'siswa_tingkat_12';
+    description?: string | null;
+    is_default: boolean;
+    is_active: boolean;
+    wallets_count?: number;
+    total_saldo?: number;
+    created_at: string;
+    updated_at: string;
+};
+
+export type Wallet = {
+    id: number;
+    wallet_number: string;
+    nasabah_id: number;
+    wallet_type_id: number;
+    balance: number;
+    status: 'active' | 'frozen' | 'closed';
+    created_at: string;
+    updated_at: string;
+    wallet_type?: WalletType;
+};

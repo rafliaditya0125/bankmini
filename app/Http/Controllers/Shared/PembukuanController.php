@@ -25,7 +25,8 @@ class PembukuanController extends Controller
             return $this->financialReport($request);
         }
 
-        $query = Transaksi::with(['nasabah.user', 'nasabahTujuan.user'])
+        $query = Transaksi::where('status', '!=', 'cancelled')
+            ->with(['nasabah.user', 'nasabahTujuan.user'])
             ->when($fromDate, fn($q) => $q->whereDate('created_at', '>=', $fromDate))
             ->when($toDate, fn($q) => $q->whereDate('created_at', '<=', $toDate))
             ->when($type === 'buku_besar', fn($q) => $q->whereNotNull('journal_code'))
@@ -33,7 +34,8 @@ class PembukuanController extends Controller
 
         $transactions = $query->get();
         // Count unposted transactions within the current date filters
-        $unpostedCount = Transaksi::whereNull('journal_code')
+        $unpostedCount = Transaksi::where('status', '!=', 'cancelled')
+            ->whereNull('journal_code')
             ->when($fromDate, fn($q) => $q->whereDate('created_at', '>=', $fromDate))
             ->when($toDate, fn($q) => $q->whereDate('created_at', '<=', $toDate))
             ->count();
@@ -64,7 +66,8 @@ class PembukuanController extends Controller
         $fromDate = $request->input('from_date');
         $toDate = $request->input('to_date');
 
-        $unposted = Transaksi::whereNull('journal_code')
+        $unposted = Transaksi::where('status', '!=', 'cancelled')
+            ->whereNull('journal_code')
             ->when($fromDate, fn($q) => $q->whereDate('created_at', '>=', $fromDate))
             ->when($toDate, fn($q) => $q->whereDate('created_at', '<=', $toDate))
             ->orderBy('created_at', 'asc')
@@ -95,8 +98,8 @@ class PembukuanController extends Controller
     private function financialReport(Request $request)
     {
         // Assets (Aktiva)
-        $totalSetor = Transaksi::where('jenis_transaksi', 'setor')->sum('jumlah');
-        $totalTarik = Transaksi::where('jenis_transaksi', 'tarik')->sum('jumlah');
+        $totalSetor = Transaksi::where('status', '!=', 'cancelled')->where('jenis_transaksi', 'setor')->sum('jumlah');
+        $totalTarik = Transaksi::where('status', '!=', 'cancelled')->where('jenis_transaksi', 'tarik')->sum('jumlah');
         $kasValue = floatval($totalSetor) - floatval($totalTarik);
 
         // Liabilities (Passiva)

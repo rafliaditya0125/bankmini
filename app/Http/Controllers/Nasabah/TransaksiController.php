@@ -102,6 +102,7 @@ class TransaksiController extends Controller
                             ->where('jenis_transaksi', 'bayar');
                   });
             })
+            ->where('status', '!=', 'cancelled')
             ->with(['nasabah.user', 'nasabahTujuan.user', 'user'])
             ->latest();
 

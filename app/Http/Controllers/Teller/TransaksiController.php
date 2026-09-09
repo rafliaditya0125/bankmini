@@ -88,11 +88,13 @@ class TransaksiController extends Controller
         // This is controlled by a query parameter 'view_all'
         if ($request->view_all === 'true' && auth()->user()->role === 'teller') {
             // Teller can view all transactions for today
-            $query = Transaksi::with(['nasabah.user', 'nasabah.rombelRel', 'nasabahTujuan.user', 'petugas'])
+            $query = Transaksi::where('status', '!=', 'cancelled')
+                ->with(['nasabah.user', 'nasabah.rombelRel', 'nasabahTujuan.user', 'petugas'])
                 ->latest();
         } else {
             // Default: only show transactions processed by this teller
             $query = Transaksi::where('user_id', auth()->id())
+                ->where('status', '!=', 'cancelled')
                 ->with(['nasabah.user', 'nasabah.rombelRel', 'nasabahTujuan.user', 'petugas'])
                 ->latest();
         }

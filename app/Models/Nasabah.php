@@ -72,6 +72,39 @@ class Nasabah extends Model
     }
 
     /**
+     * Relationship with Wallets
+     */
+    public function wallets()
+    {
+        return $this->hasMany(Wallet::class);
+    }
+
+    /**
+     * Get the default Tabungan wallet
+     */
+    public function tabunganWallet()
+    {
+        return $this->hasOne(Wallet::class)->whereHas('walletType', function ($q) {
+            $q->where('is_default', true)->orWhere('category', 'tabungan');
+        });
+    }
+
+    /**
+     * Get or create wallet for specific wallet type
+     */
+    public function getOrCreateWallet(int $walletTypeId): Wallet
+    {
+        return $this->wallets()->firstOrCreate(
+            ['wallet_type_id' => $walletTypeId],
+            [
+                'wallet_number' => 'W-' . $this->nomor_rekening . '-' . str_pad($walletTypeId, 2, '0', STR_PAD_LEFT),
+                'balance' => 0.00,
+                'status' => 'active',
+            ]
+        );
+    }
+
+    /**
      * Check if nasabah is active
      */
     public function isAktif(): bool
