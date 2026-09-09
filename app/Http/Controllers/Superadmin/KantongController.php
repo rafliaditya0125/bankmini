@@ -21,29 +21,32 @@ class KantongController extends Controller
      */
     public function index(Request $request)
     {
-        $query = WalletType::withCount('wallets')
+        $query = WalletType::pembayaran()
+            ->where('is_default', false)
+            ->withCount('wallets')
             ->withSum('wallets as total_saldo', 'balance');
 
         if ($request->search) {
-            $query->where('name', 'like', '%' . $request->search . '%')
+            $query->where(function ($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
                   ->orWhere('description', 'like', '%' . $request->search . '%');
+            });
         }
 
-        if ($request->category) {
-            $query->where('category', $request->category);
-        } else {
-            // Default show payment pockets first, but Tabungan is also visible
+        if ($request->status === 'aktif') {
+            $query->where('is_active', true);
+        } elseif ($request->status === 'nonaktif') {
+            $query->where('is_active', false);
         }
 
-        $kantongList = $query->orderBy('is_default', 'desc')
-            ->orderBy('id', 'asc')
+        $kantongList = $query->orderBy('id', 'asc')
             ->paginate(12)
             ->withQueryString();
 
-        // Summary Stats
-        $totalKantongAktif = WalletType::pembayaran()->where('is_active', true)->count();
+        // Summary Stats (Strictly for payment pockets)
+        $totalKantongAktif = WalletType::pembayaran()->where('is_default', false)->where('is_active', true)->count();
         $totalDanaKantong = Wallet::whereHas('walletType', function ($q) {
-            $q->pembayaran();
+            $q->pembayaran()->where('is_default', false);
         })->sum('balance');
         $totalNasabahTerdaftar = Nasabah::where('status', 'aktif')->count();
 
@@ -52,7 +55,7 @@ class KantongController extends Controller
 
         return Inertia::render('superadmin/kantong/Index', [
             'kantongList' => $kantongList,
-            'filters' => $request->only(['search', 'category']),
+            'filters' => $request->only(['search', 'status']),
             'stats' => [
                 'total_kantong' => $totalKantongAktif,
                 'total_dana' => (float) $totalDanaKantong,
@@ -129,6 +132,15 @@ class KantongController extends Controller
      */
     public function show(Request $request, WalletType $kantong)
     {
+        $userRole = Auth::user()?->role;
+        $rolePrefix = in_array($userRole, ['superadmin', 'admin']) ? $userRole : 'superadmin';
+
+        // Protection: Tabungan Utama is managed strictly in Kelola Nasabah
+        if ($kantong->is_default || $kantong->category === 'tabungan') {
+            return redirect()->route($rolePrefix . '.nasabah.index')
+                ->with('warning', 'Kantong Tabungan Utama dikelola melalui menu Kelola Nasabah dan transaksi Setor/Tarik.');
+        }
+
         $nasabahQuery = Nasabah::with(['user', 'rombelRel.jurusan'])
             ->where('status', 'aktif');
 
@@ -241,6 +253,10 @@ class KantongController extends Controller
      */
     public function update(Request $request, WalletType $kantong)
     {
+        if ($kantong->is_default || $kantong->category === 'tabungan') {
+            return redirect()->back()->with('error', "Kantong default 'Tabungan Utama' dilindungi dan tidak dapat diubah dari Kelola Kantong.");
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'target_amount' => 'nullable|numeric|min:0',
@@ -268,8 +284,8 @@ class KantongController extends Controller
      */
     public function destroy(WalletType $kantong)
     {
-        if ($kantong->is_default) {
-            return redirect()->back()->with('error', "Kantong default 'Tabungan' tidak boleh dihapus.");
+        if ($kantong->is_default || $kantong->category === 'tabungan') {
+            return redirect()->back()->with('error', "Kantong default 'Tabungan Utama' dilindungi dan tidak boleh dihapus.");
         }
 
         // Check if any wallet has positive balance

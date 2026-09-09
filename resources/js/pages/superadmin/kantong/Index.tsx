@@ -17,7 +17,7 @@ interface KantongIndexProps {
     };
     filters: {
         search?: string;
-        category?: string;
+        status?: string;
     };
     stats: {
         total_kantong: number;
@@ -29,7 +29,7 @@ interface KantongIndexProps {
 
 export default function KantongIndex({ kantongList, filters, stats, rolePrefix }: KantongIndexProps) {
     const [search, setSearch] = useState(filters.search || '');
-    const [categoryFilter, setCategoryFilter] = useState(filters.category || 'all');
+    const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
@@ -79,9 +79,9 @@ export default function KantongIndex({ kantongList, filters, stats, rolePrefix }
         const timeoutId = setTimeout(() => {
             const queryParams: any = {};
             if (search) queryParams.search = search;
-            if (categoryFilter !== 'all') queryParams.category = categoryFilter;
+            if (statusFilter !== 'all') queryParams.status = statusFilter;
 
-            if (search !== (filters.search || '') || categoryFilter !== (filters.category || 'all')) {
+            if (search !== (filters.search || '') || statusFilter !== (filters.status || 'all')) {
                 router.get(`/${rolePrefix}/kantong`, queryParams, {
                     preserveState: true,
                     preserveScroll: true,
@@ -91,7 +91,7 @@ export default function KantongIndex({ kantongList, filters, stats, rolePrefix }
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [search, categoryFilter]);
+    }, [search, statusFilter]);
 
     const handleTargetAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
@@ -270,14 +270,14 @@ export default function KantongIndex({ kantongList, filters, stats, rolePrefix }
                         <div className="flex flex-wrap gap-2 p-1 bg-slate-100/80 rounded-full self-start md:self-auto">
                             {[
                                 { key: 'all', label: 'SEMUA' },
-                                { key: 'pembayaran', label: 'PEMBAYARAN' },
-                                { key: 'tabungan', label: 'TABUNGAN' },
+                                { key: 'aktif', label: 'AKTIF' },
+                                { key: 'nonaktif', label: 'NONAKTIF' },
                             ].map((tab) => (
                                 <button
                                     key={tab.key}
-                                    onClick={() => setCategoryFilter(tab.key)}
+                                    onClick={() => setStatusFilter(tab.key)}
                                     className={`px-4 py-1.5 text-[10px] font-semibold rounded-full transition-all uppercase tracking-[0.2em] ${
-                                        categoryFilter === tab.key
+                                        statusFilter === tab.key
                                             ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
                                             : 'text-slate-500 hover:text-slate-700'
                                     }`}
@@ -333,30 +333,15 @@ export default function KantongIndex({ kantongList, filters, stats, rolePrefix }
                                         <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                                                        item.is_default
-                                                            ? 'bg-emerald-100 text-emerald-700'
-                                                            : 'bg-indigo-100 text-indigo-700'
-                                                    }`}>
+                                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-indigo-100 text-indigo-700">
                                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            {item.is_default ? (
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                                            ) : (
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                                            )}
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                                         </svg>
                                                     </div>
                                                     <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="text-sm font-semibold text-slate-900 tracking-tight">
-                                                                {item.name}
-                                                            </p>
-                                                            {item.is_default && (
-                                                                <span className="px-2 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-md bg-emerald-100 text-emerald-800">
-                                                                    Default
-                                                                </span>
-                                                            )}
-                                                        </div>
+                                                        <p className="text-sm font-semibold text-slate-900 tracking-tight">
+                                                            {item.name}
+                                                        </p>
                                                         <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
                                                             {item.description || 'Tidak ada deskripsi'}
                                                         </p>
@@ -364,12 +349,8 @@ export default function KantongIndex({ kantongList, filters, stats, rolePrefix }
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-semibold border uppercase tracking-[0.2em] ${
-                                                    item.category === 'tabungan'
-                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200/70'
-                                                        : 'bg-indigo-50 text-indigo-700 border-indigo-200/70'
-                                                }`}>
-                                                    {item.category === 'tabungan' ? 'Tabungan Utama' : 'Pembayaran'}
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-semibold border uppercase tracking-[0.2em] bg-indigo-50 text-indigo-700 border-indigo-200/70">
+                                                    Pembayaran
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-600 font-medium">
