@@ -221,7 +221,6 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Transaksi</th>
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Nasabah</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Tipe</th>
-                                    <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Status</th>
                                     <th className="px-6 py-4 text-right text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Jumlah</th>
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Info / Petugas</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Aksi</th>
@@ -230,7 +229,7 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                             <tbody className="divide-y divide-slate-100">
                                 {transactions.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="px-6 py-12 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
+                                        <td colSpan={7} className="px-6 py-12 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
                                             Tidak ada riwayat transaksi ditemukan
                                         </td>
                                     </tr>
@@ -265,17 +264,6 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                                                 }`}>
                                                     {tx.jenis_transaksi.replace('_', ' ')}
                                                 </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-center whitespace-nowrap">
-                                                {tx.status === 'cancelled' ? (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-widest bg-rose-50 text-rose-700 border-rose-200">
-                                                        Batal
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-widest bg-emerald-50 text-emerald-700 border-emerald-200">
-                                                        Valid
-                                                    </span>
-                                                )}
                                             </td>
                                             <td className={`px-6 py-4 text-right whitespace-nowrap text-sm font-black tracking-tighter ${
                                                 tx.status === 'cancelled' ? 'text-gray-400 line-through' : (

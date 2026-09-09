@@ -254,16 +254,13 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th style="width: 10%;">KODE SLIP</th>
-                    <th style="width: 8%;">TANGGAL</th>
-                    <th style="width: 19%;">IDENTITAS NASABAH</th>
-                    <th style="width: 7%;">AKSI</th>
-                    <th style="width: 7%;">STATUS</th>
-                    <th style="width: 10%;">PETUGAS</th>
-                    <th style="width: 11%;">SALDO AWAL</th>
-                    <th style="width: 11%;">SALDO AKHIR</th>
-                    <th style="width: 8%;">DEBIT</th>
-                    <th style="width: 9%;">KREDIT</th>
+                    <th style="width: 14%;">KODE SLIP</th>
+                    <th style="width: 11%;">TANGGAL</th>
+                    <th style="width: 27%;">IDENTITAS NASABAH</th>
+                    <th style="width: 10%;">AKSI</th>
+                    <th style="width: 14%;">PETUGAS</th>
+                    <th style="width: 12%;">DEBIT</th>
+                    <th style="width: 12%;">KREDIT</th>
                 </tr>
             </thead>
             <tbody>
@@ -359,18 +356,13 @@
                         <div style="font-size: 9px;">REK: {{ $row->nasabah?->nomor_rekening ?? '-' }}</div>
                     </td>
                     <td class="text-center">{{ $aksi }}</td>
-                    <td class="text-center" style="font-weight: bold; color: {{ $row->status === 'cancelled' ? '#e11d48' : '#059669' }};">
-                        {{ $row->status === 'cancelled' ? 'Batal' : 'Valid' }}
-                    </td>
                     <td class="text-center">{{ $petugasName }}</td>
-                    <td class="text-right">{{ number_format($row->saldo_sebelum ?? 0, 0, ',', '.') }}</td>
-                    <td class="text-right">{{ number_format($row->saldo_sesudah ?? 0, 0, ',', '.') }}</td>
                     <td class="text-right">{{ $debit > 0 ? number_format($debit, 0, ',', '.') : '-' }}</td>
                     <td class="text-right">{{ $kredit > 0 ? number_format($kredit, 0, ',', '.') : '-' }}</td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="10" class="text-center">Tidak ada data transaksi</td>
+                    <td colspan="7" class="text-center">Tidak ada data transaksi</td>
                 </tr>
                 @endforelse
             </tbody>

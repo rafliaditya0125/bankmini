@@ -271,7 +271,6 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                                     <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Transaksi</th>
                                     <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Nasabah</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">Tipe</th>
-                                    <th className="px-6 py-4 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
                                     <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Jumlah</th>
                                     <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Info / Petugas</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">Aksi</th>
@@ -280,7 +279,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                             <tbody className="divide-y divide-gray-100">
                                 {transactions.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="px-6 py-12 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                        <td colSpan={7} className="px-6 py-12 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                             Tidak ada riwayat transaksi ditemukan
                                         </td>
                                     </tr>
@@ -318,17 +317,6 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                                                 }`}>
                                                     {transaction.jenis_transaksi}
                                                 </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-center whitespace-nowrap">
-                                                {transaction.status === 'cancelled' ? (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-widest bg-rose-50 text-rose-700 border-rose-200">
-                                                        Batal
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-widest bg-emerald-50 text-emerald-700 border-emerald-200">
-                                                        Valid
-                                                    </span>
-                                                )}
                                             </td>
                                             <td className={`px-6 py-4 text-right whitespace-nowrap text-sm font-black tracking-tighter ${
                                                 transaction.status === 'cancelled' ? 'text-gray-400 line-through' : (
