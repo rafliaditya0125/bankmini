@@ -254,15 +254,13 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th style="width: 10%;">KODE SLIP</th>
-                    <th style="width: 9%;">TANGGAL</th>
-                    <th style="width: 20%;">IDENTITAS NASABAH</th>
-                    <th style="width: 8%;">AKSI</th>
-                    <th style="width: 11%;">PETUGAS</th>
-                    <th style="width: 12%;">SALDO AWAL</th>
-                    <th style="width: 12%;">SALDO AKHIR</th>
-                    <th style="width: 9%;">DEBIT</th>
-                    <th style="width: 9%;">KREDIT</th>
+                    <th style="width: 14%;">KODE SLIP</th>
+                    <th style="width: 11%;">TANGGAL</th>
+                    <th style="width: 27%;">IDENTITAS NASABAH</th>
+                    <th style="width: 10%;">AKSI</th>
+                    <th style="width: 14%;">PETUGAS</th>
+                    <th style="width: 12%;">DEBIT</th>
+                    <th style="width: 12%;">KREDIT</th>
                 </tr>
             </thead>
             <tbody>
@@ -297,27 +295,32 @@
                         $identityClass = $groupName;
                     }
 
-                    // Hitung berdasarkan jenis transaksi
-                    if ($row->jenis_transaksi === 'setor') {
-                        $totalSetoranKeseluruhan += $row->jumlah;
-                        if (!isset($setoranByGroup[$groupName])) {
-                            $setoranByGroup[$groupName] = 0;
+                    // Hitung akumulasi hanya jika transaksi tidak dibatalkan
+                    if ($row->status !== 'cancelled') {
+                        if ($row->jenis_transaksi === 'setor') {
+                            $totalSetoranKeseluruhan += $row->jumlah;
+                            if (!isset($setoranByGroup[$groupName])) {
+                                $setoranByGroup[$groupName] = 0;
+                            }
+                            $setoranByGroup[$groupName] += $row->jumlah;
+                            $debit = 0;
+                            $kredit = $row->jumlah;
+                        } elseif ($row->jenis_transaksi === 'tarik') {
+                            $totalPenarikKeseluruhan += $row->jumlah;
+                            if (!isset($penarikByGroup[$groupName])) {
+                                $penarikByGroup[$groupName] = 0;
+                            }
+                            $penarikByGroup[$groupName] += $row->jumlah;
+                            $debit = $row->jumlah;
+                            $kredit = 0;
+                        } elseif ($row->jenis_transaksi === 'transfer') {
+                            $totalTransfer += $row->jumlah;
+                            $debit = 0;
+                            $kredit = 0;
+                        } else {
+                            $debit = 0;
+                            $kredit = 0;
                         }
-                        $setoranByGroup[$groupName] += $row->jumlah;
-                        $debit = 0;
-                        $kredit = $row->jumlah;
-                    } elseif ($row->jenis_transaksi === 'tarik') {
-                        $totalPenarikKeseluruhan += $row->jumlah;
-                        if (!isset($penarikByGroup[$groupName])) {
-                            $penarikByGroup[$groupName] = 0;
-                        }
-                        $penarikByGroup[$groupName] += $row->jumlah;
-                        $debit = $row->jumlah;
-                        $kredit = 0;
-                    } elseif ($row->jenis_transaksi === 'transfer') {
-                        $totalTransfer += $row->jumlah;
-                        $debit = 0;
-                        $kredit = 0;
                     } else {
                         $debit = 0;
                         $kredit = 0;
@@ -354,14 +357,12 @@
                     </td>
                     <td class="text-center">{{ $aksi }}</td>
                     <td class="text-center">{{ $petugasName }}</td>
-                    <td class="text-right">{{ number_format($row->saldo_sebelum ?? 0, 0, ',', '.') }}</td>
-                    <td class="text-right">{{ number_format($row->saldo_sesudah ?? 0, 0, ',', '.') }}</td>
                     <td class="text-right">{{ $debit > 0 ? number_format($debit, 0, ',', '.') : '-' }}</td>
                     <td class="text-right">{{ $kredit > 0 ? number_format($kredit, 0, ',', '.') : '-' }}</td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9" class="text-center">Tidak ada data transaksi</td>
+                    <td colspan="7" class="text-center">Tidak ada data transaksi</td>
                 </tr>
                 @endforelse
             </tbody>
