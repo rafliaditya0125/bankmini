@@ -27,12 +27,14 @@ interface TellerTransaksiProps {
         from_date?: string;
         to_date?: string;
         type?: string;
+        status?: string;
     };
 }
 
 export default function TellerTransaksi({ transactions, filters }: TellerTransaksiProps) {
     const [search, setSearch] = useState(filters.search || '');
     const [type, setType] = useState(filters.type || '');
+    const [status, setStatus] = useState(filters.status || 'valid');
     const [viewAll, setViewAll] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
     const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -52,6 +54,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
             router.get('/teller/transaksi', {
                 search,
                 type,
+                status,
                 view_all: viewAll ? 'true' : 'false',
             }, {
                 preserveState: true,
@@ -61,7 +64,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
         }, 300);
 
         return () => clearTimeout(timer);
-    }, [search, type, viewAll]);
+    }, [search, type, status, viewAll]);
 
     // Auto-refresh data every 10 seconds to ensure latest transactions are shown
     useEffect(() => {
@@ -73,6 +76,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
             router.get('/teller/transaksi', {
                 search,
                 type,
+                status,
                 view_all: viewAll ? 'true' : 'false',
             }, {
                 preserveState: true,
@@ -82,12 +86,13 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
         }, 10000); // Refresh every 10 seconds
 
         return () => clearInterval(refreshInterval);
-    }, [search, type, viewAll, showReceiptModal, showCancelModal, isCancelling]);
+    }, [search, type, status, viewAll, showReceiptModal, showCancelModal, isCancelling]);
 
     const handleReset = () => {
         setSearch('');
         setType('');
-        router.get('/teller/transaksi');
+        setStatus('valid');
+        router.get('/teller/transaksi', { status: 'valid' });
     };
 
     const handleViewReceipt = (tx: any) => {
@@ -220,6 +225,18 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                                 <option value="bayar">Bayar</option>
                             </select>
                         </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Status</label>
+                            <select
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value)}
+                                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-black uppercase tracking-widest text-xs focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all appearance-none bg-white"
+                            >
+                                <option value="valid">Valid (Aktif)</option>
+                                <option value="cancelled">Dibatalkan</option>
+                                <option value="all">Semua Status</option>
+                            </select>
+                        </div>
                         <div className="flex items-end gap-2">
                             <button onClick={handleReset} className="px-4 py-2.5 text-slate-500 hover:text-rose-500 transition-colors bg-slate-50 rounded-2xl border border-slate-200 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15" /></svg>
@@ -254,6 +271,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                                     <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Transaksi</th>
                                     <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Nasabah</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">Tipe</th>
+                                    <th className="px-6 py-4 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
                                     <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Jumlah</th>
                                     <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Info / Petugas</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">Aksi</th>
@@ -262,7 +280,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                             <tbody className="divide-y divide-gray-100">
                                 {transactions.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-12 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                        <td colSpan={8} className="px-6 py-12 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                             Tidak ada riwayat transaksi ditemukan
                                         </td>
                                     </tr>
@@ -301,6 +319,17 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                                                     {transaction.jenis_transaksi}
                                                 </span>
                                             </td>
+                                            <td className="px-6 py-4 text-center whitespace-nowrap">
+                                                {transaction.status === 'cancelled' ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-widest bg-rose-50 text-rose-700 border-rose-200">
+                                                        Batal
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black border uppercase tracking-widest bg-emerald-50 text-emerald-700 border-emerald-200">
+                                                        Valid
+                                                    </span>
+                                                )}
+                                            </td>
                                             <td className={`px-6 py-4 text-right whitespace-nowrap text-sm font-black tracking-tighter ${
                                                 transaction.status === 'cancelled' ? 'text-gray-400 line-through' : (
                                                     transaction.jenis_transaksi === 'setor' ? 'text-emerald-600' :
@@ -308,7 +337,6 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                                                     'text-blue-600'
                                                 )
                                             }`}>
-                                                {transaction.status === 'cancelled' && <span className="block text-[8px] uppercase tracking-widest text-rose-500 mb-0.5">Dibatalkan</span>}
                                                 {formatRupiah(transaction.jumlah)}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
