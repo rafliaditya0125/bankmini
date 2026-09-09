@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Shared;
 use App\Http\Controllers\Controller;
 use App\Models\Nasabah;
 use App\Models\Transaksi;
+use App\Models\WalletType;
+use App\Models\Setting;
 use App\Services\TransactionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -249,8 +251,26 @@ class TransactionController extends Controller
     {
         $pengirim = null;
         if ($request->has('pengirim_rekening') && $request->pengirim_rekening) {
-            $pengirim = Nasabah::with(['user', 'rombelRel'])->where('nomor_rekening', $request->pengirim_rekening)->first();
+            $pengirim = Nasabah::with(['user', 'rombelRel', 'wallets.walletType'])->where('nomor_rekening', $request->pengirim_rekening)->first();
         }
+
+        $kantongList = WalletType::pembayaran()->active()->get();
+
+        // Get payment methods from Setting
+        $settingTypes = Setting::get('transaction_types', 'Tunai, Transfer, Kliring, Cek / BG');
+        $rawMethods = array_filter(array_map('trim', explode(',', $settingTypes)));
+        $metodeList = [];
+        foreach ($rawMethods as $m) {
+            $metodeList[] = [
+                'value' => strtolower(str_replace(' ', '_', $m)),
+                'label' => $m,
+            ];
+        }
+        // Add Potong Tabungan
+        $metodeList[] = [
+            'value' => 'potong_tabungan',
+            'label' => 'Potong Tabungan (Auto-Debit)',
+        ];
 
         $pembayaranAccounts = Nasabah::with('user')
             ->whereHas('user', function ($q) {
@@ -261,6 +281,8 @@ class TransactionController extends Controller
 
         return Inertia::render('shared/Transaction/Bayar', [
             'pengirim' => $pengirim,
+            'kantongList' => $kantongList,
+            'metodeList' => $metodeList,
             'pembayaranAccounts' => $pembayaranAccounts,
             'minBayar' => 1000,
         ]);
@@ -275,26 +297,28 @@ class TransactionController extends Controller
 
         $rules = [
             'pengirim_rekening' => 'required|exists:nasabah,nomor_rekening',
-            'penerima_rekening' => 'required|exists:nasabah,nomor_rekening|different:pengirim_rekening',
+            'wallet_type_id' => 'nullable|exists:wallet_types,id',
+            'penerima_rekening' => 'nullable|exists:nasabah,nomor_rekening',
+            'metode_pembayaran' => 'required|string',
             'jumlah' => 'required|numeric|min:' . $minBayar,
             'tanggal_transaksi' => 'required|date',
             'keterangan' => 'nullable|string|max:255',
             'nama_petugas' => 'required|string|max:255',
         ];
 
-        $messages = [
-            'penerima_rekening.different' => 'Rekening tujuan tidak boleh sama dengan rekening pengirim.',
-        ];
+        $validated = $request->validate($rules);
 
-        $validated = $request->validate($rules, $messages);
+        if (empty($validated['wallet_type_id']) && empty($validated['penerima_rekening'])) {
+            return back()->withErrors(['wallet_type_id' => 'Pilih kantong pembayaran tujuan.']);
+        }
 
         $validated['kode_transaksi'] = $this->generateKodeTransaksi('BYR');
 
         try {
             $result = $this->transactionService->bayar($validated, $this->getRole());
-            $penerima = Nasabah::where('nomor_rekening', $validated['penerima_rekening'])->first();
+            $targetName = $result['jenis_pembayaran'] ?? 'Pembayaran';
             return redirect()->route($this->getRolePrefix() . '.bayar.index')
-                ->with('success', 'Pembayaran sebesar Rp ' . number_format($validated['jumlah'], 0, ',', '.') . ' untuk ' . $penerima->user->name . ' berhasil diproses')
+                ->with('success', 'Pembayaran sebesar Rp ' . number_format($validated['jumlah'], 0, ',', '.') . ' untuk ' . $targetName . ' berhasil diproses')
                 ->with('transaction', $result);
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal: ' . $e->getMessage());

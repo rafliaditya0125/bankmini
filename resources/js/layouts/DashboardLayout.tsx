@@ -85,7 +85,8 @@ export default function DashboardLayout({ header, children }: DashboardLayoutPro
     const isKelolaUserActive = () => {
         return currentUrl.startsWith(`/${rolePrefix}/nasabah`) ||
                currentUrl.startsWith(`/${rolePrefix}/petugas`) ||
-               currentUrl.startsWith(`/${rolePrefix}/jurusan`);
+               currentUrl.startsWith(`/${rolePrefix}/jurusan`) ||
+               currentUrl.startsWith(`/${rolePrefix}/kantong`);
     };
 
     const isTransaksiActive = () => {
@@ -112,6 +113,7 @@ export default function DashboardLayout({ header, children }: DashboardLayoutPro
                     { name: 'Kelola Nasabah', href: `/${rolePrefix}/nasabah` },
                     { name: 'Kelola Petugas', href: `/${rolePrefix}/petugas` },
                     { name: 'Kelola Jurusan', href: `/${rolePrefix}/jurusan` },
+                    { name: 'Kelola Kantong', href: `/${rolePrefix}/kantong` },
                 ]
             },
             {

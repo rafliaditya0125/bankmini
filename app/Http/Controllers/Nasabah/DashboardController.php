@@ -25,9 +25,18 @@ class DashboardController extends Controller
             ->take(10)
             ->get();
 
+        // Pockets / Wallets
+        $wallets = $nasabah->wallets()
+            ->with('walletType')
+            ->whereHas('walletType', function ($q) {
+                $q->where('is_active', true);
+            })
+            ->get();
+
         return Inertia::render('nasabah/Dashboard', [
             'nasabah' => $nasabah,
             'recent_transactions' => $recent_transactions,
+            'wallets' => $wallets,
         ]);
     }
 }

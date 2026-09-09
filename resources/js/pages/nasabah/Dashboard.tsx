@@ -1,14 +1,17 @@
-﻿import { Head, Link } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
-import type { Nasabah, Transaksi } from '@/types';
+import type { Nasabah, Transaksi, Wallet, WalletType } from '@/types';
 import { formatRupiah } from '@/lib/utils';
 
 interface NasabahDashboardProps {
     nasabah: Nasabah;
     recent_transactions: Transaksi[];
+    wallets?: (Wallet & { wallet_type?: WalletType })[];
 }
 
-export default function NasabahDashboard({ nasabah, recent_transactions = [] }: NasabahDashboardProps) {
+export default function NasabahDashboard({ nasabah, recent_transactions = [], wallets = [] }: NasabahDashboardProps) {
+    const paymentWallets = wallets.filter((w) => w.wallet_type?.category === 'pembayaran');
+
     return (
         <DashboardLayout
             header={
@@ -33,7 +36,7 @@ export default function NasabahDashboard({ nasabah, recent_transactions = [] }: 
                                 </div>
 
                                 <div>
-                                    <p className="text-[10px] font-black text-emerald-200 uppercase tracking-[0.2em] mb-2">Saldo Tersedia</p>
+                                    <p className="text-[10px] font-black text-emerald-200 uppercase tracking-[0.2em] mb-2">Saldo Tabungan Utama</p>
                                     <p className="text-4xl md:text-5xl font-black tracking-tighter">{formatRupiah(nasabah?.saldo || 0)}</p>
                                 </div>
 
@@ -51,7 +54,7 @@ export default function NasabahDashboard({ nasabah, recent_transactions = [] }: 
         >
             <Head title="Dashboard" />
 
-            <div className="space-y-4">
+            <div className="space-y-6">
                 {/* Status Notification for Non-Active Accounts */}
                 {nasabah?.status !== 'aktif' && (
                     <div className="rounded-2xl bg-rose-50 border border-rose-200 p-6 flex items-center gap-4 shadow-sm shadow-rose-50">
@@ -67,6 +70,99 @@ export default function NasabahDashboard({ nasabah, recent_transactions = [] }: 
                                 {' Rekening Anda telah dinonaktifkan.'}
                                 Silakan hubungi petugas bank untuk informasi lebih lanjut.
                             </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Kantong Pembayaran Saya Section */}
+                {paymentWallets.length > 0 && (
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between px-1">
+                            <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em]">
+                                Kantong Pembayaran Saya
+                            </h2>
+                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
+                                {paymentWallets.length} Kantong
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {paymentWallets.map((wallet) => {
+                                const target = wallet.wallet_type?.target_amount ? Number(wallet.wallet_type.target_amount) : null;
+                                const balance = Number(wallet.balance);
+                                const isLunas = target !== null && balance >= target;
+                                const isSebagian = target !== null && balance > 0 && balance < target;
+                                const sisa = target !== null ? Math.max(0, target - balance) : null;
+                                const percentage = target ? Math.min(100, Math.round((balance / target) * 100)) : 100;
+
+                                return (
+                                    <div
+                                        key={wallet.id}
+                                        className="rounded-2xl bg-white border border-slate-200/70 p-5 shadow-xs hover:border-indigo-200 transition-all space-y-3"
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div>
+                                                <h3 className="font-bold text-sm text-slate-900 tracking-tight">
+                                                    {wallet.wallet_type?.name}
+                                                </h3>
+                                                <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">
+                                                    {wallet.wallet_type?.description || 'Pos dana pembayaran'}
+                                                </p>
+                                            </div>
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border shrink-0 ${
+                                                isLunas
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                    : isSebagian
+                                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                                    : balance > 0
+                                                    ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                                    : 'bg-slate-100 text-slate-500 border-slate-200'
+                                            }`}>
+                                                {isLunas
+                                                    ? 'Lunas'
+                                                    : isSebagian
+                                                    ? 'Sebagian'
+                                                    : balance > 0
+                                                    ? 'Tersedia'
+                                                    : 'Belum Bayar'}
+                                            </span>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                Saldo Terkumpul
+                                            </p>
+                                            <p className="text-xl font-black text-indigo-900 tracking-tight mt-0.5">
+                                                {formatRupiah(balance)}
+                                            </p>
+                                        </div>
+
+                                        {target !== null && (
+                                            <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                                                <div className="flex items-center justify-between text-[10px]">
+                                                    <span className="text-slate-400">Target: {formatRupiah(target)}</span>
+                                                    <span className={`font-bold ${isLunas ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                        {percentage}%
+                                                    </span>
+                                                </div>
+                                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                                    <div
+                                                        className={`h-1.5 rounded-full transition-all duration-500 ${
+                                                            isLunas ? 'bg-emerald-500' : 'bg-indigo-600'
+                                                        }`}
+                                                        style={{ width: `${percentage}%` }}
+                                                    />
+                                                </div>
+                                                {!isLunas && sisa !== null && (
+                                                    <p className="text-[9px] text-amber-600 font-semibold text-right">
+                                                        Sisa tagihan: {formatRupiah(sisa)}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

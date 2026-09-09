@@ -27,6 +27,8 @@ class Transaksi extends Model
         'cancel_reason',
         'tanggal_transaksi',
         'nama_petugas',
+        'wallet_id',
+        'metode_pembayaran',
     ];
 
     protected $casts = [
@@ -41,6 +43,14 @@ class Transaksi extends Model
     public function nasabah()
     {
         return $this->belongsTo(Nasabah::class);
+    }
+
+    /**
+     * Relationship with Wallet
+     */
+    public function wallet()
+    {
+        return $this->belongsTo(Wallet::class);
     }
 
     /**

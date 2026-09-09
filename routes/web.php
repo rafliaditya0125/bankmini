@@ -11,6 +11,7 @@ use App\Http\Controllers\Superadmin\PengaturanController as SuperadminPengaturan
 use App\Http\Controllers\Superadmin\BackupController as SuperadminBackupController;
 use App\Http\Controllers\Superadmin\AuditTrailController as SuperadminAuditTrailController;
 use App\Http\Controllers\Superadmin\JurusanController as SuperadminJurusanController;
+use App\Http\Controllers\Superadmin\KantongController as SuperadminKantongController;
 use App\Http\Controllers\Shared\TransactionController as SharedTransactionController;
 use App\Http\Controllers\Shared\ProfileController as SharedProfileController;
 use App\Http\Controllers\Teller\DashboardController as TellerDashboardController;
@@ -190,6 +191,7 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::post('/kelas/bulk-promote', [\App\Http\Controllers\Superadmin\RombelController::class, 'bulkPromote'])->name('kelas.bulk-promote');
     Route::post('/kelas/bulk-delete', [\App\Http\Controllers\Superadmin\RombelController::class, 'bulkDelete'])->name('kelas.bulk-delete');
     Route::resource('kelas', \App\Http\Controllers\Superadmin\RombelController::class);
+    Route::resource('kantong', SuperadminKantongController::class)->except(['create', 'edit']);
     Route::get('/setor', [SharedTransactionController::class, 'setorIndex'])->name('setor.index');
     Route::post('/setor', [SharedTransactionController::class, 'setorStore'])->name('setor.store')->middleware('log');
 
@@ -279,6 +281,7 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     Route::post('/kelas/bulk-promote', [\App\Http\Controllers\Superadmin\RombelController::class, 'bulkPromote'])->name('kelas.bulk-promote');
     Route::post('/kelas/bulk-delete', [\App\Http\Controllers\Superadmin\RombelController::class, 'bulkDelete'])->name('kelas.bulk-delete');
     Route::resource('kelas', \App\Http\Controllers\Superadmin\RombelController::class);
+    Route::resource('kantong', SuperadminKantongController::class)->except(['create', 'edit']);
     Route::get('/setor', [SharedTransactionController::class, 'setorIndex'])->name('setor.index');
     Route::post('/setor', [SharedTransactionController::class, 'setorStore'])->name('setor.store')->middleware('log');
 
