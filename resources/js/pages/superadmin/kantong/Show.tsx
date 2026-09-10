@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
+import Dropdown, { DropdownItem } from '@/components/Dropdown';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import Pagination from '@/components/Pagination';
 import type { WalletType } from '@/types';
@@ -350,27 +351,31 @@ export default function KantongShow({ kantong, nasabahs, rombels, stats, filters
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Link
-                                                        href={`/${rolePrefix}/bayar?pengirim_rekening=${item.nomor_rekening}&wallet_type_id=${kantong.id}`}
-                                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-xs"
-                                                        title="Input Pembayaran untuk siswa ini"
+                                                <div className="flex items-center justify-center">
+                                                    <Dropdown
+                                                        trigger={
+                                                            <button className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all" title="Opsi">
+                                                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                                                </svg>
+                                                            </button>
+                                                        }
                                                     >
-                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                        </svg>
-                                                        Bayar
-                                                    </Link>
-                                                    <Link
-                                                        href={`/${rolePrefix}/nasabah/${item.id}`}
-                                                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
-                                                        title="Lihat Profil Lengkap Nasabah"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                        </svg>
-                                                    </Link>
+                                                        <DropdownItem
+                                                            href={`/${rolePrefix}/bayar?pengirim_rekening=${item.nomor_rekening}&wallet_type_id=${kantong.id}`}
+                                                            className="text-slate-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                                            icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
+                                                        >
+                                                            <span className="font-black text-[10px] uppercase tracking-widest">Bayar</span>
+                                                        </DropdownItem>
+                                                        <DropdownItem
+                                                            href={`/${rolePrefix}/nasabah/${item.id}`}
+                                                            className="border-t border-gray-100 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                                                            icon={<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>}
+                                                        >
+                                                            <span className="font-black text-[10px] uppercase tracking-widest">Lihat Profil</span>
+                                                        </DropdownItem>
+                                                    </Dropdown>
                                                 </div>
                                             </td>
                                         </tr>

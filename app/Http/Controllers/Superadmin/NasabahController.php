@@ -95,10 +95,21 @@ class NasabahController extends Controller
             ->take(10)
             ->get();
 
+        // Load wallets with their types, non-default first (tabungan utama first)
+        $wallets = \App\Models\Wallet::where('nasabah_id', $nasabah->id)
+            ->with('walletType')
+            ->get()
+            ->sortBy(fn($w) => $w->walletType?->is_default ? 0 : 1)
+            ->values();
+
+        $totalSaldo = $wallets->sum(fn($w) => (float) $w->balance);
+
         return Inertia::render('superadmin/nasabah/Show', [
             'nasabah' => $nasabah,
             'transactions' => $transactions,
             'jurusans' => Jurusan::orderBy('nama')->get(),
+            'wallets' => $wallets,
+            'total_saldo' => $totalSaldo,
         ]);
     }
 
