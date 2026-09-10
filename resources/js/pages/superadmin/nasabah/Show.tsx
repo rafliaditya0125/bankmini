@@ -6,15 +6,30 @@ import { formatRupiah, formatRombelName } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 
+interface WalletInfo {
+    id: number;
+    wallet_number: string;
+    balance: string | number;
+    status: string;
+    wallet_type: {
+        id: number;
+        name: string;
+        is_default: boolean;
+        description?: string;
+    };
+}
+
 interface ShowNasabahProps {
     nasabah: Nasabah & { user: User };
     transactions: Transaksi[];
     jurusans: { id: number; nama: string; kode: string }[];
+    wallets: WalletInfo[];
+    total_saldo: number;
 }
 
 type NasabahUserType = 'siswa' | 'kelas' | 'organisasi' | 'guru';
 
-export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNasabahProps) {
+export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, total_saldo }: ShowNasabahProps) {
     const page = usePage<any>();
     const rolePrefix = page.props.auth.user.role === 'superadmin' ? 'superadmin' : 'admin';
     const [editOpen, setEditOpen] = useState(false);
@@ -214,8 +229,8 @@ export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNas
                                             <svg className="h-4 w-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M12 16V15" /></svg>
                                         </div>
                                         <div>
-                                            <p className="text-[8px] font-black uppercase tracking-widest text-emerald-400/60">Saldo Saat Ini</p>
-                                            <p className="text-xl font-black tracking-tight text-white">{formatRupiah(nasabah.saldo)}</p>
+                                            <p className="text-[8px] font-black uppercase tracking-widest text-emerald-400/60">Total Saldo</p>
+                                            <p className="text-xl font-black tracking-tight text-white">{formatRupiah(total_saldo)}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -242,6 +257,72 @@ export default function ShowNasabah({ nasabah, transactions, jurusans }: ShowNas
                         </div>
                     </div>
                 </div>
+
+                {/* Wallet Breakdown */}
+                {wallets && wallets.length > 0 && (
+                    <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Rincian Saldo</h3>
+                                <p className="text-[11px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Tabungan & kantong pembayaran.</p>
+                            </div>
+                            <div className="h-14 w-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-inner">
+                                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {wallets.map((wallet) => (
+                                <div
+                                    key={wallet.id}
+                                    className={`relative rounded-2xl border p-5 transition-all hover:shadow-md ${
+                                        wallet.wallet_type.is_default
+                                            ? 'bg-emerald-50/60 border-emerald-100 hover:border-emerald-200'
+                                            : 'bg-slate-50/60 border-slate-100 hover:border-indigo-100'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${
+                                                wallet.wallet_type.is_default
+                                                    ? 'bg-emerald-500/10 text-emerald-600'
+                                                    : 'bg-indigo-500/10 text-indigo-600'
+                                            }`}>
+                                                {wallet.wallet_type.is_default ? (
+                                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M12 16V15" /></svg>
+                                                ) : (
+                                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                                )}
+                                            </div>
+                                            <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">{wallet.wallet_type.name}</p>
+                                        </div>
+                                        {wallet.wallet_type.is_default && (
+                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-600">Utama</span>
+                                        )}
+                                    </div>
+                                    <p className={`text-lg font-black tracking-tight ${
+                                        wallet.wallet_type.is_default ? 'text-emerald-700' : 'text-slate-800'
+                                    }`}>
+                                        {formatRupiah(wallet.balance)}
+                                    </p>
+                                    <p className="text-[9px] font-mono text-slate-400 mt-1">{wallet.wallet_number}</p>
+                                    {!wallet.wallet_type.is_default && total_saldo > 0 && (
+                                        <div className="mt-3">
+                                            <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-1 bg-indigo-400 rounded-full transition-all"
+                                                    style={{ width: `${Math.min(100, (Number(wallet.balance) / total_saldo) * 100)}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-[9px] font-semibold text-slate-400 mt-1">
+                                                {((Number(wallet.balance) / total_saldo) * 100).toFixed(1)}% dari total
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Detail Card */}
