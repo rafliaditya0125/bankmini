@@ -36,7 +36,7 @@
 </head>
 <body onload="{{ request()->has('print') ? 'window.print()' : '' }}">
     <div class="header">
-        <h1>{{ \App\Models\Setting::get('bank_name', 'BANK MINI SMEACIS') }}</h1>
+        <h1>{{ \App\Models\Setting::get('bank_name', 'BANK MINI') }}</h1>
         <p>{{ \App\Models\Setting::get('address', 'Jl. Jend. Sudirman No. 269, Ciamis') }}</p>
     </div>
 

@@ -97,16 +97,6 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
         });
     };
 
-    // Otomatis cari rekening saat input berubah
-    useEffect(() => {
-        if (searchTimeout.current) clearTimeout(searchTimeout.current);
-        if (searchAccount && searchAccount.length >= 6) {
-            searchTimeout.current = setTimeout(() => {
-                handleSearch(searchAccount);
-            }, 500); // debounce 500ms
-        }
-    }, [searchAccount]);
-
     useEffect(() => {
         if (bkkBkmMode !== 'manual') {
             setBkkStatus('idle');
@@ -211,7 +201,7 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-rose-200">Tarik Tunai</p>
                             <h1 className="mt-2 text-3xl md:text-4xl font-black tracking-tight">Transaksi Penarikan</h1>
-                            <p className="mt-2 text-sm text-rose-100/80 max-w-xl">Layanan pengeluaran dana nasabah SMEACIS dengan kontrol keamanan berlapis.</p>
+                            <p className="mt-2 text-sm text-rose-100/80 max-w-xl">Layanan pengeluaran dana nasabah {name || 'Bank Mini'} dengan kontrol keamanan berlapis.</p>
                         </div>
                     </div>
                 </div>
@@ -221,6 +211,8 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
                 <div className="xl:col-span-7 space-y-6">
+                    {/* Search Section — only visible when no nasabah selected */}
+                    {!nasabah && (
                     <div className="rounded-3xl border border-slate-200/70 bg-white/90 p-6 md:p-8 shadow-sm">
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
                             <div>
@@ -237,6 +229,7 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
                             />
                         </div>
                     </div>
+                    )}
 
                     {nasabah && (
                         <div className="rounded-2xl border border-slate-200/70 bg-white/95 p-4 md:p-5 shadow-sm">
@@ -472,6 +465,14 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
                                 <div>
                                     <p className="text-[10px] font-black text-rose-200 uppercase tracking-widest">Informasi Rekening Aktif</p>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => router.get(`/${rolePrefix}/tarik`, {}, { preserveState: false })}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                                >
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    Ganti
+                                </button>
                             </div>
                             <div className="flex flex-col items-center mb-4 relative z-10">
                                 <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-xl font-black mb-2 border border-white/20 overflow-hidden">

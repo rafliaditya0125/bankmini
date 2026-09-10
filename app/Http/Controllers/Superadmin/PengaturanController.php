@@ -45,6 +45,8 @@ class PengaturanController extends Controller
             Setting::set($key, $value);
         }
 
+        Setting::syncManifest();
+
         return back()->with('success', 'Pengaturan berhasil disimpan');
     }
 

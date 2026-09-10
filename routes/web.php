@@ -26,6 +26,35 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
+Route::get('/manifest.json', function () {
+    $bankName = \App\Models\Setting::get('bank_name', 'Bank Mini');
+    $schoolName = \App\Models\Setting::get('school_name', 'SMK NEGERI 1 CIAMIS');
+
+    return response()->json([
+        'name' => $bankName,
+        'short_name' => $bankName,
+        'description' => "Aplikasi Pengelolaan {$bankName} - {$schoolName}",
+        'theme_color' => '#059669',
+        'background_color' => '#ffffff',
+        'display' => 'standalone',
+        'orientation' => 'portrait',
+        'scope' => '/',
+        'start_url' => '/',
+        'icons' => [
+            [
+                'src' => '/images/bankmini-removebg-preview.png',
+                'sizes' => '192x192',
+                'type' => 'image/png',
+            ],
+            [
+                'src' => '/images/bankmini-removebg-preview.png',
+                'sizes' => '512x512',
+                'type' => 'image/png',
+            ],
+        ],
+    ], 200, ['Content-Type' => 'application/manifest+json']);
+});
+
 // Authentication Routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');

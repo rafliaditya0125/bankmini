@@ -265,7 +265,7 @@ export default function DashboardLayout({ header, children }: DashboardLayoutPro
                         <div className="flex items-center gap-3">
                             <img
                                 src="/images/bankmini-removebg-preview.png"
-                                alt="Logo Bank Mini SMEACIS"
+                                alt={`Logo ${name || 'Bank Mini'}`}
                                 className="h-10 w-auto object-contain"
                             />
                             <span className="hidden sm:inline text-sm font-semibold text-slate-900 dark:text-white tracking-wide">{name}</span>

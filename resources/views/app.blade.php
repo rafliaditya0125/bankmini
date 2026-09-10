@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title inertia>{{ \App\Models\Setting::get('bank_name', config('app.name', 'Bank Mini')) }}</title>
 
         <link rel="icon" href="/images/bankmini-removebg-preview.png" type="image/png">
         <link rel="apple-touch-icon" href="/images/bankmini-removebg-preview.png">
@@ -13,7 +13,7 @@
         <meta name="theme-color" content="#059669">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <meta name="apple-mobile-web-app-title" content="Bank Mini">
+        <meta name="apple-mobile-web-app-title" content="{{ \App\Models\Setting::get('bank_name', 'Bank Mini') }}">
         <link rel="manifest" href="/manifest.json">
 
         <link rel="preconnect" href="https://fonts.bunny.net">

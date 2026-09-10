@@ -104,16 +104,6 @@ export default function Bayar({
         });
     };
 
-    // Debounced search for account number / student
-    useEffect(() => {
-        if (searchTimeout.current) clearTimeout(searchTimeout.current);
-        if (searchAccount && searchAccount.length >= 6) {
-            searchTimeout.current = setTimeout(() => {
-                handleSearch(searchAccount);
-            }, 500);
-        }
-    }, [searchAccount]);
-
     const selectedKantong = kantongList.find((k) => String(k.id) === String(data.wallet_type_id));
     const existingWallet = pengirim?.wallets?.find((w) => String(w.wallet_type_id) === String(data.wallet_type_id));
     const saldoKantongSaatIni = existingWallet ? Number(existingWallet.balance) : 0;
@@ -187,6 +177,8 @@ export default function Bayar({
             <Head title="Pembayaran Kantong" />
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+                {/* Search Section — only visible when no pengirim selected */}
+                {!pengirim && (
                 <div className="xl:col-span-12">
                     <div className="rounded-3xl border border-slate-200/70 bg-white/90 p-6 md:p-8 shadow-xs">
                         <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">
@@ -202,6 +194,7 @@ export default function Bayar({
                         </div>
                     </div>
                 </div>
+                )}
 
                 {pengirim && (
                     <div className="xl:col-span-12 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -293,28 +286,28 @@ export default function Bayar({
                                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
                                         Metode Pembayaran <span className="text-rose-500">*</span>
                                     </label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                        {metodeList.map((m) => {
-                                            const isSelected = data.metode_pembayaran === m.value;
-                                            return (
-                                                <button
-                                                    key={m.value}
-                                                    type="button"
-                                                    onClick={() => setData('metode_pembayaran', m.value)}
-                                                    className={`px-3.5 py-3 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all text-left flex flex-col justify-between h-16 ${
-                                                        isSelected
-                                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                                            : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-200'
-                                                    }`}
-                                                >
-                                                    <span className="line-clamp-1">{m.label}</span>
-                                                    <span className={`text-[8px] font-black tracking-widest ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>
-                                                        {m.value === 'potong_tabungan' ? 'AUTO-DEBIT' : 'LANGSUNG'}
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                    <select
+                                        value={data.metode_pembayaran}
+                                        onChange={(e) => setData('metode_pembayaran', e.target.value)}
+                                        required
+                                        className={`w-full px-4 py-3 bg-white border border-slate-200 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 rounded-2xl outline-none transition-all font-bold text-sm h-12 uppercase ${
+                                            errors.metode_pembayaran ? 'border-red-500' : ''
+                                        }`}
+                                    >
+                                        {metodeList.map((m) => (
+                                            <option key={m.value} value={m.value}>
+                                                {m.label} {m.value === 'potong_tabungan' ? '(AUTO-DEBIT)' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {data.metode_pembayaran === 'potong_tabungan' && (
+                                        <p className="text-[10px] text-indigo-600 font-semibold mt-1 ml-1 flex items-center gap-1">
+                                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                            Saldo akan dipotong otomatis dari Saldo Tabungan Utama nasabah.
+                                        </p>
+                                    )}
                                     {errors.metode_pembayaran && (
                                         <p className="text-[10px] font-black text-red-500 uppercase mt-1 ml-1">
                                             {errors.metode_pembayaran}
@@ -455,9 +448,19 @@ export default function Bayar({
                         <div className="flex flex-col gap-6 flex-1">
                             {/* Card Nasabah */}
                             <div className="rounded-3xl p-6 text-white shadow-xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-900 w-full space-y-4">
-                                <h2 className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">
-                                    Data Pembayar (Siswa / Nasabah)
-                                </h2>
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">
+                                        Data Pembayar (Siswa / Nasabah)
+                                    </h2>
+                                    <button
+                                        type="button"
+                                        onClick={() => router.get(`/${rolePrefix}/bayar`, {}, { preserveState: false })}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                                    >
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                        Ganti
+                                    </button>
+                                </div>
                                 <div className="flex items-center gap-3">
                                     <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-lg font-black border border-white/20 overflow-hidden">
                                         {pengirim.user.profile_photo_url && !pengirim.user.profile_photo_url.includes('ui-avatars') ? (

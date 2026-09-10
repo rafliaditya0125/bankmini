@@ -3,7 +3,18 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import '../css/app.css';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+let appName = import.meta.env.VITE_APP_NAME || 'Bank Mini';
+try {
+    const el = document.getElementById('app');
+    if (el?.dataset?.page) {
+        const page = JSON.parse(el.dataset.page);
+        if (page?.props?.name) {
+            appName = page.props.name;
+        }
+    }
+} catch (e) {
+    // fallback
+}
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
