@@ -12,6 +12,7 @@
         "php": "^8.2",
         "bacon/bacon-qr-code": "*",
         "inertiajs/inertia-laravel": "^2.0",
+        "jenssegers/agent": "*",
         "laravel-notification-channels/webpush": "*",
         "laravel/fortify": "*",
         "laravel/framework": "^12.0",

@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\CaptchaService;
+use App\Services\TrustedDeviceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,9 @@ use Inertia\Inertia;
 
 class LoginController extends Controller
 {
+    public function __construct(
+        private readonly TrustedDeviceService $trustedDeviceService,
+    ) {}
     /**
      * Display the login view.
      */
@@ -82,10 +86,46 @@ class LoginController extends Controller
             RateLimiter::clear($throttleKey);
             cache()->forget($lockoutCountKey);
 
-            // If Two-Factor Authentication is enabled and confirmed, redirect to 2FA challenge
+            // If Two-Factor Authentication is enabled, check for trusted device first
             if ($user->hasEnabledTwoFactorAuthentication()) {
+                // Trusted device? Skip 2FA entirely
+                if ($this->trustedDeviceService->isTrusted($user, $request)) {
+                    Auth::login($user, $request->boolean('remember'));
+                    $request->session()->regenerate();
+
+                    $identifier = $user->getIdentifier();
+                    $isUsingDefaultPassword = Hash::check($identifier, $user->password);
+
+                    if ($user->role === 'nasabah' && $isUsingDefaultPassword) {
+                        $request->session()->put('force_password_change', true);
+                    }
+
+                    $user->update(['last_login_at' => now()]);
+
+                    AuditLog::logActivity(
+                        'login_trusted_device',
+                        'User berhasil login tanpa 2FA via perangkat terpercaya',
+                        'success'
+                    );
+
+                    if ($user->role === 'nasabah' && $isUsingDefaultPassword) {
+                        return redirect()
+                            ->route('nasabah.profil.index')
+                            ->with('warning', 'Untuk keamanan akun, Anda wajib mengganti password default Anda.');
+                    }
+
+                    return redirect()->intended(match ($user->role) {
+                        'superadmin' => route('superadmin.dashboard'),
+                        'admin'      => route('admin.dashboard'),
+                        'teller'     => route('teller.dashboard'),
+                        'nasabah'    => route('nasabah.dashboard'),
+                        default      => route('home'),
+                    });
+                }
+
+                // Not trusted → go through 2FA challenge
                 $request->session()->put([
-                    'login.id' => $user->getKey(),
+                    'login.id'       => $user->getKey(),
                     'login.remember' => $request->boolean('remember'),
                 ]);
 

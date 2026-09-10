@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\CaptchaService;
+use App\Services\TrustedDeviceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,9 @@ use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 
 class TwoFactorAuthenticatedSessionController extends Controller
 {
+    public function __construct(
+        private readonly TrustedDeviceService $trustedDeviceService,
+    ) {}
     /**
      * Show the two factor authentication challenge view.
      */
@@ -33,9 +37,10 @@ class TwoFactorAuthenticatedSessionController extends Controller
         }
 
         return Inertia::render('Auth/TwoFactorChallenge', [
-            'status' => session('status'),
-            'user_name' => $user->name,
+            'status'     => session('status'),
+            'user_name'  => $user->name,
             'user_email' => $user->email,
+            'trust_days' => TrustedDeviceService::TRUST_DAYS,
         ]);
     }
 
@@ -130,6 +135,16 @@ class TwoFactorAuthenticatedSessionController extends Controller
 
         // Update last login
         $user->update(['last_login_at' => now()]);
+
+        // Trust this device if user requested it
+        if ($request->boolean('trust_device')) {
+            $this->trustedDeviceService->trustDevice($user, $request);
+            AuditLog::logActivity(
+                'trust_device_added',
+                'Perangkat baru ditambahkan ke daftar perangkat terpercaya',
+                'success'
+            );
+        }
 
         // Audit Log
         AuditLog::logActivity(

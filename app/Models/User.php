@@ -185,6 +185,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Relationship with TrustedDevices
+     */
+    public function trustedDevices()
+    {
+        return $this->hasMany(TrustedDevice::class)->latest();
+    }
+
+    /**
      * Relationship with Transaksi (as teller)
      */
     public function transaksi()
