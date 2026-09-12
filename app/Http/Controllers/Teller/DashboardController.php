@@ -14,33 +14,42 @@ class DashboardController extends Controller
     public function index()
     {
         $userId = auth()->id();
+        $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+        $today = Carbon::today($timezone);
 
-        // Stats
+        // Stats (khusus hari ini)
         $stats = [
             'transaksi_hari_ini' => (int)Transaksi::where('user_id', $userId)
-                ->whereDate('created_at', today())
+                ->where('status', '!=', 'cancelled')
+                ->whereDate('created_at', $today)
                 ->count(),
             'total_setor' => (float)Transaksi::where('user_id', $userId)
+                ->where('status', '!=', 'cancelled')
                 ->where('jenis_transaksi', 'setor')
-                ->whereDate('created_at', today())
+                ->whereDate('created_at', $today)
                 ->sum('jumlah'),
             'total_tarik' => (float)Transaksi::where('user_id', $userId)
+                ->where('status', '!=', 'cancelled')
                 ->where('jenis_transaksi', 'tarik')
-                ->whereDate('created_at', today())
+                ->whereDate('created_at', $today)
                 ->sum('jumlah'),
             'total_transfer' => (float)Transaksi::where('user_id', $userId)
+                ->where('status', '!=', 'cancelled')
                 ->where('jenis_transaksi', 'transfer')
-                ->whereDate('created_at', today())
+                ->whereDate('created_at', $today)
                 ->sum('jumlah'),
             'total_bayar' => (float)Transaksi::where('user_id', $userId)
+                ->where('status', '!=', 'cancelled')
                 ->where('jenis_transaksi', 'bayar')
-                ->whereDate('created_at', today())
+                ->whereDate('created_at', $today)
                 ->sum('jumlah'),
         ];
 
-        // Recent Transactions
+        // Recent Transactions (khusus hari ini)
         $recent_transactions = Transaksi::with(['nasabah.user'])
             ->where('user_id', $userId)
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('created_at', $today)
             ->latest()
             ->take(10)
             ->get();
@@ -53,6 +62,7 @@ class DashboardController extends Controller
                 DB::raw('SUM(CASE WHEN jenis_transaksi = "setor" THEN jumlah ELSE 0 END) as setor_total'),
                 DB::raw('SUM(CASE WHEN jenis_transaksi = "tarik" THEN jumlah ELSE 0 END) as tarik_total')
             )
+            ->where('status', '!=', 'cancelled')
             ->whereDate('created_at', '>=', now()->subDays(7))
             ->groupBy('date')
             ->orderBy('date')
@@ -77,6 +87,7 @@ class DashboardController extends Controller
                 DB::raw('SUM(CASE WHEN jenis_transaksi = "setor" THEN jumlah ELSE 0 END) as setor_total'),
                 DB::raw('SUM(CASE WHEN jenis_transaksi = "tarik" THEN jumlah ELSE 0 END) as tarik_total')
             )
+            ->where('status', '!=', 'cancelled')
             ->where('created_at', '>=', now()->subWeeks(4))
             ->groupBy('week')
             ->orderBy('week')
@@ -101,6 +112,7 @@ class DashboardController extends Controller
                 DB::raw('SUM(CASE WHEN jenis_transaksi = "setor" THEN jumlah ELSE 0 END) as setor_total'),
                 DB::raw('SUM(CASE WHEN jenis_transaksi = "tarik" THEN jumlah ELSE 0 END) as tarik_total')
             )
+            ->where('status', '!=', 'cancelled')
             ->where('created_at', '>=', now()->subMonths(12))
             ->groupBy('month')
             ->orderBy('month')
@@ -125,6 +137,7 @@ class DashboardController extends Controller
                 DB::raw('SUM(CASE WHEN jenis_transaksi = "setor" THEN jumlah ELSE 0 END) as setor_total'),
                 DB::raw('SUM(CASE WHEN jenis_transaksi = "tarik" THEN jumlah ELSE 0 END) as tarik_total')
             )
+            ->where('status', '!=', 'cancelled')
             ->whereDate('created_at', '>=', now()->subDays(7))
             ->groupBy('date')
             ->orderBy('date')

@@ -66,27 +66,22 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
         return () => clearTimeout(timer);
     }, [search, type, status, viewAll]);
 
-    // Auto-refresh data every 10 seconds to ensure latest transactions are shown
+    // Auto-refresh data every 10 seconds to ensure latest transactions are shown without resetting current page
     useEffect(() => {
         if (showReceiptModal || showCancelModal || isCancelling) {
             return;
         }
 
         const refreshInterval = setInterval(() => {
-            router.get('/teller/transaksi', {
-                search,
-                type,
-                status,
-                view_all: viewAll ? 'true' : 'false',
-            }, {
+            router.reload({
+                only: ['transactions'],
                 preserveState: true,
                 preserveScroll: true,
-                replace: true
             });
         }, 10000); // Refresh every 10 seconds
 
         return () => clearInterval(refreshInterval);
-    }, [search, type, status, viewAll, showReceiptModal, showCancelModal, isCancelling]);
+    }, [showReceiptModal, showCancelModal, isCancelling]);
 
     const handleReset = () => {
         setSearch('');

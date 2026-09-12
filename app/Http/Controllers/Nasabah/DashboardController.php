@@ -19,8 +19,15 @@ class DashboardController extends Controller
             return redirect()->route('welcome')->with('error', 'Anda belum terdaftar sebagai nasabah');
         }
 
-        // Recent Transactions
-        $recent_transactions = Transaksi::where('nasabah_id', $nasabah->id)
+        // Recent Transactions (hanya transaksi aktif / tidak dibatalkan)
+        $recent_transactions = Transaksi::where(function($q) use ($nasabah) {
+                $q->where('nasabah_id', $nasabah->id)
+                  ->orWhere(function($inner) use ($nasabah) {
+                      $inner->where('nasabah_tujuan_id', $nasabah->id)
+                            ->where('jenis_transaksi', 'bayar');
+                  });
+            })
+            ->where('status', '!=', 'cancelled')
             ->latest()
             ->take(10)
             ->get();

@@ -59,26 +59,22 @@ export default function NasabahTransaksi({ transactions, filters }: NasabahTrans
         return () => clearTimeout(timer);
     }, [search, fromDate, toDate]);
 
-    // Auto-refresh data every 10 seconds to ensure latest transactions are shown
+    // Auto-refresh data every 10 seconds to ensure latest transactions are shown without resetting current page
     useEffect(() => {
         if (showReceiptModal) {
             return;
         }
 
         const refreshInterval = setInterval(() => {
-            router.get('/nasabah/transaksi', {
-                search,
-                from_date: fromDate,
-                to_date: toDate,
-            }, {
+            router.reload({
+                only: ['transactions'],
                 preserveState: true,
                 preserveScroll: true,
-                replace: true
             });
         }, 10000); // Refresh every 10 seconds
 
         return () => clearInterval(refreshInterval);
-    }, [search, fromDate, toDate, showReceiptModal]);
+    }, [showReceiptModal]);
 
     const handleReset = () => {
         setSearch('');
