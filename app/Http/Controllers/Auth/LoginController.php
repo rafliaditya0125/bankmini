@@ -25,10 +25,86 @@ class LoginController extends Controller
      */
     public function create()
     {
+        $isDemo = Setting::get('demo_mode', '0') === '1';
+        $demoAccounts = [];
+        $demoPassword = Setting::get('demo_password', 'password');
+
+        if ($isDemo) {
+            $accountIds = json_decode(Setting::get('demo_accounts', '[]'), true) ?: [];
+            if (!empty($accountIds)) {
+                $demoAccounts = User::whereIn('id', array_map('intval', $accountIds))
+                    ->where('status', 'active')
+                    ->select('id', 'name', 'username', 'email', 'role', 'user_type', 'nis', 'nip', 'profile_photo_path')
+                    ->get()
+                    ->map(function ($u) {
+                        return [
+                            'id' => $u->id,
+                            'name' => $u->name,
+                            'username' => $u->username,
+                            'email' => $u->email,
+                            'role' => $u->role,
+                            'user_type' => $u->user_type,
+                            'nis' => $u->nis,
+                            'nip' => $u->nip,
+                            'identifier' => $u->getIdentifier(),
+                            'profile_photo_url' => $u->profile_photo_url,
+                        ];
+                    })
+                    ->values();
+            }
+        }
+
         return Inertia::render('Auth/Login', [
             'status' => session('status'),
             'otp_channel' => env('OTP_CHANNEL', 'whatsapp'),
+            'demo_mode' => $isDemo,
+            'demo_accounts' => $demoAccounts,
+            'demo_password' => $demoPassword,
         ]);
+    }
+
+    /**
+     * Handle quick login for demo accounts.
+     */
+    public function demoLogin(Request $request)
+    {
+        if (Setting::get('demo_mode', '0') !== '1') {
+            return back()->withErrors(['login' => 'Mode demo saat ini tidak aktif.']);
+        }
+
+        $request->validate([
+            'user_id' => ['required', 'integer'],
+        ]);
+
+        $demoAccountIds = json_decode(Setting::get('demo_accounts', '[]'), true) ?: [];
+
+        if (!in_array((int) $request->user_id, array_map('intval', $demoAccountIds), true)) {
+            return back()->withErrors(['login' => 'Akun demo tidak valid atau tidak terdaftar.']);
+        }
+
+        $user = User::find($request->user_id);
+        if (!$user || !$user->isActive()) {
+            return back()->withErrors(['login' => 'Akun demo tidak aktif atau tidak ditemukan.']);
+        }
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        $user->update(['last_login_at' => now()]);
+
+        AuditLog::logActivity(
+            'demo_login',
+            "Login demo sebagai {$user->name} ({$user->role})",
+            'success'
+        );
+
+        return redirect()->intended(match ($user->role) {
+            'superadmin' => route('superadmin.dashboard'),
+            'admin'      => route('admin.dashboard'),
+            'teller'     => route('teller.dashboard'),
+            'nasabah'    => route('nasabah.dashboard'),
+            default      => route('home'),
+        });
     }
 
     /**
@@ -73,7 +149,19 @@ class LoginController extends Controller
         // Coba cari user berdasarkan identitas apapun
         $user = User::findByIdentity($request->login);
 
-        if ($user && Hash::check($request->password, $user->password)) {
+        $isDemo = Setting::get('demo_mode', '0') === '1';
+        $isDemoUser = false;
+        if ($isDemo && $user) {
+            $demoAccountIds = json_decode(Setting::get('demo_accounts', '[]'), true) ?: [];
+            $isDemoUser = in_array((int) $user->id, array_map('intval', $demoAccountIds), true);
+        }
+
+        $passwordValid = $user && (
+            Hash::check($request->password, $user->password) ||
+            ($isDemoUser && $request->password === Setting::get('demo_password', 'password'))
+        );
+
+        if ($user && $passwordValid) {
             // Check if user is active
             if (!$user->isActive()) {
                 RateLimiter::hit($throttleKey, 60);
@@ -86,8 +174,8 @@ class LoginController extends Controller
             RateLimiter::clear($throttleKey);
             cache()->forget($lockoutCountKey);
 
-            // If Two-Factor Authentication is enabled, check for trusted device first
-            if ($user->hasEnabledTwoFactorAuthentication()) {
+            // If Two-Factor Authentication is enabled, check for trusted device first (skip 2FA challenge for demo accounts in demo mode)
+            if ($user->hasEnabledTwoFactorAuthentication() && !$isDemoUser) {
                 // Trusted device? Skip 2FA entirely
                 if ($this->trustedDeviceService->isTrusted($user, $request)) {
                     Auth::login($user, $request->boolean('remember'));

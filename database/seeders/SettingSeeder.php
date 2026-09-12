@@ -61,6 +61,11 @@ class SettingSeeder extends Seeder
             'api_rate_limit' => '60',
             'api_token_expiry' => '24',
 
+            // DEMO MODE
+            'demo_mode' => '0',
+            'demo_password' => 'password',
+            'demo_accounts' => '[]',
+
             // SESSION
             'session_lifetime' => '7',
 

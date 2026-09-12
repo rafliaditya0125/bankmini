@@ -5,9 +5,10 @@ import { useState } from 'react';
 interface PengaturanPageProps {
     settings: any;
     reportHistory: any[];
+    availableUsers?: Record<string, any[]>;
 }
 
-export default function Pengaturan({ settings, reportHistory }: PengaturanPageProps) {
+export default function Pengaturan({ settings, reportHistory, availableUsers = {} }: PengaturanPageProps) {
     const { auth } = usePage<any>().props;
     const role = auth.user.role;
 
@@ -15,6 +16,7 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
     const allCategories = [
         { id: 'umum', name: 'Umum', icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4' },
         { id: 'keamanan', name: 'Keamanan', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', superadminOnly: true },
+        { id: 'demo', name: 'Mode Demo', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', superadminOnly: true },
         { id: 'transaksi', name: 'Transaksi', icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4' },
         { id: 'laporan', name: 'Laporan', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
         { id: 'database', name: 'Database', icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4', superadminOnly: true },
@@ -27,13 +29,101 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
         : allCategories.filter(cat => !cat.superadminOnly);
 
     const [activeCategory, setActiveCategory] = useState('umum');
+    const [demoValidationError, setDemoValidationError] = useState<string | null>(null);
 
-    const { data, setData, post, processing } = useForm({
-        ...settings
+    const { data, setData, post, processing, errors } = useForm({
+        ...settings,
+        demo_accounts: Array.isArray(settings.demo_accounts) ? settings.demo_accounts : []
     });
+
+    const selectedAccountIds: number[] = Array.isArray(data.demo_accounts)
+        ? data.demo_accounts.map((id: any) => Number(id))
+        : [];
+
+    const toggleDemoAccount = (userId: number) => {
+        const numericId = Number(userId);
+        if (selectedAccountIds.includes(numericId)) {
+            setData('demo_accounts', selectedAccountIds.filter(id => id !== numericId));
+        } else {
+            setData('demo_accounts', [...selectedAccountIds, numericId]);
+        }
+    };
+
+    const selectAllRoleAccounts = (roleKey: string) => {
+        const users = availableUsers[roleKey] || [];
+        const userIds = users.map(u => Number(u.id));
+        const combined = Array.from(new Set([...selectedAccountIds, ...userIds]));
+        setData('demo_accounts', combined);
+    };
+
+    const deselectAllRoleAccounts = (roleKey: string) => {
+        const users = availableUsers[roleKey] || [];
+        const userIds = new Set(users.map(u => Number(u.id)));
+        const remaining = selectedAccountIds.filter(id => !userIds.has(id));
+        setData('demo_accounts', remaining);
+    };
+
+    const demoRoles = [
+        {
+            key: 'superadmin',
+            title: 'Super Administrator',
+            desc: 'Akses penuh seluruh konfigurasi, audit trail, dan manajemen sistem',
+            badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+            avatarBg: 'bg-indigo-600',
+            accentBorder: 'border-indigo-100',
+            dotBg: 'bg-indigo-500',
+        },
+        {
+            key: 'admin',
+            title: 'Administrator Sistem',
+            desc: 'Manajemen nasabah, data jurusan & kelas, dan pengaturan umum',
+            badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
+            avatarBg: 'bg-blue-600',
+            accentBorder: 'border-blue-100',
+            dotBg: 'bg-blue-500',
+        },
+        {
+            key: 'teller',
+            title: 'Petugas Teller',
+            desc: 'Operasional setoran tunai, penarikan, transfer, dan kas loket',
+            badgeBg: 'bg-amber-50 text-amber-700 border-amber-200',
+            avatarBg: 'bg-amber-600',
+            accentBorder: 'border-amber-100',
+            dotBg: 'bg-amber-500',
+        },
+        {
+            key: 'nasabah',
+            title: 'Nasabah (Siswa / Guru)',
+            desc: 'Akses informasi saldo, riwayat transaksi, dan kartu identitas nasabah',
+            badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            avatarBg: 'bg-emerald-600',
+            accentBorder: 'border-emerald-100',
+            dotBg: 'bg-emerald-500',
+        },
+    ];
+
+    const getRoleSelectedCount = (roleKey: string) => {
+        const users = availableUsers[roleKey] || [];
+        return users.filter(u => selectedAccountIds.includes(Number(u.id))).length;
+    };
+
+    const missingDemoRoles = demoRoles
+        .filter(r => getRoleSelectedCount(r.key) === 0)
+        .map(r => r.title);
+
+    const isDemoConfigValid = missingDemoRoles.length === 0;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setDemoValidationError(null);
+
+        if (data.demo_mode === '1' && !isDemoConfigValid) {
+            const errorMsg = `Setiap role wajib memiliki minimal 1 akun demo saat Mode Demo diaktifkan. Role yang belum memiliki akun terpilih: ${missingDemoRoles.join(', ')}.`;
+            setDemoValidationError(errorMsg);
+            setActiveCategory('demo');
+            return;
+        }
+
         post(`/${role}/pengaturan`);
     };
 
@@ -313,7 +403,190 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
                                 </>
                             )}
 
+                            {activeCategory === 'demo' && (
+                                <div className="space-y-8">
+                                    {(demoValidationError || (errors as any).demo_accounts) && (
+                                        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start gap-3">
+                                            <svg className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                            </svg>
+                                            <div className="text-xs text-rose-700 font-semibold leading-relaxed">
+                                                {demoValidationError || (errors as any).demo_accounts}
+                                            </div>
+                                        </div>
+                                    )}
 
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {renderSelect('demo_mode', 'Status Fitur Mode Demo', [
+                                            { value: '1', label: 'AKTIF (TAMPILKAN DI LOGIN)' },
+                                            { value: '0', label: 'NONAKTIF (SEMBUNYIKAN)' }
+                                        ])}
+                                        {renderInput('demo_password', 'Password Demo Terpusat', 'text', { placeholder: 'password' })}
+                                    </div>
+
+                                    {data.demo_mode === '1' ? (
+                                        isDemoConfigValid ? (
+                                            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                    <div>
+                                                        <p className="text-xs font-black uppercase tracking-wider text-emerald-800">Mode Demo Siap Digunakan</p>
+                                                        <p className="text-[11px] text-emerald-600 mt-0.5">Semua role telah memiliki minimal 1 akun terpilih. Pengunjung dapat memilih akun-akun ini di halaman login.</p>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-200/60 text-emerald-800 px-3 py-1 rounded-full">
+                                                    Siap Simpan
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+                                                <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                </svg>
+                                                <div>
+                                                    <p className="text-xs font-black uppercase tracking-wider text-amber-800">Perhatian: Syarat Minimal Belum Terpenuhi</p>
+                                                    <p className="text-[11px] text-amber-700 mt-0.5">
+                                                        Untuk mengaktifkan mode demo, setiap role wajib memiliki minimal 1 akun terpilih. Role yang belum memiliki akun: <strong>{missingDemoRoles.join(', ')}</strong>.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )
+                                    ) : (
+                                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                                            <div>
+                                                <p className="text-xs font-black uppercase tracking-wider text-slate-700">Mode Demo Saat Ini Nonaktif</p>
+                                                <p className="text-[11px] text-slate-500 mt-0.5">Akun yang Anda pilih di bawah akan disimpan dan otomatis dimunculkan saat Mode Demo diaktifkan.</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-6 border-t border-slate-100 space-y-6">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Pilihan Akun Demo per Role</h3>
+                                                <p className="text-xs text-slate-500 mt-0.5">Pilih akun yang akan ditampilkan pada halaman login untuk masing-masing role (1 role minimal 1 akun).</p>
+                                            </div>
+                                            <span className="text-xs font-mono font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                                                Total Terpilih: {selectedAccountIds.length} Akun
+                                            </span>
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            {demoRoles.map((roleItem) => {
+                                                const users = availableUsers[roleItem.key] || [];
+                                                const selectedCount = getRoleSelectedCount(roleItem.key);
+                                                const isSatisfied = selectedCount > 0;
+
+                                                return (
+                                                    <div key={roleItem.key} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all hover:border-slate-300">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-3 h-3 rounded-full ${roleItem.dotBg}`} />
+                                                                <div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">{roleItem.title}</h4>
+                                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${roleItem.badgeBg}`}>
+                                                                            Role: {roleItem.key}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-xs text-slate-400 mt-0.5">{roleItem.desc}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 self-start sm:self-auto">
+                                                                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border ${isSatisfied ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                                                                    {isSatisfied ? `✓ ${selectedCount} Terpilih` : '⚠️ Min. 1 Akun'}
+                                                                </span>
+                                                                {users.length > 1 && (
+                                                                    <div className="flex items-center gap-1">
+                                                                        {selectedCount < users.length ? (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => selectAllRoleAccounts(roleItem.key)}
+                                                                                className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+                                                                            >
+                                                                                Semua
+                                                                            </button>
+                                                                        ) : (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => deselectAllRoleAccounts(roleItem.key)}
+                                                                                className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+                                                                            >
+                                                                                Batal
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="mt-4">
+                                                            {users.length === 0 ? (
+                                                                <p className="text-xs text-slate-400 italic py-2">Belum ada data akun aktif untuk role ini.</p>
+                                                            ) : (
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                                    {users.map((user: any) => {
+                                                                        const isSelected = selectedAccountIds.includes(Number(user.id));
+                                                                        const identifier = user.nis || user.nip || user.username || user.email;
+
+                                                                        return (
+                                                                            <div
+                                                                                key={user.id}
+                                                                                onClick={() => toggleDemoAccount(user.id)}
+                                                                                className={`cursor-pointer rounded-xl border p-3 transition-all flex items-center justify-between select-none ${
+                                                                                    isSelected
+                                                                                        ? 'border-emerald-500 bg-emerald-50/40 shadow-xs ring-1 ring-emerald-500/30'
+                                                                                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                                                                                }`}
+                                                                            >
+                                                                                <div className="flex items-center gap-3 min-w-0 pr-2">
+                                                                                    <div className="relative shrink-0">
+                                                                                        {user.profile_photo_url ? (
+                                                                                            <img
+                                                                                                src={user.profile_photo_url}
+                                                                                                alt={user.name}
+                                                                                                className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                                                                                            />
+                                                                                        ) : (
+                                                                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs ${roleItem.avatarBg}`}>
+                                                                                                {user.name.charAt(0)}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <div className="min-w-0">
+                                                                                        <p className="text-xs font-bold text-slate-900 truncate">{user.name}</p>
+                                                                                        <p className="text-[11px] font-mono text-slate-500 truncate">
+                                                                                            {identifier}
+                                                                                        </p>
+                                                                                        {user.user_type && (
+                                                                                            <span className="text-[9px] font-semibold text-slate-400 capitalize">
+                                                                                                Tipe: {user.user_type}
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="shrink-0">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={isSelected}
+                                                                                        onChange={() => {}}
+                                                                                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 pointer-events-none"
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {activeCategory === 'transaksi' && (
                                 <>

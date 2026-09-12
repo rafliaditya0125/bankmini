@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Models\ReportLog;
 use App\Models\Transaksi;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -22,9 +23,19 @@ class PengaturanController extends Controller
             $settings = array_intersect_key($settings, array_flip($allowedKeys));
         }
 
+        $availableUsers = ($role === 'superadmin')
+            ? User::where('status', 'active')
+                ->select('id', 'name', 'username', 'email', 'role', 'user_type', 'nis', 'nip', 'profile_photo_path')
+                ->orderBy('role')
+                ->orderBy('name')
+                ->get()
+                ->groupBy('role')
+            : [];
+
         return Inertia::render('superadmin/Pengaturan', [
             'settings' => $settings,
-            'reportHistory' => ReportLog::with('user')->latest()->take(10)->get()
+            'reportHistory' => ReportLog::with('user')->latest()->take(10)->get(),
+            'availableUsers' => $availableUsers,
         ]);
     }
 
@@ -38,9 +49,57 @@ class PengaturanController extends Controller
             $inputSettings = array_intersect_key($inputSettings, array_flip($allowedKeys));
         }
 
+        if ($role === 'superadmin') {
+            $isDemoActive = isset($inputSettings['demo_mode']) && in_array($inputSettings['demo_mode'], ['1', 1, true, 'true'], true);
+
+            if (isset($inputSettings['demo_accounts'])) {
+                $demoAccounts = $inputSettings['demo_accounts'];
+                if (is_string($demoAccounts)) {
+                    $demoAccounts = json_decode($demoAccounts, true) ?: [];
+                }
+                if (!is_array($demoAccounts)) {
+                    $demoAccounts = [];
+                }
+                $demoAccounts = array_values(array_unique(array_filter(array_map('intval', $demoAccounts))));
+
+                if ($isDemoActive) {
+                    $rolesPresent = User::whereIn('id', $demoAccounts)
+                        ->where('status', 'active')
+                        ->pluck('role')
+                        ->unique()
+                        ->toArray();
+
+                    $requiredRoles = ['superadmin', 'admin', 'teller', 'nasabah'];
+                    $missingRoles = array_diff($requiredRoles, $rolesPresent);
+
+                    if (!empty($missingRoles)) {
+                        $roleNames = [
+                            'superadmin' => 'Superadmin',
+                            'admin' => 'Admin',
+                            'teller' => 'Teller',
+                            'nasabah' => 'Nasabah',
+                        ];
+                        $missingLabels = array_map(fn($r) => $roleNames[$r] ?? $r, $missingRoles);
+                        return back()->withErrors([
+                            'demo_accounts' => 'Setiap role wajib memiliki minimal 1 akun demo saat Mode Demo diaktifkan. Role yang belum memiliki akun terpilih: ' . implode(', ', $missingLabels) . '.',
+                        ]);
+                    }
+                }
+
+                $inputSettings['demo_accounts'] = json_encode($demoAccounts);
+            } elseif ($isDemoActive) {
+                return back()->withErrors([
+                    'demo_accounts' => 'Setiap role wajib memiliki minimal 1 akun demo saat Mode Demo diaktifkan.',
+                ]);
+            }
+        }
+
         foreach ($inputSettings as $key => $value) {
             if (is_bool($value)) {
                 $value = $value ? '1' : '0';
+            }
+            if (is_array($value)) {
+                $value = json_encode($value);
             }
             Setting::set($key, $value);
         }
@@ -234,6 +293,11 @@ class PengaturanController extends Controller
             'turnstile_secret_key' => Setting::get('turnstile_secret_key', config('turnstile.secret_key', '')),
             'recaptcha_site_key'   => Setting::get('recaptcha_site_key', config('recaptcha.site_key', '')),
             'recaptcha_secret_key' => Setting::get('recaptcha_secret_key', config('recaptcha.secret_key', '')),
+
+            // MODE DEMO (superadmin only)
+            'demo_mode'            => Setting::get('demo_mode', '0'),
+            'demo_password'        => Setting::get('demo_password', 'password'),
+            'demo_accounts'        => json_decode(Setting::get('demo_accounts', '[]'), true) ?: [],
 
         ];
     }

@@ -1,4 +1,4 @@
-import { Head, useForm, Link, usePage } from '@inertiajs/react';
+import { Head, useForm, Link, usePage, router } from '@inertiajs/react';
 import { FormEventHandler, useState, useEffect } from 'react';
 import FlashMessage from '@/components/FlashMessage';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
@@ -8,15 +8,31 @@ import { useHoneypot } from '@/hooks/useHoneypot';
 import HoneypotInputs from '@/components/HoneypotInputs';
 import CaptchaWidget from '@/components/CaptchaWidget';
 
+export interface DemoAccount {
+    id: number;
+    name: string;
+    username: string;
+    email: string;
+    role: string;
+    user_type?: string;
+    nis?: string;
+    nip?: string;
+    identifier: string;
+    profile_photo_url?: string;
+}
+
 interface PageProps {
     status?: string;
     name: string;
     session_lifetime: number;
     otp_channel: string;
+    demo_mode?: boolean;
+    demo_accounts?: DemoAccount[];
+    demo_password?: string;
 }
 
 export default function Login() {
-    const { status, name, session_lifetime, otp_channel } = usePage<PageProps>().props;
+    const { status, name, session_lifetime, otp_channel, demo_mode, demo_accounts, demo_password } = usePage<PageProps>().props;
     const { honeypotData } = useHoneypot();
     const [captchaResetKey, setCaptchaResetKey] = useState(0);
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
@@ -91,6 +107,40 @@ export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [lockoutSeconds, setLockoutSeconds] = useState<number>(0);
+
+    // Demo Mode state & handlers
+    const [quickLoginLoadingId, setQuickLoginLoadingId] = useState<number | null>(null);
+    const [demoFilterRole, setDemoFilterRole] = useState<string>('all');
+    const [highlightForm, setHighlightForm] = useState(false);
+
+    const handleQuickLogin = (account: DemoAccount) => {
+        setQuickLoginLoadingId(account.id);
+        router.post(route('demo.login'), {
+            user_id: account.id,
+        }, {
+            onFinish: () => setQuickLoginLoadingId(null),
+        });
+    };
+
+    const handleUseAccount = (account: DemoAccount) => {
+        const cred = account.identifier || account.username || account.email;
+        setData((prev: any) => ({
+            ...prev,
+            login: cred,
+            password: demo_password || 'password',
+        }));
+        setHighlightForm(true);
+        setTimeout(() => setHighlightForm(false), 2000);
+        const loginInput = document.getElementById('login');
+        if (loginInput) {
+            loginInput.focus();
+        }
+    };
+
+    const filteredDemoAccounts = (demo_accounts || []).filter((acc) => {
+        if (demoFilterRole === 'all') return true;
+        return acc.role === demoFilterRole;
+    });
 
     useEffect(() => {
         if ((errors as any).throttle) {
@@ -203,6 +253,19 @@ export default function Login() {
                                     <p className="mt-2 text-sm font-semibold text-slate-900">UI bersih dan fokus</p>
                                 </div>
                             </div>
+
+                            {demo_mode && (
+                                <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 p-4 shadow-xs backdrop-blur flex items-center gap-3.5">
+                                    <div className="flex h-2.5 w-2.5 relative shrink-0">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black uppercase tracking-wider text-emerald-900">Mode Demo Aktif</p>
+                                        <p className="text-xs text-emerald-700/90 mt-0.5">Akun demo uji coba tersedia di bawah formulir login untuk kemudahan evaluasi fitur.</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="animate-[fade-up_0.9s_ease-out]">
@@ -259,7 +322,11 @@ export default function Login() {
                                                 value={data.login}
                                                 onChange={(e) => setData('login', e.target.value)}
                                                 maxLength={254}
-                                                className="block w-full rounded-xl border border-slate-200 dark:border-slate-200 bg-[#ffffff] dark:bg-[#ffffff] py-3.5 pl-12 pr-4 text-sm font-medium text-[#0f172a] dark:text-[#0f172a] shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-200/40"
+                                                className={`block w-full rounded-xl border bg-[#ffffff] dark:bg-[#ffffff] py-3.5 pl-12 pr-4 text-sm font-medium text-[#0f172a] dark:text-[#0f172a] shadow-sm outline-none transition ${
+                                                    highlightForm
+                                                        ? 'border-emerald-500 ring-4 ring-emerald-400/40 bg-emerald-50/20'
+                                                        : 'border-slate-200 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-200/40'
+                                                }`}
                                                 placeholder="Contoh: 1234567890"
                                                 autoComplete="username"
                                                 autoFocus
@@ -286,7 +353,11 @@ export default function Login() {
                                                 value={data.password}
                                                 onChange={(e) => setData('password', e.target.value)}
                                                 maxLength={255}
-                                                className="block w-full rounded-xl border border-slate-200 dark:border-slate-200 bg-[#ffffff] dark:bg-[#ffffff] py-3.5 pl-12 pr-12 text-sm font-medium text-[#0f172a] dark:text-[#0f172a] shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-200/40"
+                                                className={`block w-full rounded-xl border bg-[#ffffff] dark:bg-[#ffffff] py-3.5 pl-12 pr-12 text-sm font-medium text-[#0f172a] dark:text-[#0f172a] shadow-sm outline-none transition ${
+                                                    highlightForm
+                                                        ? 'border-emerald-500 ring-4 ring-emerald-400/40 bg-emerald-50/20'
+                                                        : 'border-slate-200 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-200/40'
+                                                }`}
                                                 placeholder="••••••••"
                                                 autoComplete="current-password"
                                             />
@@ -389,6 +460,151 @@ export default function Login() {
                                     </div>
                                 </form>
                             </div>
+
+                            {/* Demo Accounts Panel */}
+                            {demo_mode && demo_accounts && demo_accounts.length > 0 && (
+                                <div className="mt-8 rounded-3xl border border-emerald-200/90 bg-white/95 p-6 sm:p-7 shadow-[0_20px_60px_rgba(16,185,129,0.08)] backdrop-blur">
+                                    {/* Header */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="flex h-2.5 w-2.5 relative">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                            </span>
+                                            <div>
+                                                <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                                                    Akun Demo Uji Coba
+                                                    <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
+                                                        Demo Aktif
+                                                    </span>
+                                                </h3>
+                                                <p className="text-xs text-slate-500 mt-0.5">Pilih akun untuk evaluasi sistem tanpa mendaftar.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 self-start sm:self-auto bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-xl">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Password Demo:</span>
+                                            <code className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                                                {demo_password || 'password'}
+                                            </code>
+                                        </div>
+                                    </div>
+
+                                    {/* Role Filter Tabs */}
+                                    <div className="mt-4 flex flex-wrap gap-1.5">
+                                        {[
+                                            { id: 'all', label: `Semua (${demo_accounts.length})` },
+                                            { id: 'superadmin', label: '👑 Superadmin' },
+                                            { id: 'admin', label: '🛡️ Admin' },
+                                            { id: 'teller', label: '💼 Teller' },
+                                            { id: 'nasabah', label: '🎓 Nasabah' },
+                                        ].map((tab) => {
+                                            const count = tab.id === 'all'
+                                                ? demo_accounts.length
+                                                : demo_accounts.filter(a => a.role === tab.id).length;
+                                            if (count === 0 && tab.id !== 'all') return null;
+
+                                            const isActive = demoFilterRole === tab.id;
+                                            return (
+                                                <button
+                                                    key={tab.id}
+                                                    type="button"
+                                                    onClick={() => setDemoFilterRole(tab.id)}
+                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                                        isActive
+                                                            ? 'bg-slate-900 text-white shadow-xs'
+                                                            : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'
+                                                    }`}
+                                                >
+                                                    {tab.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Account Cards Grid */}
+                                    <div className="mt-4 grid grid-cols-1 gap-3 max-h-[380px] overflow-y-auto pr-1">
+                                        {filteredDemoAccounts.map((account) => {
+                                            const isQuickLoading = quickLoginLoadingId === account.id;
+                                            const roleBadgeStyles: Record<string, string> = {
+                                                superadmin: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                                                admin: 'bg-blue-50 text-blue-700 border-blue-200',
+                                                teller: 'bg-amber-50 text-amber-700 border-amber-200',
+                                                nasabah: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                            };
+                                            const avatarBgStyles: Record<string, string> = {
+                                                superadmin: 'bg-indigo-600',
+                                                admin: 'bg-blue-600',
+                                                teller: 'bg-amber-600',
+                                                nasabah: 'bg-emerald-600',
+                                            };
+
+                                            const badgeStyle = roleBadgeStyles[account.role] || 'bg-slate-50 text-slate-700 border-slate-200';
+                                            const avatarBg = avatarBgStyles[account.role] || 'bg-slate-600';
+
+                                            return (
+                                                <div
+                                                    key={account.id}
+                                                    className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-xs transition-all hover:border-slate-300 hover:shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                                                >
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        {account.profile_photo_url ? (
+                                                            <img
+                                                                src={account.profile_photo_url}
+                                                                alt={account.name}
+                                                                className="h-10 w-10 rounded-full object-cover border border-slate-200 shrink-0"
+                                                            />
+                                                        ) : (
+                                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0 ${avatarBg}`}>
+                                                                {account.name.charAt(0)}
+                                                            </div>
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-xs font-bold text-slate-900 truncate">{account.name}</p>
+                                                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border shrink-0 ${badgeStyle}`}>
+                                                                    {account.role}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[11px] font-mono text-slate-500 mt-0.5 truncate">
+                                                                {account.identifier}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleUseAccount(account)}
+                                                            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition shadow-2xs"
+                                                            title="Isi identitas & password ke formulir di atas"
+                                                        >
+                                                            ✏️ Gunakan
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={quickLoginLoadingId !== null}
+                                                            onClick={() => handleQuickLogin(account)}
+                                                            className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-[11px] font-bold text-white hover:bg-emerald-700 transition shadow-xs disabled:opacity-50 inline-flex items-center gap-1.5"
+                                                        >
+                                                            {isQuickLoading ? (
+                                                                <>
+                                                                    <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24">
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                                    </svg>
+                                                                    <span>Masuk...</span>
+                                                                </>
+                                                            ) : (
+                                                                <span>⚡ Masuk Cepat</span>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

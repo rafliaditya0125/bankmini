@@ -60,6 +60,7 @@ Route::get('/manifest.json', function () {
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->middleware(['honeypot', 'log']);
+    Route::post('/demo-login', [LoginController::class, 'demoLogin'])->middleware(['throttle:20,1', 'log'])->name('demo.login');
 
     // Forgot Password Routes
     Route::post('/forgot-password/otp', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetOtp'])->middleware(['honeypot'])->name('password.otp');
