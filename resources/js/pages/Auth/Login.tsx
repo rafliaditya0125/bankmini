@@ -42,10 +42,15 @@ export default function Login() {
         timer: forgotPasswordTimer,
         targetMasked,
         channel,
+        hasTotp,
+        availableChannels,
         isCheckingIdentity,
         validations: forgotPasswordValidations,
         isValid: isForgotPasswordValid,
         requestOtp: requestForgotPasswordOtp,
+        switchToRecovery,
+        switchToTotp,
+        switchToOtp,
         submit: submitForgotPasswordReset,
         resetFlow: resetForgotPasswordFlow,
     } = usePasswordManagement({
@@ -68,7 +73,9 @@ export default function Login() {
     } else if (!forgotPasswordValidations.match) {
         forgotPasswordSubmitBtnText = 'Konfirmasi Password Salah';
     } else if (isOtpEmpty) {
-        forgotPasswordSubmitBtnText = channel === 'totp' ? 'Isi Kode Authenticator' : 'Isi Kode OTP';
+        forgotPasswordSubmitBtnText = channel === 'totp' 
+            ? 'Isi Kode Authenticator' 
+            : (channel === 'recovery' ? 'Isi Recovery Code' : 'Isi Kode OTP');
     } else {
         forgotPasswordSubmitBtnText = 'Simpan Password Baru';
     }
@@ -478,14 +485,14 @@ export default function Login() {
                             </div>
                             <button
                                 type="button"
-                                onClick={() => setForgotPasswordStep(1)}
+                                onClick={resetForgotPasswordFlow}
                                 className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest cursor-pointer"
                             >
                                 Ganti Akun
                             </button>
                         </div>
 
-                        {/* TOTP or OTP Info Banner */}
+                        {/* TOTP or OTP or Recovery Info Banner */}
                         {channel === 'totp' ? (
                             <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200/60 flex items-center gap-3">
                                 <div className="h-10 w-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shrink-0 text-base">
@@ -496,10 +503,20 @@ export default function Login() {
                                     <p className="text-xs text-emerald-600 font-medium">Buka Google Authenticator atau Microsoft Authenticator Anda untuk melihat kode 6-digit.</p>
                                 </div>
                             </div>
+                        ) : channel === 'recovery' ? (
+                            <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200/60 flex items-center gap-3">
+                                <div className="h-10 w-10 bg-amber-600 rounded-xl flex items-center justify-center text-white shrink-0 text-base">
+                                    🔑
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-wide">Kode Pemulihan Darurat (Recovery Code)</p>
+                                    <p className="text-xs text-amber-600 font-medium">Masukkan salah satu kode pemulihan yang Anda simpan saat mengaktifkan 2FA.</p>
+                                </div>
+                            </div>
                         ) : (
                             <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl border border-blue-200/60 flex items-center gap-3">
                                 <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 text-base">
-                                    ✉️
+                                    {channel === 'email' || channel === 'resend' ? '✉️' : '📱'}
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-black text-blue-800 uppercase tracking-wide">Kode OTP Terkirim</p>
@@ -576,27 +593,35 @@ export default function Login() {
 
                             <div className="space-y-2">
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    {channel === 'totp' ? 'Kode Authenticator TOTP (6 Digit)' : 'Kode OTP (6 Digit)'}
+                                    {channel === 'totp' 
+                                        ? 'Kode Authenticator TOTP (6 Digit)' 
+                                        : (channel === 'recovery' ? 'Kode Pemulihan (Recovery Code)' : 'Kode OTP (6 Digit)')}
                                 </label>
                                 <div className="flex gap-3">
                                     <input
                                         type="text"
                                         value={forgotPasswordData.otp}
                                         onChange={e => setForgotPasswordData('otp', e.target.value)}
-                                        className="w-[60%] bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 text-center text-xl tracking-widest focus:ring-2 focus:ring-emerald-500"
+                                        className={`w-[60%] bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 text-center tracking-widest focus:ring-2 focus:ring-emerald-500 ${
+                                            channel === 'recovery' ? 'font-mono text-sm uppercase' : 'text-xl'
+                                        }`}
                                         required
-                                        maxLength={8}
-                                        placeholder="000000"
+                                        maxLength={channel === 'recovery' ? 24 : 8}
+                                        placeholder={channel === 'recovery' ? 'xxxx-xxxx-xxxx' : '000000'}
                                         autoFocus
                                     />
                                     {channel === 'totp' ? (
                                         <div className="w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight flex items-center justify-center px-3 bg-emerald-50 border border-emerald-200 text-emerald-700 select-none">
                                             🛡️ Authenticator
                                         </div>
+                                    ) : channel === 'recovery' ? (
+                                        <div className="w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight flex items-center justify-center px-3 bg-amber-50 border border-amber-200 text-amber-700 select-none">
+                                            🔑 Recovery
+                                        </div>
                                     ) : (
                                         <button
                                             type="button"
-                                            onClick={requestForgotPasswordOtp}
+                                            onClick={() => requestForgotPasswordOtp(undefined, channel)}
                                             disabled={forgotPasswordProcessing || forgotPasswordTimer > 0}
                                             className={`w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 whitespace-nowrap px-4 ${
                                                 (forgotPasswordProcessing || forgotPasswordTimer > 0)
@@ -609,6 +634,95 @@ export default function Login() {
                                     )}
                                 </div>
                                 {forgotPasswordErrors.otp && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{forgotPasswordErrors.otp}</p>}
+
+                                {/* Alternative verification options */}
+                                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex flex-col gap-2">
+                                    {channel === 'totp' && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const pref = availableChannels.email ? 'email' : 'whatsapp';
+                                                    switchToOtp(pref);
+                                                }}
+                                                disabled={forgotPasswordProcessing}
+                                                className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                            >
+                                                <span>✉️</span>
+                                                <span>Kirim kode via {availableChannels.email && availableChannels.whatsapp ? 'Email / WhatsApp' : (availableChannels.email ? 'Email' : 'WhatsApp')}</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={switchToRecovery}
+                                                className="text-[10px] font-black text-slate-500 hover:text-slate-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                                            >
+                                                <span>🔑</span>
+                                                <span>Gunakan Kode Pemulihan (Recovery Code)</span>
+                                            </button>
+                                        </>
+                                    )}
+
+                                    {channel === 'recovery' && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={switchToTotp}
+                                                className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                                            >
+                                                <span>🛡️</span>
+                                                <span>Gunakan Aplikasi Authenticator (TOTP)</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const pref = availableChannels.email ? 'email' : 'whatsapp';
+                                                    switchToOtp(pref);
+                                                }}
+                                                disabled={forgotPasswordProcessing}
+                                                className="text-[10px] font-black text-slate-500 hover:text-slate-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                            >
+                                                <span>✉️</span>
+                                                <span>Kirim kode via {availableChannels.email && availableChannels.whatsapp ? 'Email / WhatsApp' : (availableChannels.email ? 'Email' : 'WhatsApp')}</span>
+                                            </button>
+                                        </>
+                                    )}
+
+                                    {(channel === 'email' || channel === 'whatsapp' || channel === 'resend') && (
+                                        <>
+                                            {(hasTotp || availableChannels.totp) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={switchToTotp}
+                                                    className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                    <span>🛡️</span>
+                                                    <span>Gunakan Aplikasi Authenticator (TOTP)</span>
+                                                </button>
+                                            )}
+                                            {(hasTotp || availableChannels.recovery) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={switchToRecovery}
+                                                    className="text-[10px] font-black text-slate-500 hover:text-slate-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                    <span>🔑</span>
+                                                    <span>Gunakan Kode Pemulihan (Recovery Code)</span>
+                                                </button>
+                                            )}
+                                            {availableChannels.email && availableChannels.whatsapp && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => switchToOtp(channel === 'email' || channel === 'resend' ? 'whatsapp' : 'email')}
+                                                    disabled={forgotPasswordProcessing}
+                                                    className="text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                                >
+                                                    <span>{channel === 'email' || channel === 'resend' ? '📱' : '✉️'}</span>
+                                                    <span>Kirim kode via {channel === 'email' || channel === 'resend' ? 'WhatsApp' : 'Email'}</span>
+                                                </button>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -629,7 +743,7 @@ export default function Login() {
                         <div className="flex gap-3 pt-2">
                             <button
                                 type="button"
-                                onClick={() => setForgotPasswordStep(1)}
+                                onClick={resetForgotPasswordFlow}
                                 className="px-6 py-4 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
                             >
                                 Kembali

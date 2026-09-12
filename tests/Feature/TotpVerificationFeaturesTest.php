@@ -176,4 +176,129 @@ class TotpVerificationFeaturesTest extends TestCase
         $this->assertNotNull($unverifiedUser->email_verified_at);
         $response->assertSessionHas('success');
     }
+
+    /** @test */
+    public function guest_forgot_password_can_reset_password_with_recovery_code()
+    {
+        $this->enableTotp($this->user);
+        $recoveryCodes = json_decode(decrypt($this->user->two_factor_recovery_codes), true);
+        $this->assertNotEmpty($recoveryCodes);
+        $validRecoveryCode = $recoveryCodes[0];
+
+        $response = $this->post(route('password.update'), [
+            'login' => 'budisantoso',
+            'channel' => 'recovery',
+            'otp' => $validRecoveryCode,
+            'password' => 'recoverypass123',
+            'password_confirmation' => 'recoverypass123',
+        ]);
+
+        $response->assertRedirect(route('login'));
+        $this->user->refresh();
+        $this->assertTrue(Hash::check('recoverypass123', $this->user->password));
+
+        // Ensure the recovery code was consumed and cannot be used again
+        $remainingCodes = json_decode(decrypt($this->user->two_factor_recovery_codes), true);
+        $this->assertNotContains($validRecoveryCode, $remainingCodes);
+    }
+
+    /** @test */
+    public function guest_forgot_password_rejects_invalid_recovery_code()
+    {
+        $this->enableTotp($this->user);
+
+        $response = $this->post(route('password.update'), [
+            'login' => 'budisantoso',
+            'channel' => 'recovery',
+            'otp' => 'invalid-recovery-code',
+            'password' => 'recoverypass123',
+            'password_confirmation' => 'recoverypass123',
+        ]);
+
+        $response->assertSessionHasErrors('otp');
+        $this->user->refresh();
+        $this->assertFalse(Hash::check('recoverypass123', $this->user->password));
+    }
+
+    /** @test */
+    public function guest_forgot_password_can_switch_to_otp_channel_when_requested()
+    {
+        $this->user->update(['phone' => '081234567890']);
+        $this->enableTotp($this->user);
+
+        $response = $this->post(route('password.otp', ['requested_channel' => 'email']), [
+            'login' => 'budisantoso',
+        ]);
+
+        $response->assertSessionHas('channel', 'email');
+        $response->assertSessionHas('has_totp', true);
+        $response->assertSessionHas('available_channels');
+    }
+
+    /** @test */
+    public function it_can_reset_password_in_profile_using_recovery_code_when_2fa_enabled()
+    {
+        $this->enableTotp($this->user);
+        $recoveryCodes = json_decode(decrypt($this->user->two_factor_recovery_codes), true);
+        $validRecoveryCode = $recoveryCodes[0];
+
+        $response = $this->actingAs($this->user)->post(route('admin.profil.reset-password'), [
+            'password' => 'newrecoverypass123',
+            'password_confirmation' => 'newrecoverypass123',
+            'channel' => 'recovery',
+            'otp' => $validRecoveryCode,
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->user->refresh();
+        $this->assertTrue(Hash::check('newrecoverypass123', $this->user->password));
+    }
+
+    /** @test */
+    public function it_can_update_email_in_profile_using_recovery_code_when_2fa_enabled()
+    {
+        $this->enableTotp($this->user);
+        $recoveryCodes = json_decode(decrypt($this->user->two_factor_recovery_codes), true);
+        $validRecoveryCode = $recoveryCodes[0];
+
+        $newEmail = 'budi.recovery@bankmini.test';
+
+        $response = $this->actingAs($this->user)->put(route('admin.profil.email'), [
+            'email' => $newEmail,
+            'channel' => 'recovery',
+            'otp' => $validRecoveryCode,
+        ]);
+
+        $response->assertSessionHas('success');
+        $this->user->refresh();
+        $this->assertEquals($newEmail, $this->user->email);
+    }
+
+    /** @test */
+    public function guest_forgot_password_can_switch_from_totp_to_otp_without_re_captcha_when_already_verified()
+    {
+        config(['turnstile.enabled' => true]);
+
+        $this->user->update(['phone' => '081234567890']);
+        $this->enableTotp($this->user);
+
+        // 1. If unverified session tries to request OTP directly without captcha, it fails
+        $unverifiedResponse = $this->post(route('password.otp', ['requested_channel' => 'email']), [
+            'login' => 'budisantoso',
+        ]);
+        $unverifiedResponse->assertSessionHasErrors('captcha');
+
+        // 2. If session has verified login from step 1, switching channel in step 2 bypasses captcha
+        $verifiedResponse = $this->withSession([
+            'password_reset_captcha_verified' => true,
+            'password_reset_login' => 'budisantoso',
+            'password_reset_user_id' => $this->user->id,
+        ])->post(route('password.otp', ['requested_channel' => 'email', 'step' => 2]), [
+            'login' => 'budisantoso',
+        ]);
+
+        $verifiedResponse->assertSessionHasNoErrors();
+        $verifiedResponse->assertSessionHas('channel', 'email');
+        $verifiedResponse->assertSessionHas('step', 2);
+    }
 }

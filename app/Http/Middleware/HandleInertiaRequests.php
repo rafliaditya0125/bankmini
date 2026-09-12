@@ -65,6 +65,7 @@ class HandleInertiaRequests extends Middleware
                 'channel' => fn () => $request->session()->get('channel'),
                 'target_masked' => fn () => $request->session()->get('target_masked'),
                 'has_totp' => fn () => $request->session()->get('has_totp'),
+                'available_channels' => fn () => $request->session()->get('available_channels'),
                 'step' => fn () => $request->session()->get('step'),
                 'login_verified' => fn () => $request->session()->get('login_verified'),
             ],

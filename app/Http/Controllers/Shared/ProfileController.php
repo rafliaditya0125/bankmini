@@ -133,14 +133,34 @@ class ProfileController extends Controller
     public function requestPasswordOtp(Request $request)
     {
         $user = Auth::user();
+        $requestedChannel = $request->input('channel');
 
-        if ($user->hasEnabledTwoFactorAuthentication()) {
-            return back()->with('info', 'Akun Anda dilindungi Authenticator (TOTP). Masukkan kode 6-digit langsung dari aplikasi Authenticator Anda.');
+        $availableChannels = [];
+        if (!empty($user->phone)) $availableChannels[] = 'whatsapp';
+        if (!empty($user->email)) $availableChannels[] = 'email';
+
+        if ($user->hasEnabledTwoFactorAuthentication() && ($requestedChannel === 'totp' || empty($requestedChannel)) && !$request->boolean('force_otp')) {
+            return back()->with([
+                'info' => 'Akun Anda dilindungi Authenticator (TOTP). Masukkan kode 6-digit langsung dari aplikasi Authenticator Anda.',
+                'channel' => 'totp',
+                'has_totp' => true,
+                'available_channels' => $availableChannels,
+            ]);
         }
 
-        $channel = env('OTP_CHANNEL', 'whatsapp');
+        $channel = $requestedChannel ?: env('OTP_CHANNEL', 'whatsapp');
         $isEmailChannel = $channel === 'email' || $channel === 'resend';
         $target = $isEmailChannel ? $user->email : $user->phone;
+
+        if (empty($target)) {
+            if (!$isEmailChannel && !empty($user->email)) {
+                $channel = 'email';
+                $target = $user->email;
+            } elseif ($isEmailChannel && !empty($user->phone)) {
+                $channel = 'whatsapp';
+                $target = $user->phone;
+            }
+        }
 
         if (empty($target)) {
             return back()->with('error', 'Anda harus memiliki ' . ($isEmailChannel ? 'Email' : 'Nomor Telepon') . ' yang terdaftar untuk menerima OTP.');
@@ -149,7 +169,14 @@ class ProfileController extends Controller
         $success = OtpService::send($user->id, $target, 'password_reset', $channel);
 
         if ($success) {
-            return back()->with('success', 'Kode OTP telah dikirim ke ' . ($isEmailChannel ? 'Email' : 'WhatsApp') . ' Anda.');
+            $isEmailChannel = $channel === 'email' || $channel === 'resend';
+            return back()->with([
+                'success' => 'Kode OTP telah dikirim ke ' . ($isEmailChannel ? 'Email' : 'WhatsApp') . ' Anda.',
+                'target_masked' => $isEmailChannel ? $this->maskEmail($target) : $this->maskPhone($target),
+                'channel' => $channel,
+                'has_totp' => $user->hasEnabledTwoFactorAuthentication(),
+                'available_channels' => $availableChannels,
+            ]);
         }
 
         return back()->with('error', 'Gagal mengirim OTP. Pastikan konfigurasi pengiriman sudah benar.');
@@ -213,18 +240,25 @@ class ProfileController extends Controller
                 }
             ],
             'otp' => ['required', 'string'],
+            'channel' => ['nullable', 'string'],
         ]);
 
-        if ($user->hasEnabledTwoFactorAuthentication()) {
+        $channel = $request->input('channel', 'totp');
+
+        if ($user->hasEnabledTwoFactorAuthentication() && ($channel === 'totp' || $channel === 'recovery')) {
             if (!$user->verifyTwoFactorCode($request->otp)) {
-                return back()->withErrors(['otp' => 'Kode autentikasi TOTP tidak valid atau sudah kedaluwarsa.']);
+                return back()->withErrors([
+                    'otp' => $channel === 'recovery'
+                        ? 'Kode Pemulihan (Recovery Code) tidak valid atau telah digunakan.'
+                        : 'Kode Authenticator TOTP tidak valid atau sudah kedaluwarsa.'
+                ]);
             }
         } else {
-            $channel = env('OTP_CHANNEL', 'whatsapp');
+            $channel = $channel !== 'totp' ? $channel : env('OTP_CHANNEL', 'whatsapp');
             $isEmailChannel = $channel === 'email' || $channel === 'resend';
             $target = $isEmailChannel ? $user->email : $user->phone;
 
-            if (!OtpService::verify($target, $request->otp, 'password_reset')) {
+            if (!OtpService::verify($target, $request->otp, 'password_reset') && !$user->verifyTwoFactorCode($request->otp)) {
                 return back()->withErrors(['otp' => 'Kode OTP tidak valid atau sudah kedaluwarsa.']);
             }
         }
@@ -306,15 +340,19 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        // 1. If user has TOTP enabled, verify directly with TOTP code
-        if ($user->hasEnabledTwoFactorAuthentication()) {
+        // 1. If user has TOTP enabled, verify directly with TOTP code or recovery code UNLESS password is provided
+        if ($user->hasEnabledTwoFactorAuthentication() && !$request->filled('current_password')) {
             $request->validate([
                 'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
                 'otp' => ['required', 'string'],
             ]);
 
             if (!$user->verifyTwoFactorCode($request->otp)) {
-                return back()->withErrors(['otp' => 'Kode autentikasi TOTP tidak valid atau sudah kedaluwarsa.']);
+                return back()->withErrors([
+                    'otp' => $request->input('channel') === 'recovery'
+                        ? 'Kode Pemulihan (Recovery Code) tidak valid atau telah digunakan.'
+                        : 'Kode autentikasi TOTP tidak valid atau sudah kedaluwarsa.'
+                ]);
             }
 
             $user->update([
@@ -324,7 +362,7 @@ class ProfileController extends Controller
 
             session()->forget(['pending_new_email', 'old_email_verified']);
 
-            return back()->with('success', 'Alamat email berhasil diperbarui dan diverifikasi menggunakan TOTP.');
+            return back()->with('success', 'Alamat email berhasil diperbarui dan diverifikasi.');
         }
 
         // 2. If user does not have TOTP, allow immediate update with account password
@@ -525,5 +563,22 @@ class ProfileController extends Controller
             'message' => 'Kode pemulihan baru berhasil dibuat.',
             'recoveryCodes' => $user->recoveryCodes() ?? [],
         ]);
+    }
+
+    private function maskPhone(string $phone): string
+    {
+        $len = strlen($phone);
+        if ($len < 8) return $phone;
+        return substr($phone, 0, 4) . str_repeat('*', $len - 8) . substr($phone, -4);
+    }
+
+    private function maskEmail(string $email): string
+    {
+        $parts = explode('@', $email);
+        $name = $parts[0];
+        $domain = $parts[1];
+        $len = strlen($name);
+        if ($len < 3) return $email;
+        return substr($name, 0, 2) . str_repeat('*', $len - 2) . '@' . $domain;
     }
 }
