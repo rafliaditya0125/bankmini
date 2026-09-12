@@ -35,14 +35,24 @@ export default function Login() {
         setData: setForgotPasswordData,
         processing: forgotPasswordProcessing,
         errors: forgotPasswordErrors,
+        reset: resetForgotPassword,
+        step: forgotPasswordStep,
+        setStep: setForgotPasswordStep,
         otpSent: forgotPasswordOtpSent,
         timer: forgotPasswordTimer,
         targetMasked,
         channel,
+        hasTotp,
+        availableChannels,
+        isCheckingIdentity,
         validations: forgotPasswordValidations,
         isValid: isForgotPasswordValid,
         requestOtp: requestForgotPasswordOtp,
+        switchToRecovery,
+        switchToTotp,
+        switchToOtp,
         submit: submitForgotPasswordReset,
+        resetFlow: resetForgotPasswordFlow,
     } = usePasswordManagement({
         routePath: route('password.update'),
         otpChannel: otp_channel,
@@ -56,8 +66,6 @@ export default function Login() {
     let forgotPasswordSubmitBtnText = '';
     if (forgotPasswordProcessing) {
         forgotPasswordSubmitBtnText = 'Memproses...';
-    } else if (isIdentityEmpty) {
-        forgotPasswordSubmitBtnText = 'Isi Identitas Akun';
     } else if (isPasswordEmpty) {
         forgotPasswordSubmitBtnText = 'Isi Password Baru';
     } else if (!forgotPasswordValidations.length) {
@@ -65,12 +73,20 @@ export default function Login() {
     } else if (!forgotPasswordValidations.match) {
         forgotPasswordSubmitBtnText = 'Konfirmasi Password Salah';
     } else if (isOtpEmpty) {
-        forgotPasswordSubmitBtnText = 'Isi Kode OTP';
+        forgotPasswordSubmitBtnText = channel === 'totp' 
+            ? 'Isi Kode Authenticator' 
+            : (channel === 'recovery' ? 'Isi Recovery Code' : 'Isi Kode OTP');
     } else {
-        forgotPasswordSubmitBtnText = 'Simpan Password';
+        forgotPasswordSubmitBtnText = 'Simpan Password Baru';
     }
 
-    const isForgotPasswordSubmitDisabled = forgotPasswordProcessing || isIdentityEmpty || isPasswordEmpty || isOtpEmpty || !isForgotPasswordValid;
+    const isForgotPasswordSubmitDisabled = forgotPasswordProcessing || isPasswordEmpty || isOtpEmpty || !isForgotPasswordValid;
+
+    const handleForgotStep1Submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (isIdentityEmpty || isCheckingIdentity || forgotPasswordProcessing) return;
+        requestForgotPasswordOtp(e);
+    };
 
     const [showPassword, setShowPassword] = useState(false);
     const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -383,160 +399,369 @@ export default function Login() {
                 show={showForgotPasswordModal}
                 onClose={() => {
                     setShowForgotPasswordModal(false);
-                    setForgotPasswordStep(1);
-                    resetForgotPassword();
+                    resetForgotPasswordFlow();
                 }}
                 title="Ganti Password"
-                description="Masukkan identitas dan lengkapi form untuk mengganti password"
+                description={
+                    forgotPasswordStep === 1
+                        ? "Masukkan identitas akun Anda untuk memulai proses ganti password"
+                        : (channel === 'totp'
+                            ? "Verifikasi kode Authenticator dan buat password baru"
+                            : "Masukkan kode OTP yang dikirim dan buat password baru")
+                }
                 maxWidth="sm"
             >
-                <form onSubmit={submitForgotPasswordReset} className="space-y-6">
-                    <HoneypotInputs setData={setForgotPasswordData} />
-                    {/* CAPTCHA for forgot password */}
-                    <CaptchaWidget
-                        onVerifyTurnstile={(token) => setForgotPasswordData('cf-turnstile-response' as any, token)}
-                        onVerifyRecaptcha={(token) => setForgotPasswordData('g-recaptcha-response' as any, token)}
-                        onExpireTurnstile={() => setForgotPasswordData('cf-turnstile-response' as any, '')}
-                        onExpireRecaptcha={() => setForgotPasswordData('g-recaptcha-response' as any, '')}
-                        theme="light"
-                    />
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Username / NIS / NIP / Email / No. Rekening</label>
-                            <input
-                                type="text"
-                                value={forgotPasswordData.login}
-                                onChange={(e) => setForgotPasswordData('login', e.target.value)}
-                                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 focus:ring-2 focus:ring-emerald-500"
-                                placeholder="Masukkan identitas akun"
-                                required
-                            />
-                            {forgotPasswordErrors.login && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{forgotPasswordErrors.login}</p>}
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Password Baru</label>
-                            <div className="relative">
-                                <input
-                                    type={showForgotPassword ? "text" : "password"}
-                                    value={forgotPasswordData.password}
-                                    onChange={(e) => setForgotPasswordData('password', e.target.value)}
-                                    className="w-full bg-slate-50 border-none rounded-2xl p-4 pr-12 font-black text-slate-700 focus:ring-2 focus:ring-emerald-500"
-                                    required
-                                    autoComplete="new-password"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowForgotPassword(!showForgotPassword)}
-                                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-emerald-600 transition-colors"
-                                >
-                                    {showForgotPassword ? (
-                                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                                        </svg>
-                                    ) : (
-                                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    )}
-                                </button>
-                            </div>
-                            {forgotPasswordErrors.password && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{forgotPasswordErrors.password}</p>}
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Konfirmasi Password</label>
-                            <div className="relative">
-                                <input
-                                    type={showForgotPassword ? "text" : "password"}
-                                    value={forgotPasswordData.password_confirmation}
-                                    onChange={(e) => setForgotPasswordData('password_confirmation', e.target.value)}
-                                    className="w-full bg-slate-50 border-none rounded-2xl p-4 pr-12 font-black text-slate-700 focus:ring-2 focus:ring-emerald-500"
-                                    required
-                                    autoComplete="new-password"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowForgotPassword(!showForgotPassword)}
-                                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-emerald-600 transition-colors"
-                                >
-                                    {showForgotPassword ? (
-                                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                                        </svg>
-                                    ) : (
-                                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Kode OTP (6 Digit)</label>
-                            <div className="flex gap-3">
+                {forgotPasswordStep === 1 ? (
+                    <form onSubmit={handleForgotStep1Submit} className="space-y-6">
+                        <HoneypotInputs setData={setForgotPasswordData} />
+                        {/* CAPTCHA for forgot password */}
+                        <CaptchaWidget
+                            onVerifyTurnstile={(token) => setForgotPasswordData('cf-turnstile-response' as any, token)}
+                            onVerifyRecaptcha={(token) => setForgotPasswordData('g-recaptcha-response' as any, token)}
+                            onExpireTurnstile={() => setForgotPasswordData('cf-turnstile-response' as any, '')}
+                            onExpireRecaptcha={() => setForgotPasswordData('g-recaptcha-response' as any, '')}
+                            theme="light"
+                        />
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Username / NIS / NIP / Email / No. Rekening
+                                </label>
                                 <input
                                     type="text"
-                                    value={forgotPasswordData.otp}
-                                    onChange={e => setForgotPasswordData('otp', e.target.value)}
-                                    className="w-[60%] bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 text-center text-xl tracking-widest focus:ring-2 focus:ring-emerald-500"
+                                    value={forgotPasswordData.login}
+                                    onChange={(e) => setForgotPasswordData('login', e.target.value)}
+                                    className="w-full bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 focus:ring-2 focus:ring-emerald-500"
+                                    placeholder="Masukkan identitas akun"
                                     required
-                                    maxLength={6}
-                                    placeholder="000000"
+                                    autoFocus
                                 />
-                                <button
-                                    type="button"
-                                    onClick={requestForgotPasswordOtp}
-                                    disabled={forgotPasswordProcessing || forgotPasswordTimer > 0 || isIdentityEmpty || isPasswordEmpty || !forgotPasswordValidations.length}
-                                    className={`w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 whitespace-nowrap px-4 ${
-                                        (forgotPasswordProcessing || forgotPasswordTimer > 0 || isIdentityEmpty || isPasswordEmpty || !forgotPasswordValidations.length)
-                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                                        : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-100'
-                                    }`}
-                                >
-                                    {forgotPasswordOtpSent && forgotPasswordTimer === 0 ? 'Kirim Ulang' : (forgotPasswordProcessing ? 'Memproses...' : (forgotPasswordTimer > 0 ? `${forgotPasswordTimer}s` : 'Kirim Kode OTP'))}
-                                </button>
+                                {forgotPasswordErrors.login && (
+                                    <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">
+                                        {forgotPasswordErrors.login}
+                                    </p>
+                                )}
+                                {(forgotPasswordErrors as any).captcha && (
+                                    <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">
+                                        {(forgotPasswordErrors as any).captcha}
+                                    </p>
+                                )}
                             </div>
-                            {forgotPasswordErrors.otp && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{forgotPasswordErrors.otp}</p>}
-                            {forgotPasswordOtpSent && !forgotPasswordErrors.otp && (
-                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                                    OTP sent to {(channel === 'email' || channel === 'resend') ? 'Email' : 'WhatsApp'}: {targetMasked}
-                                </p>
-                            )}
                         </div>
-                    </div>
 
-                    <div className="p-4 bg-amber-50 rounded-xl space-y-2">
-                        <div className="space-y-2">
-                            {[
-                                { label: 'Min. 8 Karakter', valid: forgotPasswordValidations.length },
-                                { label: 'Konfirmasi Sesuai', valid: forgotPasswordValidations.match },
-                            ].map((rule, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                    <div className={`h-2.5 w-2.5 rounded-full ${rule.valid ? 'bg-emerald-500' : 'bg-slate-200'}`}></div>
-                                    <span className={`text-[10px] font-black uppercase tracking-tight ${rule.valid ? 'text-emerald-700' : 'text-slate-400'}`}>{rule.label}</span>
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowForgotPasswordModal(false);
+                                    resetForgotPasswordFlow();
+                                }}
+                                className="px-6 py-4 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isIdentityEmpty || isCheckingIdentity || forgotPasswordProcessing}
+                                className={`flex-1 py-4 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95 ${
+                                    isIdentityEmpty || isCheckingIdentity || forgotPasswordProcessing
+                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                        : 'bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200'
+                                }`}
+                            >
+                                {isCheckingIdentity || forgotPasswordProcessing ? 'Memeriksa Akun...' : 'Lanjutkan'}
+                            </button>
+                        </div>
+                    </form>
+                ) : (
+                    <form onSubmit={submitForgotPasswordReset} className="space-y-6">
+                        <HoneypotInputs setData={setForgotPasswordData} />
+
+                        {/* Account Identity Summary */}
+                        <div className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between border border-slate-100">
+                            <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Identitas Akun</p>
+                                <p className="text-sm font-black text-slate-700">{forgotPasswordData.login}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={resetForgotPasswordFlow}
+                                className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest cursor-pointer"
+                            >
+                                Ganti Akun
+                            </button>
+                        </div>
+
+                        {/* TOTP or OTP or Recovery Info Banner */}
+                        {channel === 'totp' ? (
+                            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200/60 flex items-center gap-3">
+                                <div className="h-10 w-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shrink-0 text-base">
+                                    🛡️
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-emerald-800 uppercase tracking-wide">Akun Terproteksi Authenticator (2FA)</p>
+                                    <p className="text-xs text-emerald-600 font-medium">Buka Google Authenticator atau Microsoft Authenticator Anda untuk melihat kode 6-digit.</p>
+                                </div>
+                            </div>
+                        ) : channel === 'recovery' ? (
+                            <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200/60 flex items-center gap-3">
+                                <div className="h-10 w-10 bg-amber-600 rounded-xl flex items-center justify-center text-white shrink-0 text-base">
+                                    🔑
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-wide">Kode Pemulihan Darurat (Recovery Code)</p>
+                                    <p className="text-xs text-amber-600 font-medium">Masukkan salah satu kode pemulihan yang Anda simpan saat mengaktifkan 2FA.</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl border border-blue-200/60 flex items-center gap-3">
+                                <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0 text-base">
+                                    {channel === 'email' || channel === 'resend' ? '✉️' : '📱'}
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-blue-800 uppercase tracking-wide">Kode OTP Terkirim</p>
+                                    <p className="text-xs text-blue-600 font-medium">
+                                        OTP telah dikirim ke {(channel === 'email' || channel === 'resend') ? 'Email' : 'WhatsApp'}: {targetMasked}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
-                    <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={isForgotPasswordSubmitDisabled}
-                            className={`w-full py-4 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95 ${
-                                isForgotPasswordSubmitDisabled
-                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                : 'bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200'
-                            }`}
-                        >
-                            {forgotPasswordSubmitBtnText}
-                        </button>
-                    </div>
-                </form>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Password Baru</label>
+                                <div className="relative">
+                                    <input
+                                        type={showForgotPassword ? "text" : "password"}
+                                        value={forgotPasswordData.password}
+                                        onChange={(e) => setForgotPasswordData('password', e.target.value)}
+                                        className="w-full bg-slate-50 border-none rounded-2xl p-4 pr-12 font-black text-slate-700 focus:ring-2 focus:ring-emerald-500"
+                                        required
+                                        autoComplete="new-password"
+                                        placeholder="Minimal 8 karakter"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowForgotPassword(!showForgotPassword)}
+                                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-emerald-600 transition-colors"
+                                    >
+                                        {showForgotPassword ? (
+                                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+                                {forgotPasswordErrors.password && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{forgotPasswordErrors.password}</p>}
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Konfirmasi Password</label>
+                                <div className="relative">
+                                    <input
+                                        type={showForgotPassword ? "text" : "password"}
+                                        value={forgotPasswordData.password_confirmation}
+                                        onChange={(e) => setForgotPasswordData('password_confirmation', e.target.value)}
+                                        className="w-full bg-slate-50 border-none rounded-2xl p-4 pr-12 font-black text-slate-700 focus:ring-2 focus:ring-emerald-500"
+                                        required
+                                        autoComplete="new-password"
+                                        placeholder="Ulangi password baru"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowForgotPassword(!showForgotPassword)}
+                                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-emerald-600 transition-colors"
+                                    >
+                                        {showForgotPassword ? (
+                                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    {channel === 'totp' 
+                                        ? 'Kode Authenticator TOTP (6 Digit)' 
+                                        : (channel === 'recovery' ? 'Kode Pemulihan (Recovery Code)' : 'Kode OTP (6 Digit)')}
+                                </label>
+                                <div className="flex gap-3">
+                                    <input
+                                        type="text"
+                                        value={forgotPasswordData.otp}
+                                        onChange={e => setForgotPasswordData('otp', e.target.value)}
+                                        className={`w-[60%] bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 text-center tracking-widest focus:ring-2 focus:ring-emerald-500 ${
+                                            channel === 'recovery' ? 'font-mono text-sm uppercase' : 'text-xl'
+                                        }`}
+                                        required
+                                        maxLength={channel === 'recovery' ? 24 : 8}
+                                        placeholder={channel === 'recovery' ? 'xxxx-xxxx-xxxx' : '000000'}
+                                        autoFocus
+                                    />
+                                    {channel === 'totp' ? (
+                                        <div className="w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight flex items-center justify-center px-3 bg-emerald-50 border border-emerald-200 text-emerald-700 select-none">
+                                            🛡️ Authenticator
+                                        </div>
+                                    ) : channel === 'recovery' ? (
+                                        <div className="w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight flex items-center justify-center px-3 bg-amber-50 border border-amber-200 text-amber-700 select-none">
+                                            🔑 Recovery
+                                        </div>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => requestForgotPasswordOtp(undefined, channel)}
+                                            disabled={forgotPasswordProcessing || forgotPasswordTimer > 0}
+                                            className={`w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 whitespace-nowrap px-4 ${
+                                                (forgotPasswordProcessing || forgotPasswordTimer > 0)
+                                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                                : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-100'
+                                            }`}
+                                        >
+                                            {forgotPasswordOtpSent && forgotPasswordTimer === 0 ? 'Kirim Ulang' : (forgotPasswordProcessing ? 'Memproses...' : (forgotPasswordTimer > 0 ? `${forgotPasswordTimer}s` : 'Kirim Ulang'))}
+                                        </button>
+                                    )}
+                                </div>
+                                {forgotPasswordErrors.otp && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{forgotPasswordErrors.otp}</p>}
+
+                                {/* Alternative verification options */}
+                                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex flex-col gap-2">
+                                    {channel === 'totp' && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const pref = availableChannels.email ? 'email' : 'whatsapp';
+                                                    switchToOtp(pref);
+                                                }}
+                                                disabled={forgotPasswordProcessing}
+                                                className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                            >
+                                                <span>✉️</span>
+                                                <span>Kirim kode via {availableChannels.email && availableChannels.whatsapp ? 'Email / WhatsApp' : (availableChannels.email ? 'Email' : 'WhatsApp')}</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={switchToRecovery}
+                                                className="text-[10px] font-black text-slate-500 hover:text-slate-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                                            >
+                                                <span>🔑</span>
+                                                <span>Gunakan Kode Pemulihan (Recovery Code)</span>
+                                            </button>
+                                        </>
+                                    )}
+
+                                    {channel === 'recovery' && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={switchToTotp}
+                                                className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                                            >
+                                                <span>🛡️</span>
+                                                <span>Gunakan Aplikasi Authenticator (TOTP)</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const pref = availableChannels.email ? 'email' : 'whatsapp';
+                                                    switchToOtp(pref);
+                                                }}
+                                                disabled={forgotPasswordProcessing}
+                                                className="text-[10px] font-black text-slate-500 hover:text-slate-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                            >
+                                                <span>✉️</span>
+                                                <span>Kirim kode via {availableChannels.email && availableChannels.whatsapp ? 'Email / WhatsApp' : (availableChannels.email ? 'Email' : 'WhatsApp')}</span>
+                                            </button>
+                                        </>
+                                    )}
+
+                                    {(channel === 'email' || channel === 'whatsapp' || channel === 'resend') && (
+                                        <>
+                                            {(hasTotp || availableChannels.totp) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={switchToTotp}
+                                                    className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                    <span>🛡️</span>
+                                                    <span>Gunakan Aplikasi Authenticator (TOTP)</span>
+                                                </button>
+                                            )}
+                                            {(hasTotp || availableChannels.recovery) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={switchToRecovery}
+                                                    className="text-[10px] font-black text-slate-500 hover:text-slate-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                                                >
+                                                    <span>🔑</span>
+                                                    <span>Gunakan Kode Pemulihan (Recovery Code)</span>
+                                                </button>
+                                            )}
+                                            {availableChannels.email && availableChannels.whatsapp && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => switchToOtp(channel === 'email' || channel === 'resend' ? 'whatsapp' : 'email')}
+                                                    disabled={forgotPasswordProcessing}
+                                                    className="text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase tracking-widest text-left transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                                >
+                                                    <span>{channel === 'email' || channel === 'resend' ? '📱' : '✉️'}</span>
+                                                    <span>Kirim kode via {channel === 'email' || channel === 'resend' ? 'WhatsApp' : 'Email'}</span>
+                                                </button>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-amber-50 rounded-xl space-y-2">
+                            <div className="space-y-2">
+                                {[
+                                    { label: 'Min. 8 Karakter', valid: forgotPasswordValidations.length },
+                                    { label: 'Konfirmasi Sesuai', valid: forgotPasswordValidations.match },
+                                ].map((rule, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                        <div className={`h-2.5 w-2.5 rounded-full ${rule.valid ? 'bg-emerald-500' : 'bg-slate-200'}`}></div>
+                                        <span className={`text-[10px] font-black uppercase tracking-tight ${rule.valid ? 'text-emerald-700' : 'text-slate-400'}`}>{rule.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={resetForgotPasswordFlow}
+                                className="px-6 py-4 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                            >
+                                Kembali
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isForgotPasswordSubmitDisabled}
+                                className={`flex-1 py-4 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95 ${
+                                    isForgotPasswordSubmitDisabled
+                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-200'
+                                }`}
+                            >
+                                {forgotPasswordSubmitBtnText}
+                            </button>
+                        </div>
+                    </form>
+                )}
             </Modal>
         </>
     );

@@ -25,10 +25,19 @@ export const usePasswordManagement = ({ initialLogin = '', routePath, onSuccessC
         ...honeypotData,
     });
 
+    const [step, setStep] = useState(1);
     const [otpSent, setOtpSent] = useState(false);
     const [timer, setTimer] = useState(0);
     const [targetMasked, setTargetMasked] = useState('');
     const [channel, setChannel] = useState(otpChannel || 'whatsapp');
+    const [hasTotp, setHasTotp] = useState(false);
+    const [availableChannels, setAvailableChannels] = useState<{
+        totp?: boolean;
+        email?: string | null;
+        whatsapp?: string | null;
+        recovery?: boolean;
+    }>({});
+    const [isCheckingIdentity, setIsCheckingIdentity] = useState(false);
 
     const validations = {
         length: data.password.length >= 8,
@@ -45,23 +54,73 @@ export const usePasswordManagement = ({ initialLogin = '', routePath, onSuccessC
         }
     }, [timer]);
 
-    const requestOtp = (e?: React.FormEvent) => {
+    const requestOtp = (e?: React.FormEvent, targetChannel?: string) => {
         if (e) e.preventDefault();
-        // Attach Turnstile token right before submission
-        if (getTurnstileToken) {
+        // Attach Turnstile token on step 1 right before submission
+        if (step === 1 && getTurnstileToken) {
             setData('cf-turnstile-response', getTurnstileToken());
         }
-        post(route('password.otp'), {
+        setIsCheckingIdentity(true);
+        const queryParams: Record<string, any> = {};
+        if (targetChannel) {
+            queryParams.requested_channel = targetChannel;
+        }
+        if (step === 2) {
+            queryParams.step = 2;
+        }
+
+        post(route('password.otp', queryParams), {
+            preserveScroll: true,
             onSuccess: (page: any) => {
-                if (page.props.flash.success) {
+                setIsCheckingIdentity(false);
+                const flash = page.props.flash || {};
+                if (flash.success || page.props.success) {
                     setOtpSent(true);
-                    setTimer(60);
-                    setTargetMasked(page.props.target_masked as string);
-                    setChannel(page.props.channel as string);
-                    setData('channel', page.props.channel as string);
+                    const respChannel = (flash.channel as string) || (page.props.channel as string) || targetChannel || otpChannel || 'whatsapp';
+                    if (respChannel === 'totp') {
+                        setTimer(0);
+                        setTargetMasked('Aplikasi Authenticator (TOTP)');
+                    } else {
+                        setTimer(60);
+                        setTargetMasked((flash.target_masked as string) || (page.props.target_masked as string) || '');
+                    }
+                    if (flash.has_totp !== undefined) {
+                        setHasTotp(Boolean(flash.has_totp));
+                    }
+                    if (flash.available_channels) {
+                        setAvailableChannels(flash.available_channels);
+                    }
+                    setChannel(respChannel);
+                    setData('channel', respChannel);
+                    setStep(2);
                 }
             },
+            onError: () => {
+                setIsCheckingIdentity(false);
+            },
+            onFinish: () => {
+                setIsCheckingIdentity(false);
+            },
         });
+    };
+
+    const switchToRecovery = () => {
+        setChannel('recovery');
+        setData('channel', 'recovery');
+        setData('otp', '');
+        setTargetMasked('Kode Pemulihan Darurat');
+    };
+
+    const switchToTotp = () => {
+        setChannel('totp');
+        setData('channel', 'totp');
+        setData('otp', '');
+        setTargetMasked('Aplikasi Authenticator (TOTP)');
+        setTimer(0);
+    };
+
+    const switchToOtp = (prefChannel: 'whatsapp' | 'email') => {
+        requestOtp(undefined, prefChannel);
     };
 
     const submit = (e: React.FormEvent) => {
@@ -72,11 +131,23 @@ export const usePasswordManagement = ({ initialLogin = '', routePath, onSuccessC
             onSuccess: () => {
                 setOtpSent(false);
                 setTimer(0);
+                setStep(1);
                 reset();
                 if (onSuccessCallback) onSuccessCallback();
             },
             onFinish: () => reset('password', 'password_confirmation'),
         });
+    };
+
+    const resetFlow = () => {
+        setStep(1);
+        setOtpSent(false);
+        setTimer(0);
+        setTargetMasked('');
+        setChannel(otpChannel || 'whatsapp');
+        setHasTotp(false);
+        setAvailableChannels({});
+        reset();
     };
 
     return {
@@ -85,13 +156,23 @@ export const usePasswordManagement = ({ initialLogin = '', routePath, onSuccessC
         processing,
         errors,
         reset,
+        step,
+        setStep,
         otpSent,
         timer,
         targetMasked,
         channel,
+        hasTotp,
+        availableChannels,
+        isCheckingIdentity,
         validations,
         isPasswordValid,
+        isValid: isPasswordValid,
         requestOtp,
+        switchToRecovery,
+        switchToTotp,
+        switchToOtp,
         submit,
+        resetFlow,
     };
 };

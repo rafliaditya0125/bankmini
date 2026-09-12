@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\TrustedDeviceController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\Nasabah\DashboardController as NasabahDashboardController;
 use App\Http\Controllers\Superadmin\DashboardController as SuperadminDashboardController;
@@ -131,6 +132,10 @@ Route::middleware(['auth', 'role:nasabah', 'verified', 'force_password_change'])
     Route::get('/profil/two-factor-qr-code', [SharedProfileController::class, 'getTwoFactorQrCode'])->name('profil.two-factor.qr-code');
     Route::get('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'getTwoFactorRecoveryCodes'])->name('profil.two-factor.recovery-codes');
     Route::post('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'regenerateTwoFactorRecoveryCodes'])->name('profil.two-factor.regenerate-recovery-codes');
+
+    // Trusted Devices Routes
+    Route::get('/profil/trusted-devices', [TrustedDeviceController::class, 'index'])->name('profil.trusted-devices.index');
+    Route::delete('/profil/trusted-devices/{device}', [TrustedDeviceController::class, 'destroy'])->name('profil.trusted-devices.destroy');
 });
 
 // Teller Routes
@@ -175,6 +180,10 @@ Route::middleware(['auth', 'role:teller', 'verified'])->prefix('teller')->name('
     Route::get('/profil/two-factor-qr-code', [SharedProfileController::class, 'getTwoFactorQrCode'])->name('profil.two-factor.qr-code');
     Route::get('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'getTwoFactorRecoveryCodes'])->name('profil.two-factor.recovery-codes');
     Route::post('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'regenerateTwoFactorRecoveryCodes'])->name('profil.two-factor.regenerate-recovery-codes');
+
+    // Trusted Devices Routes
+    Route::get('/profil/trusted-devices', [TrustedDeviceController::class, 'index'])->name('profil.trusted-devices.index');
+    Route::delete('/profil/trusted-devices/{device}', [TrustedDeviceController::class, 'destroy'])->name('profil.trusted-devices.destroy');
 });
 
 // Admin Routes (Sub-Admin)
@@ -265,6 +274,10 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::get('/profil/two-factor-qr-code', [SharedProfileController::class, 'getTwoFactorQrCode'])->name('profil.two-factor.qr-code');
     Route::get('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'getTwoFactorRecoveryCodes'])->name('profil.two-factor.recovery-codes');
     Route::post('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'regenerateTwoFactorRecoveryCodes'])->name('profil.two-factor.regenerate-recovery-codes');
+
+    // Trusted Devices Routes
+    Route::get('/profil/trusted-devices', [TrustedDeviceController::class, 'index'])->name('profil.trusted-devices.index');
+    Route::delete('/profil/trusted-devices/{device}', [TrustedDeviceController::class, 'destroy'])->name('profil.trusted-devices.destroy');
 });
 
 // Superadmin Exclusive Routes
@@ -367,4 +380,12 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     Route::get('/profil/two-factor-qr-code', [SharedProfileController::class, 'getTwoFactorQrCode'])->name('profil.two-factor.qr-code');
     Route::get('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'getTwoFactorRecoveryCodes'])->name('profil.two-factor.recovery-codes');
     Route::post('/profil/two-factor-recovery-codes', [SharedProfileController::class, 'regenerateTwoFactorRecoveryCodes'])->name('profil.two-factor.regenerate-recovery-codes');
+
+    // Trusted Devices Routes (self-management)
+    Route::get('/profil/trusted-devices', [TrustedDeviceController::class, 'index'])->name('profil.trusted-devices.index');
+    Route::delete('/profil/trusted-devices/{device}', [TrustedDeviceController::class, 'destroy'])->name('profil.trusted-devices.destroy');
+
+    // Trusted Devices Routes (superadmin — all users)
+    Route::get('/trusted-devices', [TrustedDeviceController::class, 'adminIndex'])->name('trusted-devices.index');
+    Route::delete('/trusted-devices/{device}', [TrustedDeviceController::class, 'adminDestroy'])->name('trusted-devices.destroy');
 });

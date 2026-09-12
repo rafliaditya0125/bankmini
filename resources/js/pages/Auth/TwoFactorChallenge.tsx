@@ -8,9 +8,10 @@ interface PageProps {
     status?: string;
     user_name?: string;
     user_email?: string;
+    trust_days?: number;
 }
 
-export default function TwoFactorChallenge({ status, user_name, user_email }: PageProps) {
+export default function TwoFactorChallenge({ status, user_name, user_email, trust_days = 30 }: PageProps) {
     const [recovery, setRecovery] = useState(false);
     const { honeypotData } = useHoneypot();
     const [turnstileToken, setTurnstileToken] = useState('');
@@ -19,6 +20,7 @@ export default function TwoFactorChallenge({ status, user_name, user_email }: Pa
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         code: '',
         recovery_code: '',
+        trust_device: false,
         'cf-turnstile-response': '',
         'g-recaptcha-response': '',
         ...honeypotData,
@@ -163,6 +165,31 @@ export default function TwoFactorChallenge({ status, user_name, user_email }: Pa
                         )}
 
                         <div className="space-y-3 pt-2">
+                            {/* Trust device checkbox */}
+                            <label className="flex items-center gap-3 cursor-pointer group select-none px-1">
+                                <div className="relative flex items-center">
+                                    <input
+                                        id="trust_device"
+                                        type="checkbox"
+                                        checked={data.trust_device}
+                                        onChange={(e) => setData('trust_device', e.target.checked)}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-5 h-5 rounded-md border border-slate-600 bg-slate-800 peer-checked:bg-emerald-500 peer-checked:border-emerald-500 transition-all flex items-center justify-center">
+                                        {data.trust_device && (
+                                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                </div>
+                                <span className="text-[11px] font-semibold text-slate-400 group-hover:text-slate-300 transition-colors leading-tight">
+                                    Percayai perangkat ini selama{' '}
+                                    <span className="text-emerald-400">{trust_days} hari</span>
+                                    {' '}&mdash; lewati verifikasi 2FA pada login berikutnya
+                                </span>
+                            </label>
+
                             <button
                                 type="submit"
                                 disabled={processing || (!recovery && data.code.length < 6) || (recovery && !data.recovery_code)}

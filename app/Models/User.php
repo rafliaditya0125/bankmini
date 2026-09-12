@@ -124,6 +124,41 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Verify a two-factor authentication code (TOTP or recovery code).
+     */
+    public function verifyTwoFactorCode(?string $code): bool
+    {
+        if (empty($code) || !$this->hasEnabledTwoFactorAuthentication()) {
+            return false;
+        }
+
+        $cleanedCode = preg_replace('/\s+/', '', (string) $code);
+        $provider = app(\Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider::class);
+
+        try {
+            $secret = decrypt($this->two_factor_secret);
+            if ($provider->verify($secret, $cleanedCode)) {
+                return true;
+            }
+        } catch (\Throwable $e) {
+            // Decryption failure or provider error; proceed to check recovery codes
+        }
+
+        // Check recovery codes
+        $recoveryCodes = $this->recoveryCodes() ?? [];
+        $foundCode = collect($recoveryCodes)->first(function ($c) use ($cleanedCode) {
+            return hash_equals($c, $cleanedCode);
+        });
+
+        if ($foundCode) {
+            $this->replaceRecoveryCode($foundCode);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Determine if the user has verified their email address.
      * Bypassed if all notifications are disabled.
      */
@@ -182,6 +217,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function nasabah()
     {
         return $this->hasOne(Nasabah::class);
+    }
+
+    /**
+     * Relationship with TrustedDevices
+     */
+    public function trustedDevices()
+    {
+        return $this->hasMany(TrustedDevice::class)->latest();
     }
 
     /**
