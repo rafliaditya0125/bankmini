@@ -46,6 +46,7 @@ export default function Profile() {
     const { data: emailData, setData: setEmailData, post: postEmail, put: putEmail, processing: emailProcessing, errors: emailErrors, reset: resetEmail } = useForm({
         email: '',
         otp: '',
+        current_password: '',
     });
 
     // Form states
@@ -402,6 +403,41 @@ ${twoFactorRecoveryCodes.join('\n')}
         e.preventDefault();
         setOtpError(null);
 
+        // If user has 2FA enabled, verify directly using TOTP
+        if (user.two_factor_enabled) {
+            putEmail(route(`${routePrefix}.profil.email`), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setShowEmailModal(false);
+                    resetEmail();
+                    setOtpError(null);
+                },
+                onError: (errors) => {
+                    if (errors.otp) setOtpError(errors.otp);
+                    else if (errors.email) setOtpError(errors.email);
+                }
+            });
+            return;
+        }
+
+        // For non-2FA accounts: if verifying with account password
+        if (emailData.current_password) {
+            putEmail(route(`${routePrefix}.profil.email`), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setShowEmailModal(false);
+                    resetEmail();
+                    setOtpError(null);
+                },
+                onError: (errors) => {
+                    if (errors.current_password) setOtpError(errors.current_password);
+                    else if (errors.email) setOtpError(errors.email);
+                }
+            });
+            return;
+        }
+
+        // Fallback: 2-step OTP flow
         if (emailStep === 1) {
             postEmail(route(`${routePrefix}.profil.email-verify-old`), {
                 preserveScroll: true,
@@ -412,7 +448,7 @@ ${twoFactorRecoveryCodes.join('\n')}
                     setEmailData('otp', ''); // Clear OTP field for next step
                 },
                 onError: (errors) => {
-                    if (errors.otp) setOtpError('kode otp email lama salah');
+                    if (errors.otp) setOtpError(errors.otp || 'kode otp email lama salah');
                 }
             });
             return;
@@ -431,7 +467,7 @@ ${twoFactorRecoveryCodes.join('\n')}
                 setRequestCount(0);
             },
             onError: (errors) => {
-                if (errors.otp) setOtpError('kode otp email baru salah');
+                if (errors.otp) setOtpError(errors.otp || 'kode otp email baru salah');
             }
         });
     };
@@ -493,18 +529,106 @@ ${twoFactorRecoveryCodes.join('\n')}
         const isEmailEmpty = emailData.email.length === 0;
         const isOtpEmpty = emailData.otp.length === 0;
 
+        // If user has 2FA enabled: Clean 1-step TOTP form
+        if (user.two_factor_enabled) {
+            const isSubmitDisabled = emailProcessing || !isEmailValid || isOtpEmpty;
+
+            return (
+                <form onSubmit={handleEmailSubmit} className="space-y-6">
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200/60 dark:border-emerald-800/40 flex items-center gap-3">
+                        <div className="h-10 w-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shrink-0">
+                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wide">Terproteksi Authenticator (TOTP)</p>
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Verifikasi instan via aplikasi Google / Microsoft Authenticator.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Alamat Email Baru
+                            </label>
+                            <input
+                                type="email"
+                                value={emailData.email}
+                                onChange={e => {
+                                    setEmailData('email', e.target.value);
+                                    setOtpError(null);
+                                }}
+                                className="w-full border-none rounded-2xl p-4 font-black text-slate-700 bg-slate-50 focus:ring-2 focus:ring-emerald-500"
+                                required
+                                placeholder="nama@email.com"
+                            />
+                            {emailErrors.email && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{emailErrors.email}</p>}
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Kode Authenticator TOTP (6 Digit)
+                            </label>
+                            <input
+                                type="text"
+                                value={emailData.otp}
+                                onChange={e => {
+                                    setEmailData('otp', e.target.value);
+                                    setOtpError(null);
+                                }}
+                                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 text-center text-xl tracking-widest focus:ring-2 focus:ring-emerald-500"
+                                required
+                                maxLength={8}
+                                placeholder="000000"
+                            />
+                            {otpError && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{otpError}</p>}
+                            {emailErrors.otp && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{emailErrors.otp}</p>}
+                            <p className="text-[10px] text-slate-400 font-medium">Buka aplikasi authenticator Anda dan masukkan kode 6-digit.</p>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowEmailModal(false);
+                                resetEmail();
+                                setOtpError(null);
+                            }}
+                            className="px-6 py-4 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95 cursor-pointer"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitDisabled}
+                            className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95 ${
+                                isSubmitDisabled 
+                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-xl shadow-emerald-200'
+                            }`}
+                        >
+                            {emailProcessing ? 'Memproses...' : 'Simpan Email Baru'}
+                        </button>
+                    </div>
+                </form>
+            );
+        }
+
         let sendOtpBtnText = 'Kirim Kode OTP';
         if (emailProcessing) sendOtpBtnText = 'Memproses...';
         else if (timer > 0) sendOtpBtnText = `${timer}s`;
         else if (isEmailEmpty) sendOtpBtnText = 'isi email';
         else if (!isEmailValid) sendOtpBtnText = 'isi email dengan benar';
 
-        let submitBtnText = emailStep === 1 ? 'Lanjut' : 'Ubah Email';
+        let submitBtnText = emailStep === 1 ? (emailData.current_password ? 'Ubah Email' : 'Lanjut') : 'Ubah Email';
         if (emailProcessing) submitBtnText = 'Memproses...';
-        else if (isOtpEmpty) submitBtnText = 'isi otp';
+        else if (emailStep === 1 && !emailData.current_password && isOtpEmpty) submitBtnText = 'isi otp';
+        else if (emailStep === 2 && isOtpEmpty) submitBtnText = 'isi otp';
 
         const isSendOtpDisabled = !isEmailValid || emailProcessing || timer > 0;
-        const isSubmitDisabled = emailProcessing || isOtpEmpty || (emailStep === 1 && !oldOtpSent);
+        const isSubmitDisabled = emailProcessing || (!emailData.current_password && (isOtpEmpty || (emailStep === 1 && !oldOtpSent)));
 
         return (
             <form onSubmit={handleEmailSubmit} className="space-y-6">
@@ -530,46 +654,66 @@ ${twoFactorRecoveryCodes.join('\n')}
                         {emailErrors.email && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{emailErrors.email}</p>}
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            {emailStep === 1 ? 'Kode OTP (Email Lama)' : 'Kode OTP (Email Baru)'}
-                        </label>
-                        <div className="flex gap-3">
+                    {emailStep === 1 && (
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Konfirmasi Password Akun (Verifikasi Cepat)
+                            </label>
                             <input
-                                type="text"
-                                value={emailData.otp}
-                                onChange={e => {
-                                    setEmailData('otp', e.target.value);
-                                    setOtpError(null);
-                                }}
-                                className="w-[60%] bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 text-center text-xl tracking-widest focus:ring-2 focus:ring-emerald-500"
-                                required
-                                maxLength={6}
-                                placeholder="000000"
+                                type="password"
+                                value={emailData.current_password}
+                                onChange={e => setEmailData('current_password', e.target.value)}
+                                className="w-full bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 focus:ring-2 focus:ring-emerald-500"
+                                placeholder="Masukkan password akun Anda saat ini"
+                                autoComplete="current-password"
                             />
-                            {emailStep === 1 && (
-                                <button
-                                    type="button"
-                                    onClick={requestEmailOtp}
-                                    disabled={isSendOtpDisabled}
-                                    className={`w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 whitespace-nowrap px-4 ${
-                                        isSendOtpDisabled 
-                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                                        : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-100'
-                                    }`}
-                                >
-                                    {oldOtpSent && timer === 0 ? 'Kirim Ulang' : sendOtpBtnText}
-                                </button>
+                            {emailErrors.current_password && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{emailErrors.current_password}</p>}
+                            <p className="text-[10px] text-slate-400 font-medium">Bila mengisi password akun, Anda tidak perlu menunggu pengiriman OTP ke email lama.</p>
+                        </div>
+                    )}
+
+                    {(!emailData.current_password || emailStep === 2) && (
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                {emailStep === 1 ? 'Atau Gunakan Kode OTP (Email Lama)' : 'Kode OTP (Email Baru)'}
+                            </label>
+                            <div className="flex gap-3">
+                                <input
+                                    type="text"
+                                    value={emailData.otp}
+                                    onChange={e => {
+                                        setEmailData('otp', e.target.value);
+                                        setOtpError(null);
+                                    }}
+                                    className="w-[60%] bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 text-center text-xl tracking-widest focus:ring-2 focus:ring-emerald-500"
+                                    required={!emailData.current_password}
+                                    maxLength={6}
+                                    placeholder="000000"
+                                />
+                                {emailStep === 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={requestEmailOtp}
+                                        disabled={isSendOtpDisabled}
+                                        className={`w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 whitespace-nowrap px-4 ${
+                                            isSendOtpDisabled 
+                                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-100'
+                                        }`}
+                                    >
+                                        {oldOtpSent && timer === 0 ? 'Kirim Ulang' : sendOtpBtnText}
+                                    </button>
+                                )}
+                            </div>
+                            {otpError && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{otpError}</p>}
+                            {emailStep === 1 && oldOtpSent && !otpError && (
+                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest italic animate-pulse">OTP dikirim ke email lama: {user.email}</p>
+                            )}
+                            {emailStep === 2 && newOtpSent && (
+                                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest italic animate-pulse">OTP dikirim ke email baru: {emailData.email}</p>
                             )}
                         </div>
-                        {otpError && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{otpError}</p>}
-                        {emailStep === 1 && oldOtpSent && !otpError && (
-                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest italic animate-pulse">OTP dikirim ke email lama: {user.email}</p>
-                        )}
-                        {emailStep === 2 && newOtpSent && (
-                            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest italic animate-pulse">OTP dikirim ke email baru: {emailData.email}</p>
-                        )}
-                    </div>
+                    )}
                 </div>
 
                 <div className="flex gap-3">
@@ -768,7 +912,9 @@ ${twoFactorRecoveryCodes.join('\n')}
 
                     {passwordMode === 'reset' && (
                         <div className="space-y-2">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Kode OTP (6 Digit)</label>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                {user.two_factor_enabled ? 'Kode Authenticator TOTP (6 Digit)' : 'Kode OTP (6 Digit)'}
+                            </label>
                             <div className="flex gap-3">
                                 <input
                                     type="text"
@@ -776,25 +922,37 @@ ${twoFactorRecoveryCodes.join('\n')}
                                     onChange={e => setPasswordData('otp', e.target.value)}
                                     className="w-[60%] bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 text-center text-xl tracking-widest focus:ring-2 focus:ring-emerald-500"
                                     required
-                                    maxLength={6}
+                                    maxLength={8}
                                     placeholder="000000"
                                 />
-                                <button
-                                    type="button"
-                                    onClick={requestPasswordOtp}
-                                    disabled={isSendOtpDisabled}
-                                    className={`w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 whitespace-nowrap px-4 ${
-                                        isSendOtpDisabled 
-                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                                        : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-100'
-                                    }`}
-                                >
-                                    {passwordOtpSent && passwordTimer === 0 ? 'Kirim Ulang' : sendOtpBtnText}
-                                </button>
+                                {user.two_factor_enabled ? (
+                                    <div className="w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight flex items-center justify-center px-3 bg-emerald-50 border border-emerald-200 text-emerald-700 select-none">
+                                        🛡️ Authenticator
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={requestPasswordOtp}
+                                        disabled={isSendOtpDisabled}
+                                        className={`w-[40%] rounded-2xl text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 whitespace-nowrap px-4 ${
+                                            isSendOtpDisabled 
+                                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-100'
+                                        }`}
+                                    >
+                                        {passwordOtpSent && passwordTimer === 0 ? 'Kirim Ulang' : sendOtpBtnText}
+                                    </button>
+                                )}
                             </div>
                             {passwordErrors.otp && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{passwordErrors.otp}</p>}
-                            {passwordOtpSent && !passwordErrors.otp && (
-                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">OTP telah dikirim ke {(otp_channel === 'email' || otp_channel === 'resend') ? 'Email' : 'WhatsApp'} Anda</p>
+                            {user.two_factor_enabled ? (
+                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                                    🛡️ Akun Anda terproteksi 2FA. Masukkan kode 6-digit dari aplikasi Authenticator Anda.
+                                </p>
+                            ) : (
+                                passwordOtpSent && !passwordErrors.otp && (
+                                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">OTP telah dikirim ke {(otp_channel === 'email' || otp_channel === 'resend') ? 'Email' : 'WhatsApp'} Anda</p>
+                                )
                             )}
                         </div>
                     )}

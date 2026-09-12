@@ -133,6 +133,11 @@ class ProfileController extends Controller
     public function requestPasswordOtp(Request $request)
     {
         $user = Auth::user();
+
+        if ($user->hasEnabledTwoFactorAuthentication()) {
+            return back()->with('info', 'Akun Anda dilindungi Authenticator (TOTP). Masukkan kode 6-digit langsung dari aplikasi Authenticator Anda.');
+        }
+
         $channel = env('OTP_CHANNEL', 'whatsapp');
         $isEmailChannel = $channel === 'email' || $channel === 'resend';
         $target = $isEmailChannel ? $user->email : $user->phone;
@@ -189,15 +194,12 @@ class ProfileController extends Controller
     }
 
     /**
-     * Reset password via OTP without current password (for logged in users)
+     * Reset password via OTP or TOTP without current password (for logged in users)
      */
     public function resetPasswordViaOtp(Request $request)
     {
         $user = Auth::user();
         $identifier = $user->getIdentifier();
-        $channel = env('OTP_CHANNEL', 'whatsapp');
-        $isEmailChannel = $channel === 'email' || $channel === 'resend';
-        $target = $isEmailChannel ? $user->email : $user->phone;
 
         $request->validate([
             'password' => [
@@ -210,11 +212,21 @@ class ProfileController extends Controller
                     }
                 }
             ],
-            'otp' => ['required', 'string', 'size:6'],
+            'otp' => ['required', 'string'],
         ]);
 
-        if (!OtpService::verify($target, $request->otp, 'password_reset')) {
-            return back()->withErrors(['otp' => 'Kode OTP tidak valid atau sudah kedaluwarsa.']);
+        if ($user->hasEnabledTwoFactorAuthentication()) {
+            if (!$user->verifyTwoFactorCode($request->otp)) {
+                return back()->withErrors(['otp' => 'Kode autentikasi TOTP tidak valid atau sudah kedaluwarsa.']);
+            }
+        } else {
+            $channel = env('OTP_CHANNEL', 'whatsapp');
+            $isEmailChannel = $channel === 'email' || $channel === 'resend';
+            $target = $isEmailChannel ? $user->email : $user->phone;
+
+            if (!OtpService::verify($target, $request->otp, 'password_reset')) {
+                return back()->withErrors(['otp' => 'Kode OTP tidak valid atau sudah kedaluwarsa.']);
+            }
         }
 
         $user->update([
@@ -225,19 +237,23 @@ class ProfileController extends Controller
             $request->session()->forget('force_password_change');
         }
 
-        return back()->with('success', 'Berhasil ubah password dengan OTP.');
+        return back()->with('success', 'Berhasil ubah password.');
     }
 
     /**
-     * Step 1: Request Email Change - Send OTP to OLD email
+     * Step 1: Request Email Change - Send OTP to OLD email (or inform TOTP)
      */
     public function requestEmailChangeOtp(Request $request)
     {
-        $request->validate([
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-        ]);
-
         $user = Auth::user();
+
+        if ($user->hasEnabledTwoFactorAuthentication()) {
+            return back()->with('info', 'Akun Anda dilindungi Authenticator (TOTP). Anda dapat langsung mengganti email dengan kode TOTP 6-digit.');
+        }
+
+        $request->validate([
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+        ]);
         
         // Store the intended new email in session temporarily
         session(['pending_new_email' => $request->email]);
@@ -284,11 +300,51 @@ class ProfileController extends Controller
     }
 
     /**
-     * Step 3: Verify NEW Email OTP and Update
+     * Step 3: Verify and Update Email (supports TOTP, Password, or NEW Email OTP)
      */
     public function updateEmail(Request $request)
     {
         $user = Auth::user();
+
+        // 1. If user has TOTP enabled, verify directly with TOTP code
+        if ($user->hasEnabledTwoFactorAuthentication()) {
+            $request->validate([
+                'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+                'otp' => ['required', 'string'],
+            ]);
+
+            if (!$user->verifyTwoFactorCode($request->otp)) {
+                return back()->withErrors(['otp' => 'Kode autentikasi TOTP tidak valid atau sudah kedaluwarsa.']);
+            }
+
+            $user->update([
+                'email' => $request->email,
+                'email_verified_at' => now(),
+            ]);
+
+            session()->forget(['pending_new_email', 'old_email_verified']);
+
+            return back()->with('success', 'Alamat email berhasil diperbarui dan diverifikasi menggunakan TOTP.');
+        }
+
+        // 2. If user does not have TOTP, allow immediate update with account password
+        if ($request->filled('current_password')) {
+            $request->validate([
+                'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+                'current_password' => ['required', 'current_password'],
+            ]);
+
+            $user->update([
+                'email' => $request->email,
+                'email_verified_at' => now(),
+            ]);
+
+            session()->forget(['pending_new_email', 'old_email_verified']);
+
+            return back()->with('success', 'Alamat email berhasil diperbarui.');
+        }
+
+        // 3. Fallback to 2-step email OTP verification flow
         $newEmail = session('pending_new_email');
         $oldVerified = session('old_email_verified');
 
@@ -307,7 +363,7 @@ class ProfileController extends Controller
         // Both verified! Update.
         $user->update([
             'email' => $newEmail,
-            'email_verified_at' => now(), // Mark as verified since they just verified it
+            'email_verified_at' => now(),
         ]);
 
         // Cleanup session

@@ -35,6 +35,18 @@ class ForgotPasswordController extends Controller
             return back()->withErrors(['login' => 'Pengguna tidak ditemukan.']);
         }
 
+        // If user has 2FA enabled, switch to TOTP directly without sending email/SMS OTP
+        if ($user->hasEnabledTwoFactorAuthentication()) {
+            return back()->with([
+                'success' => 'Akun Anda dilindungi Authenticator (TOTP). Masukkan kode 6-digit dari aplikasi Authenticator Anda.',
+                'target_masked' => 'Aplikasi Authenticator (TOTP)',
+                'channel' => 'totp',
+                'has_totp' => true,
+                'step' => 2,
+                'login_verified' => $request->login,
+            ]);
+        }
+
         $channel = env('OTP_CHANNEL', 'whatsapp');
         $isEmailChannel = $channel === 'email' || $channel === 'resend';
         $target = $isEmailChannel ? $user->email : $user->phone;
@@ -75,7 +87,7 @@ class ForgotPasswordController extends Controller
         $request->validate([
             'login' => 'required|string',
             'channel' => 'required|string',
-            'otp' => 'required|string|size:6',
+            'otp' => 'required|string',
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
@@ -85,18 +97,24 @@ class ForgotPasswordController extends Controller
             return back()->withErrors(['login' => 'Pengguna tidak ditemukan.']);
         }
 
-        $isEmailChannel = $request->channel === 'email' || $request->channel === 'resend';
-        $target = $isEmailChannel ? $user->email : $user->phone;
+        if ($request->channel === 'totp' || $user->hasEnabledTwoFactorAuthentication()) {
+            if (!$user->verifyTwoFactorCode($request->otp)) {
+                return back()->withErrors(['otp' => 'Kode autentikasi TOTP tidak valid atau sudah kedaluwarsa.']);
+            }
+        } else {
+            $isEmailChannel = $request->channel === 'email' || $request->channel === 'resend';
+            $target = $isEmailChannel ? $user->email : $user->phone;
 
-        if (!OtpService::verify($target, $request->otp, 'guest_password_reset')) {
-            return back()->withErrors(['otp' => 'Kode OTP tidak valid atau sudah kedaluwarsa.']);
+            if (!OtpService::verify($target, $request->otp, 'guest_password_reset')) {
+                return back()->withErrors(['otp' => 'Kode OTP tidak valid atau sudah kedaluwarsa.']);
+            }
         }
 
         $user->update([
             'password' => Hash::make($request->password),
         ]);
 
-        return redirect()->route('login')->with('success', 'Berhasil ubah password dengan OTP. Silakan login dengan password baru Anda.');
+        return redirect()->route('login')->with('success', 'Berhasil ubah password. Silakan login dengan password baru Anda.');
     }
 
     private function maskPhone(string $phone): string

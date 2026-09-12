@@ -10,6 +10,7 @@ interface PageProps extends Record<string, unknown> {
             name: string;
             email: string;
             role: string;
+            two_factor_enabled?: boolean;
         }
     }
 }
@@ -75,15 +76,31 @@ export default function VerifyEmail() {
                         </p>
                     </div>
 
+                    {auth.user.two_factor_enabled && (
+                        <div className="mb-6 p-4 bg-emerald-50 rounded-2xl border border-emerald-200/60 flex items-center gap-3">
+                            <div className="h-10 w-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shrink-0">
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-emerald-800 uppercase tracking-wide">Terhubung Authenticator (TOTP)</p>
+                                <p className="text-xs text-emerald-600 font-medium">Anda dapat langsung memasukkan kode 6-digit dari Google / Microsoft Authenticator.</p>
+                            </div>
+                        </div>
+                    )}
+
                     <form onSubmit={submit} className="space-y-6">
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Kode OTP (6 Digit)</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">
+                                    {auth.user.two_factor_enabled ? 'Kode Authenticator TOTP / OTP' : 'Kode OTP (6 Digit)'}
+                                </label>
                                 <input
                                     type="text"
                                     value={data.otp}
                                     onChange={e => setData('otp', e.target.value)}
-                                    maxLength={6}
+                                    maxLength={8}
                                     placeholder="000000"
                                     className="w-full bg-slate-50 border-none rounded-2xl p-4 font-black text-slate-700 text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-emerald-500 shadow-inner"
                                 />

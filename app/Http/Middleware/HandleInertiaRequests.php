@@ -62,6 +62,11 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'transaction' => fn () => $request->session()->get('transaction'),
+                'channel' => fn () => $request->session()->get('channel'),
+                'target_masked' => fn () => $request->session()->get('target_masked'),
+                'has_totp' => fn () => $request->session()->get('has_totp'),
+                'step' => fn () => $request->session()->get('step'),
+                'login_verified' => fn () => $request->session()->get('login_verified'),
             ],
             'honeypot' => fn () => config('honeypot.enabled', true) ? [
                 'enabled' => true,

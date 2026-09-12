@@ -27,11 +27,17 @@ class EmailVerificationController extends Controller
      */
     public function sendOtp(Request $request)
     {
-        if ($request->user()->hasVerifiedEmail()) {
+        $user = $request->user();
+
+        if ($user->hasVerifiedEmail()) {
             return redirect()->intended(route('dashboard', absolute: false));
         }
 
-        $success = OtpService::send(Auth::id(), $request->user()->email, 'email_verification', 'email');
+        if ($user->hasEnabledTwoFactorAuthentication()) {
+            return back()->with('info', 'Akun Anda memiliki Authenticator (TOTP) aktif. Anda dapat langsung memasukkan kode 6-digit dari aplikasi Authenticator Anda tanpa perlu menunggu email.');
+        }
+
+        $success = OtpService::send(Auth::id(), $user->email, 'email_verification', 'email');
 
         if ($success) {
             return back()->with('success', 'Kode OTP telah dikirim ke alamat email Anda.');
@@ -41,23 +47,34 @@ class EmailVerificationController extends Controller
     }
 
     /**
-     * Verify the email address using OTP.
+     * Verify the email address using OTP or TOTP.
      */
     public function verify(Request $request)
     {
         $request->validate([
-            'otp' => ['required', 'string', 'size:6'],
+            'otp' => ['required', 'string'],
         ]);
 
-        if ($request->user()->hasVerifiedEmail()) {
+        $user = $request->user();
+
+        if ($user->hasVerifiedEmail()) {
             return redirect()->intended(route('dashboard', absolute: false));
         }
 
-        if (!OtpService::verify($request->user()->email, $request->otp, 'email_verification')) {
-            return back()->withErrors(['otp' => 'Kode OTP tidak valid atau sudah kedaluwarsa.']);
+        $isValid = false;
+
+        // If user has 2FA enabled, allow verifying via TOTP code
+        if ($user->hasEnabledTwoFactorAuthentication() && $user->verifyTwoFactorCode($request->otp)) {
+            $isValid = true;
+        } elseif (OtpService::verify($user->email, $request->otp, 'email_verification')) {
+            $isValid = true;
         }
 
-        $request->user()->markEmailAsVerified();
+        if (!$isValid) {
+            return back()->withErrors(['otp' => 'Kode OTP / TOTP tidak valid atau sudah kedaluwarsa.']);
+        }
+
+        $user->markEmailAsVerified();
 
         return redirect()->intended(route('dashboard', absolute: false))->with('success', 'Email Anda telah berhasil diverifikasi.');
     }

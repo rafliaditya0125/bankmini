@@ -18,6 +18,11 @@ class TwoFactorAuthenticationTest extends TestCase
     {
         parent::setUp();
 
+        config([
+            'turnstile.enabled' => false,
+            'recaptcha.enabled' => false,
+        ]);
+
         $this->user = User::create([
             'name' => 'Admin Test',
             'email' => 'admin.test@bankmini.test',
