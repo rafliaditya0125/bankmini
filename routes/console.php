@@ -10,4 +10,5 @@ Artisan::command('inspire', function () {
 
 Schedule::command('app:process-monthly-fees')->daily();
 Schedule::command('trusted-devices:prune')->daily();
+Schedule::command('telescope:prune --hours=48')->daily();
 

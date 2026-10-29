@@ -8,21 +8,61 @@ class Setting extends Model
 {
     protected $fillable = ['key', 'value'];
 
+    /**
+     * In-memory cache for current request lifecycle
+     */
+    protected static ?array $memoryCache = null;
+
+    protected static function booted(): void
+    {
+        static::saved(function () {
+            self::clearCache();
+        });
+
+        static::deleted(function () {
+            self::clearCache();
+        });
+    }
+
+    /**
+     * Load all settings as key-value pairs with caching
+     */
+    public static function allKeyed(): array
+    {
+        if (self::$memoryCache !== null) {
+            return self::$memoryCache;
+        }
+
+        self::$memoryCache = \Illuminate\Support\Facades\Cache::remember('app_settings_all', 86400, function () {
+            return self::pluck('value', 'key')->toArray();
+        });
+
+        return self::$memoryCache;
+    }
+
     public static function get($key, $default = null)
     {
-        $setting = self::where('key', $key)->first();
-        return $setting ? $setting->value : $default;
+        $settings = self::allKeyed();
+        return array_key_exists($key, $settings) ? $settings[$key] : $default;
     }
 
     public static function set($key, $value)
     {
         $setting = self::updateOrCreate(['key' => $key], ['value' => $value]);
 
+        self::clearCache();
+
         if (in_array($key, ['bank_name', 'school_name'])) {
             self::syncManifest();
         }
 
         return $setting;
+    }
+
+    public static function clearCache(): void
+    {
+        self::$memoryCache = null;
+        \Illuminate\Support\Facades\Cache::forget('app_settings_all');
     }
 
     public static function syncManifest(): void
