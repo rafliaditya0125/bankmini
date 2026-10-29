@@ -19,7 +19,6 @@ class DatabaseSeeder extends Seeder
             SuperadminSeeder::class,
             JurusanSeeder::class,
             BankMiniSeeder::class,
-            //AuditLogSeeder::class,
         ]);
     }
 }

@@ -18,7 +18,7 @@ class SuperadminSeeder extends Seeder
             ['username' => 'superadmin'],
             [
                 'name' => 'Super Administrator',
-                'email' => 'superadmin@bankmini.smk',
+                'email' => 'superadmin@rafliaditya.my.id',
                 'password' => Hash::make('superadmin'),
                 'role' => 'superadmin',
                 'phone' => '081234567890',

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Jurusan;
 use App\Models\Nasabah;
 use App\Models\Transaksi;
 use App\Models\User;
@@ -20,11 +21,11 @@ class BankMiniSeeder extends Seeder
         $teller2 = User::where('username', 'teller2')->first();
 
         // Create Admin (Requested credentials)
-        if (!User::where('email', 'admin@bankmini.smk')->exists()) {
+        if (!User::where('email', 'admin@rafliaditya.my.id')->exists()) {
             User::create([
                 'name' => 'Administrator Sistem',
-                'username' => 'admin@bankmini.smk',
-                'email' => 'admin@bankmini.smk',
+                'username' => 'admin@rafliaditya.my.id',
+                'email' => 'admin@rafliaditya.my.id',
                 'password' => Hash::make('admin'),
                 'role' => 'admin',
                 'phone' => '081234567899',
@@ -37,7 +38,7 @@ class BankMiniSeeder extends Seeder
             $teller1 = User::create([
                 'name' => 'Budi Santoso',
                 'username' => 'teller1',
-                'email' => 'budi@bankmini.smk',
+                'email' => 'budi@rafliaditya.my.id',
                 'password' => Hash::make('password'),
                 'role' => 'teller',
                 'phone' => '081234567891',
@@ -49,7 +50,7 @@ class BankMiniSeeder extends Seeder
             $teller2 = User::create([
                 'name' => 'Siti Nurhaliza',
                 'username' => 'teller2',
-                'email' => 'siti@bankmini.smk',
+                'email' => 'siti@rafliaditya.my.id',
                 'password' => Hash::make('password'),
                 'role' => 'teller',
                 'phone' => '081234567892',
@@ -99,7 +100,7 @@ class BankMiniSeeder extends Seeder
 
         foreach ($nasabahDataList as $uData) {
             $identifier = $uData['user_type'] === 'siswa' ? $uData['nis'] : $uData['nip'];
-            $uData['email'] = $identifier . '@sekolah.sch.id';
+            $uData['email'] = $identifier . '@rafliaditya.my.id';
             $uData['password'] = Hash::make($identifier);
 
             $user = User::updateOrCreate(
@@ -107,9 +108,9 @@ class BankMiniSeeder extends Seeder
                 $uData
             );
 
-            $jurusanKode = $user->user_type === 'siswa' ? ['TKJ', 'RPL', 'MM', 'AKL'][rand(0, 3)] : null;
+            $jurusanKode = $user->user_type === 'siswa' ? Jurusan::inRandomOrder()->first()->kode : null;
             $jurusanId = $jurusanKode ? \App\Models\Jurusan::where('kode', $jurusanKode)->first()->id : null;
-            
+
             // Assign a random rombel for students
             $rombelId = null;
             if ($user->user_type === 'siswa' && $jurusanId) {

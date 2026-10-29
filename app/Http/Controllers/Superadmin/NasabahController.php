@@ -649,11 +649,18 @@ class NasabahController extends Controller
                             'status'    => 'active',
                         ]);
 
-                        // Get jurusan_id from rombel
-                        $jurusanId = null;
+                        // Get jurusan_id from rombel if exists, otherwise set to null
+                        $jurusanId     = null;
+                        $validRombelId = null;
                         if ($rombelId) {
-                            $rombel    = \App\Models\Rombel::find($rombelId);
-                            $jurusanId = $rombel ? $rombel->jurusan_id : null;
+                            $rombel = is_numeric($rombelId) ? \App\Models\Rombel::find($rombelId) : null;
+                            if (!$rombel) {
+                                $rombel = \App\Models\Rombel::where('nama', $rombelId)->first();
+                            }
+                            if ($rombel) {
+                                $validRombelId = $rombel->id;
+                                $jurusanId     = $rombel->jurusan_id;
+                            }
                         }
 
                         Nasabah::create([
@@ -662,7 +669,7 @@ class NasabahController extends Controller
                             'saldo'           => $saldo_awal,
                             'saldo_minimum'   => 10000,
                             'jurusan_id'      => $jurusanId,
-                            'rombel_id'       => $rombelId,
+                            'rombel_id'       => $validRombelId,
                             'alamat'          => $alamat,
                             'tanggal_buka'    => now(),
                             'status'          => 'aktif',
@@ -673,6 +680,9 @@ class NasabahController extends Controller
                 }
             });
         } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Nasabah import error: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
             return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan template Excel).');
         }
 
