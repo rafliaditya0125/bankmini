@@ -160,7 +160,11 @@ class KantongController extends Controller
             $search = $request->search;
             $nasabahQuery->where(function ($q) use ($search) {
                 $q->where('nomor_rekening', 'like', "%{$search}%")
-                  ->orWhereHas('user', fn($uq) => $uq->where('name', 'like', "%{$search}%")->orWhere('nis_nip', 'like', "%{$search}%"));
+                  ->orWhereHas('user', function ($uq) use ($search) {
+                      $uq->where('name', 'like', "%{$search}%")
+                         ->orWhere('nis', 'like', "%{$search}%")
+                         ->orWhere('nip', 'like', "%{$search}%");
+                  });
             });
         }
 
@@ -201,7 +205,7 @@ class KantongController extends Controller
                     'id' => $nasabah->id,
                     'nomor_rekening' => $nasabah->nomor_rekening,
                     'nama' => $nasabah->user?->name,
-                    'nis_nip' => $nasabah->user?->nis_nip,
+                    'nis_nip' => $nasabah->user?->nis ?: $nasabah->user?->nip,
                     'user_type' => $nasabah->user?->user_type,
                     'rombel_nama' => $nasabah->rombelRel?->nama_kelas,
                     'tingkat' => $nasabah->rombelRel?->tingkat,
