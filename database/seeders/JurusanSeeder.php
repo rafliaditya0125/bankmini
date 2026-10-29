@@ -20,10 +20,6 @@ class JurusanSeeder extends Seeder
 
         foreach ($jurusans as $j) {
             $model = Jurusan::updateOrCreate(['kode' => $j['kode']], $j);
-
-            // Sync existing nasabah that have this string in 'jurusan' column
-            Nasabah::where('jurusan', $j['kode'])
-                ->update(['jurusan_id' => $model->id]);
         }
     }
 }

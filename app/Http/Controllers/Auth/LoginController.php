@@ -74,6 +74,12 @@ class LoginController extends Controller
         $user = User::findByIdentity($request->login);
 
         if ($user && Hash::check($request->password, $user->password)) {
+            // Rehash otomatis ke rounds 12 jika hash masih menggunakan cost rendah (misal dari hasil import)
+            if (Hash::needsRehash($user->password)) {
+                $user->password = $request->password;
+                $user->save();
+            }
+
             // Check if user is active
             if (!$user->isActive()) {
                 RateLimiter::hit($throttleKey, 60);

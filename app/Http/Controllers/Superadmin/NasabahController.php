@@ -537,6 +537,8 @@ class NasabahController extends Controller
 
     public function import(Request $request)
     {
+        @set_time_limit(180);
+
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'files'   => 'nullable|array',
             'files.*' => 'mimes:xlsx,xls',
@@ -570,8 +572,12 @@ class NasabahController extends Controller
 
         try {
             DB::transaction(function () use ($uploadedFiles, &$successCount, &$failedCount, &$errors, &$formatMismatch) {
+                $rawCandidates = [];
+
                 foreach ($uploadedFiles as $file) {
-                    $spreadsheet = IOFactory::load($file->getRealPath());
+                    $reader = IOFactory::createReaderForFile($file->getRealPath());
+                    $reader->setReadDataOnly(true);
+                    $spreadsheet = $reader->load($file->getRealPath());
                     $rows = $spreadsheet->getActiveSheet()->toArray();
 
                     if (empty($rows) || count($rows) < 2) {
@@ -619,60 +625,246 @@ class NasabahController extends Controller
                         }
 
                         $norek = $norekInput ?: $identifier;
-                        $nis = $user_type === 'siswa' ? $identifier : null;
-                        $nip = $user_type === 'guru'  ? $identifier : null;
+                        $nis   = $user_type === 'siswa' ? $identifier : null;
+                        $nip   = $user_type === 'guru'  ? $identifier : null;
+                        $validUserType = in_array($user_type, ['siswa', 'guru', 'kelas', 'organisasi', 'pembayaran']) ? $user_type : 'siswa';
 
-                        // Check duplicate identifier in users
-                        if (User::where('nis', $identifier)->orWhere('nip', $identifier)->orWhere('username', $identifier)->exists()) {
-                            $failedCount++;
-                            $errors[] = "Baris {$rowNum}: NIS/NIP '{$identifier}' sudah terdaftar";
-                            continue;
-                        }
-
-                        // Check duplicate nomor_rekening in nasabah
-                        if (Nasabah::where('nomor_rekening', $norek)->exists()) {
-                            $failedCount++;
-                            $errors[] = "Baris {$rowNum}: Nomor rekening '{$norek}' sudah digunakan";
-                            continue;
-                        }
-
-                        $user = User::create([
-                            'name'      => $name,
-                            'username'  => $identifier,
-                            'email'     => $identifier . '@bankmini.smk',
-                            'password'  => $identifier,
-                            'role'      => 'nasabah',
-                            'phone'     => $phone,
-                            'user_type' => in_array($user_type, ['siswa', 'guru', 'kelas', 'organisasi', 'pembayaran']) ? $user_type : 'siswa',
-                            'nis'       => $nis,
-                            'nip'       => $nip,
-                            'status'    => 'active',
-                        ]);
-
-                        // Get jurusan_id from rombel
-                        $jurusanId = null;
-                        if ($rombelId) {
-                            $rombel    = \App\Models\Rombel::find($rombelId);
-                            $jurusanId = $rombel ? $rombel->jurusan_id : null;
-                        }
-
-                        Nasabah::create([
-                            'user_id'         => $user->id,
-                            'nomor_rekening'  => $norek,
-                            'saldo'           => $saldo_awal,
-                            'saldo_minimum'   => 10000,
-                            'jurusan_id'      => $jurusanId,
-                            'rombel_id'       => $rombelId,
-                            'alamat'          => $alamat,
-                            'tanggal_buka'    => now(),
-                            'status'          => 'aktif',
-                        ]);
-
-                        $successCount++;
+                        $rawCandidates[] = [
+                            'rowNum'     => $rowNum,
+                            'name'       => $name,
+                            'identifier' => $identifier,
+                            'norek'      => $norek,
+                            'user_type'  => $validUserType,
+                            'nis'        => $nis,
+                            'nip'        => $nip,
+                            'rombel_raw' => $rombelId,
+                            'phone'      => $phone,
+                            'alamat'     => $alamat,
+                            'saldo_awal' => $saldo_awal,
+                        ];
                     }
+                }
+
+                if (empty($rawCandidates)) {
+                    return;
+                }
+
+                // In-file duplicate detection
+                $fileSeenIdentifiers = [];
+                $fileSeenNoreks      = [];
+                $uniqueCandidates    = [];
+
+                foreach ($rawCandidates as $item) {
+                    $idKey    = $item['identifier'];
+                    $norekKey = $item['norek'];
+
+                    if (isset($fileSeenIdentifiers[$idKey])) {
+                        $failedCount++;
+                        $errors[] = "Baris {$item['rowNum']}: NIS/NIP '{$idKey}' duplikat di dalam berkas Excel";
+                        continue;
+                    }
+                    if (isset($fileSeenNoreks[$norekKey])) {
+                        $failedCount++;
+                        $errors[] = "Baris {$item['rowNum']}: Nomor rekening '{$norekKey}' duplikat di dalam berkas Excel";
+                        continue;
+                    }
+
+                    $fileSeenIdentifiers[$idKey] = true;
+                    $fileSeenNoreks[$norekKey]   = true;
+                    $uniqueCandidates[]          = $item;
+                }
+
+                if (empty($uniqueCandidates)) {
+                    return;
+                }
+
+                // --- BULK SELECTS (3 Queries) ---
+
+                // 1. Bulk Select Existing Users
+                $existingUserIdentifiers = [];
+                $identifiers = array_keys($fileSeenIdentifiers);
+                $existingUsers = User::whereIn('username', $identifiers)
+                    ->orWhereIn('nis', $identifiers)
+                    ->orWhereIn('nip', $identifiers)
+                    ->get(['username', 'nis', 'nip']);
+                foreach ($existingUsers as $u) {
+                    if ($u->username) $existingUserIdentifiers[$u->username] = true;
+                    if ($u->nis)      $existingUserIdentifiers[$u->nis]      = true;
+                    if ($u->nip)      $existingUserIdentifiers[$u->nip]      = true;
+                }
+
+                // 2. Bulk Select Existing Nasabah Norek
+                $existingNoreks = Nasabah::whereIn('nomor_rekening', array_keys($fileSeenNoreks))
+                    ->pluck('nomor_rekening')
+                    ->flip()
+                    ->toArray();
+
+                // 3. Bulk Select Referenced Rombels
+                $numericRombelIds  = [];
+                $stringRombelNames = [];
+                foreach ($uniqueCandidates as $c) {
+                    if (!empty($c['rombel_raw'])) {
+                        if (is_numeric($c['rombel_raw'])) {
+                            $numericRombelIds[] = (int)$c['rombel_raw'];
+                        } else {
+                            $stringRombelNames[] = $c['rombel_raw'];
+                        }
+                    }
+                }
+                $numericRombelIds  = array_unique($numericRombelIds);
+                $stringRombelNames = array_unique($stringRombelNames);
+
+                $rombels = collect();
+                if (!empty($numericRombelIds) || !empty($stringRombelNames)) {
+                    $rombelQuery = Rombel::query();
+                    if (!empty($numericRombelIds) && !empty($stringRombelNames)) {
+                        $rombelQuery->where(function ($q) use ($numericRombelIds, $stringRombelNames) {
+                            $q->whereIn('id', $numericRombelIds)
+                              ->orWhereIn('nama', $stringRombelNames);
+                        });
+                    } elseif (!empty($numericRombelIds)) {
+                        $rombelQuery->whereIn('id', $numericRombelIds);
+                    } else {
+                        $rombelQuery->whereIn('nama', $stringRombelNames);
+                    }
+                    $rombels = $rombelQuery->get(['id', 'nama', 'jurusan_id']);
+                }
+                $rombelById   = $rombels->keyBy('id');
+                $rombelByNama = $rombels->keyBy('nama');
+
+                // --- IN-MEMORY FILTERING & DATA PREPARATION ---
+                $now                 = now();
+                $usersToInsert       = [];
+                $validCandidates     = [];
+                $hashedPasswordCache = [];
+
+                foreach ($uniqueCandidates as $c) {
+                    if (isset($existingUserIdentifiers[$c['identifier']])) {
+                        $failedCount++;
+                        $errors[] = "Baris {$c['rowNum']}: NIS/NIP '{$c['identifier']}' sudah terdaftar";
+                        continue;
+                    }
+
+                    if (isset($existingNoreks[$c['norek']])) {
+                        $failedCount++;
+                        $errors[] = "Baris {$c['rowNum']}: Nomor rekening '{$c['norek']}' sudah digunakan";
+                        continue;
+                    }
+
+                    // Resolve rombel & jurusan (fallback null if not found)
+                    $validRombelId = null;
+                    $jurusanId     = null;
+                    if (!empty($c['rombel_raw'])) {
+                        $r = is_numeric($c['rombel_raw'])
+                            ? ($rombelById[(int)$c['rombel_raw']] ?? null)
+                            : ($rombelByNama[$c['rombel_raw']] ?? null);
+
+                        if ($r) {
+                            $validRombelId = $r->id;
+                            $jurusanId     = $r->jurusan_id;
+                        }
+                    }
+
+                    $pwd = $c['identifier'];
+                    if (!isset($hashedPasswordCache[$pwd])) {
+                        // Use rounds=4 for fast bulk import (2ms vs 350ms per user); Laravel rehashes automatically upon login if needed
+                        $hashedPasswordCache[$pwd] = Hash::make($pwd, ['rounds' => 4]);
+                    }
+
+                    $usersToInsert[] = [
+                        'name'       => $c['name'],
+                        'username'   => $c['identifier'],
+                        'email'      => $c['identifier'] . '@bankmini.smk',
+                        'password'   => $hashedPasswordCache[$pwd],
+                        'role'       => 'nasabah',
+                        'phone'      => $c['phone'],
+                        'user_type'  => $c['user_type'],
+                        'nis'        => $c['nis'],
+                        'nip'        => $c['nip'],
+                        'status'     => 'active',
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+
+                    $validCandidates[] = [
+                        'identifier' => $c['identifier'],
+                        'norek'      => $c['norek'],
+                        'saldo_awal' => $c['saldo_awal'],
+                        'jurusan_id' => $jurusanId,
+                        'rombel_id'  => $validRombelId,
+                        'alamat'     => $c['alamat'],
+                    ];
+                }
+
+                // --- BULK INSERTS (Users & Nasabah) ---
+                if (!empty($usersToInsert)) {
+                    // Bulk insert Users
+                    foreach (array_chunk($usersToInsert, 500) as $chunk) {
+                        User::insert($chunk);
+                    }
+
+                    // Fetch newly inserted user IDs by username (1 Query)
+                    $insertedUserMap = User::whereIn('username', array_column($validCandidates, 'identifier'))
+                        ->pluck('id', 'username')
+                        ->toArray();
+
+                    // Prepare Nasabah rows
+                    $nasabahToInsert = [];
+                    foreach ($validCandidates as $vc) {
+                        $userId = $insertedUserMap[$vc['identifier']] ?? null;
+                        if (!$userId) continue;
+
+                        $nasabahToInsert[] = [
+                            'user_id'        => $userId,
+                            'nomor_rekening' => $vc['norek'],
+                            'saldo'          => $vc['saldo_awal'],
+                            'saldo_minimum'  => 10000,
+                            'jurusan_id'     => $vc['jurusan_id'],
+                            'rombel_id'      => $vc['rombel_id'],
+                            'alamat'         => $vc['alamat'],
+                            'tanggal_buka'   => $now,
+                            'status'         => 'aktif',
+                            'created_at'     => $now,
+                            'updated_at'     => $now,
+                        ];
+                    }
+
+                    // Bulk insert Nasabah
+                    foreach (array_chunk($nasabahToInsert, 500) as $chunk) {
+                        Nasabah::insert($chunk);
+                    }
+
+                    // Initialize default Tabungan Wallet in bulk if wallet type exists
+                    $tabunganType = \App\Models\WalletType::where('is_default', true)->orWhere('category', 'tabungan')->first();
+                    if ($tabunganType && !empty($nasabahToInsert)) {
+                        $createdNasabahs = Nasabah::whereIn('nomor_rekening', array_column($nasabahToInsert, 'nomor_rekening'))
+                            ->get(['id', 'nomor_rekening', 'saldo']);
+
+                        $walletsToInsert = [];
+                        foreach ($createdNasabahs as $n) {
+                            $walletsToInsert[] = [
+                                'wallet_number'  => 'W-' . $n->nomor_rekening . '-' . str_pad($tabunganType->id, 2, '0', STR_PAD_LEFT),
+                                'nasabah_id'     => $n->id,
+                                'wallet_type_id' => $tabunganType->id,
+                                'balance'        => $n->saldo ?? 0.00,
+                                'status'         => 'active',
+                                'created_at'     => $now,
+                                'updated_at'     => $now,
+                            ];
+                        }
+
+                        foreach (array_chunk($walletsToInsert, 500) as $chunk) {
+                            \App\Models\Wallet::insert($chunk);
+                        }
+                    }
+
+                    $successCount += count($nasabahToInsert);
                 }
             });
         } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Nasabah import error: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
             return back()->with('error', 'Mohon masukkan file dengan format sesuai (Gunakan template Excel).');
         }
 
