@@ -25,12 +25,13 @@
         .total-row { background-color: #ffff00; font-weight: bold; border-top: 2px solid #000; }
 
         .footer { margin-top: 50px; width: 100%; }
-        .footer-table { border: none; width: 100%; }
-        .footer-table td { border: none; text-align: center; width: 50%; padding-top: 50px; }
+        .footer-table { border: none !important; width: 100%; }
+        .footer-table td { border: none !important; text-align: center; width: 50%; padding-top: 50px; }
         .signature-space { height: 60px; }
 
         @media print {
             .no-print { display: none; }
+            .footer-table, .footer-table td { border: none !important; }
         }
     </style>
 </head>
@@ -139,17 +140,43 @@
     </table>
 
     <div class="footer">
-        <table class="footer-table">
-            <tr>
-                <td style="width: 50%;"></td>
-                <td>
-                    {{ \App\Models\Setting::get('bank_city', 'TASIKMALAYA') }}, {{ date('d F Y') }}<br>
-                    Kepala Bank Mini / Guru HR<br>
-                    <div class="signature-space"></div>
-                    ( {{ strtoupper(\App\Models\Setting::get('teacher_responsible_name', '__________________________')) }} )
-                </td>
-            </tr>
-        </table>
+        @php
+            $teacher1 = \App\Models\Setting::get('teacher_responsible_name', '__________________________');
+            $teacher2 = \App\Models\Setting::get('teacher_responsible_name_2', '');
+            $bankCity = \App\Models\Setting::get('bank_city', 'TASIKMALAYA');
+            $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            $sigDate = \Carbon\Carbon::now($timezone)->locale('id')->translatedFormat('d F Y');
+        @endphp
+
+        @if(!empty($teacher2))
+            <p style="text-align: right; margin-bottom: 10px;">{{ $bankCity }}, {{ $sigDate }}</p>
+            <table class="footer-table" style="margin-top: 0;">
+                <tr>
+                    <td style="width: 50%; padding-top: 10px;">
+                        Guru Penanggung Jawab 1<br>
+                        <div class="signature-space"></div>
+                        ( {{ strtoupper($teacher1) }} )
+                    </td>
+                    <td style="width: 50%; padding-top: 10px;">
+                        Guru Penanggung Jawab 2<br>
+                        <div class="signature-space"></div>
+                        ( {{ strtoupper($teacher2) }} )
+                    </td>
+                </tr>
+            </table>
+        @else
+            <table class="footer-table">
+                <tr>
+                    <td style="width: 50%;"></td>
+                    <td>
+                        {{ $bankCity }}, {{ $sigDate }}<br>
+                        Kepala Bank Mini / Guru HR<br>
+                        <div class="signature-space"></div>
+                        ( {{ strtoupper($teacher1) }} )
+                    </td>
+                </tr>
+            </table>
+        @endif
     </div>
 </body>
 </html>

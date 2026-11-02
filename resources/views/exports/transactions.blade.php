@@ -196,6 +196,22 @@
             font-weight: bold;
             font-size: 10px;
         }
+        .signature-table-layout {
+            width: 100%;
+            border: none !important;
+            border-collapse: collapse !important;
+            margin-top: 8px;
+        }
+        .signature-table-layout td {
+            border: none !important;
+            padding: 0 10px;
+            vertical-align: top;
+            text-align: center;
+        }
+        .signature-table-layout p {
+            margin: 2px 0;
+            font-size: 10px;
+        }
         
         /* Print Styles */
         .no-print { 
@@ -227,6 +243,9 @@
             th, td { border: 1px solid #000 !important; }
             .data-table th, .data-table td, .summary-table td, .signature-table th, .signature-table td {
                 border: 1px solid #000 !important;
+            }
+            .signature-table-layout, .signature-table-layout td {
+                border: none !important;
             }
             .data-table {
                 page-break-inside: auto !important;
@@ -569,11 +588,34 @@
 
             <p class="closing-statement">Demikian Berita Acara Rekapitulasi Transaksi ini disusun secara otomatis oleh sistem perbankan sebagai dokumen pertanggungjawaban yang valid bagi pihak-pihak berkepentingan.</p>
 
+            @php
+                $teacher1 = \App\Models\Setting::get('teacher_responsible_name', 'GURU PENANGGUNG JAWAB');
+                $teacher2 = \App\Models\Setting::get('teacher_responsible_name_2', '');
+            @endphp
+
             <div class="signature-section">
-                <p>{{ strtoupper(\App\Models\Setting::get('bank_city', 'CIAMIS')) }}, {{ $signatureDate }}</p>
-                <p style="margin-top: 8px; font-weight: bold;">GURU PENANGGUNG JAWAB</p>
-                <div class="signature-line"></div>
-                <p class="signature-name">( {{ strtoupper(\App\Models\Setting::get('teacher_responsible_name', 'GURU PENANGGUNG JAWAB')) }} )</p>
+                @if(!empty($teacher2))
+                    <p style="text-align: right; margin-bottom: 10px;">{{ strtoupper(\App\Models\Setting::get('bank_city', 'CIAMIS')) }}, {{ $signatureDate }}</p>
+                    <table class="signature-table-layout">
+                        <tr>
+                            <td style="width: 50%;">
+                                <p style="font-weight: bold;">GURU PENANGGUNG JAWAB 1</p>
+                                <div class="signature-line"></div>
+                                <p class="signature-name">( {{ strtoupper($teacher1) }} )</p>
+                            </td>
+                            <td style="width: 50%;">
+                                <p style="font-weight: bold;">GURU PENANGGUNG JAWAB 2</p>
+                                <div class="signature-line"></div>
+                                <p class="signature-name">( {{ strtoupper($teacher2) }} )</p>
+                            </td>
+                        </tr>
+                    </table>
+                @else
+                    <p>{{ strtoupper(\App\Models\Setting::get('bank_city', 'CIAMIS')) }}, {{ $signatureDate }}</p>
+                    <p style="margin-top: 8px; font-weight: bold;">GURU PENANGGUNG JAWAB</p>
+                    <div class="signature-line"></div>
+                    <p class="signature-name">( {{ strtoupper($teacher1) }} )</p>
+                @endif
             </div>
         </div>
     </div>

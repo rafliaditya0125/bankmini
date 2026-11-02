@@ -65,6 +65,7 @@ class PengaturanController extends Controller
             'min_cash_denomination', 'transaction_types', 'bkk_bkm_mode', 'bkk_bkm_display_format',
             // LAPORAN
             'teacher_responsible_name',
+            'teacher_responsible_name_2',
             // NASABAH
             'alumni_retention_years', 'alumni_retention_days',
             // SESSION
@@ -182,6 +183,7 @@ class PengaturanController extends Controller
 
             // LAPORAN
             'teacher_responsible_name' => Setting::get('teacher_responsible_name', 'Nama Guru Penanggung Jawab'),
+            'teacher_responsible_name_2' => Setting::get('teacher_responsible_name_2', ''),
             'throttle_login_limit' => (int) Setting::get('throttle_login_limit', 5),
             'throttle_transaction_limit' => (int) Setting::get('throttle_transaction_limit', 60),
 

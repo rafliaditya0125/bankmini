@@ -104,6 +104,28 @@
                     $signatureDate = \Carbon\Carbon::now($timezone)->locale('id')->translatedFormat('d F Y');
                 }
             @endphp
+            @php
+                $teacher1 = \App\Models\Setting::get('teacher_responsible_name', '__________________________');
+                $teacher2 = \App\Models\Setting::get('teacher_responsible_name_2', '');
+            @endphp
+            @if(!empty($teacher2))
+            <tr>
+                <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">&nbsp;</td>
+                <td style="border: none;">&nbsp;</td>
+                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">{{ \App\Models\Setting::get('bank_city', 'TASIKMALAYA') }}, {{ $signatureDate }}</td>
+            </tr>
+            <tr>
+                <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">Guru Penanggung Jawab 1</td>
+                <td style="border: none;">&nbsp;</td>
+                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">Guru Penanggung Jawab 2</td>
+            </tr>
+            <tr><td colspan="6" style="border: none; height: 60px;">&nbsp;</td></tr>
+            <tr>
+                <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">( {{ strtoupper($teacher1) }} )</td>
+                <td style="border: none;">&nbsp;</td>
+                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">( {{ strtoupper($teacher2) }} )</td>
+            </tr>
+            @else
             <tr>
                 <td colspan="3" style="border: none;">&nbsp;</td>
                 <td style="border: none;">&nbsp;</td>
@@ -118,8 +140,9 @@
             <tr>
                 <td colspan="3" style="border: none;">&nbsp;</td>
                 <td style="border: none;">&nbsp;</td>
-                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">( {{ strtoupper(\App\Models\Setting::get('teacher_responsible_name', '__________________________')) }} )</td>
+                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">( {{ strtoupper($teacher1) }} )</td>
             </tr>
+            @endif
         </tfoot>
     </table>
 </body>

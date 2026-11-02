@@ -12,12 +12,13 @@
         th { background-color: #FFFF00; font-weight: bold; text-transform: uppercase; }
         .text-right { text-align: right; }
         .footer { margin-top: 30px; }
-        .footer-table { width: 100%; border: none; }
-        .footer-table td { border: none; width: 50%; text-align: center; }
+        .footer-table { width: 100%; border: none !important; }
+        .footer-table td { border: none !important; width: 50%; text-align: center; }
         @media print {
             .no-print { display: none; }
             tr { page-break-inside: avoid; break-inside: avoid; }
             thead { display: table-header-group; }
+            .footer-table, .footer-table td { border: none !important; }
         }
     </style>
 </head>
@@ -67,49 +68,72 @@
     </table>
 
     <div class="footer">
-        <table class="footer-table">
-            <tr>
-                <td></td>
-                <td>
-                    @php
-                        $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
-                        $dateFromVal = $date_from ?? request('from_date');
-                        $dateToVal = $date_to ?? request('to_date');
+        @php
+            $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            $dateFromVal = $date_from ?? request('from_date');
+            $dateToVal = $date_to ?? request('to_date');
 
-                        $carbonFrom = null;
-                        $carbonTo = null;
+            $carbonFrom = null;
+            $carbonTo = null;
 
-                        try {
-                            if (!empty($dateFromVal)) {
-                                $carbonFrom = \Carbon\Carbon::parse($dateFromVal, $timezone)->startOfDay();
-                            }
-                        } catch (\Exception $e) {
-                            $carbonFrom = null;
-                        }
+            try {
+                if (!empty($dateFromVal)) {
+                    $carbonFrom = \Carbon\Carbon::parse($dateFromVal, $timezone)->startOfDay();
+                }
+            } catch (\Exception $e) {
+                $carbonFrom = null;
+            }
 
-                        try {
-                            if (!empty($dateToVal)) {
-                                $carbonTo = \Carbon\Carbon::parse($dateToVal, $timezone)->startOfDay();
-                            }
-                        } catch (\Exception $e) {
-                            $carbonTo = null;
-                        }
+            try {
+                if (!empty($dateToVal)) {
+                    $carbonTo = \Carbon\Carbon::parse($dateToVal, $timezone)->startOfDay();
+                }
+            } catch (\Exception $e) {
+                $carbonTo = null;
+            }
 
-                        if ($carbonTo) {
-                            $signatureDate = $carbonTo->locale('id')->translatedFormat('d F Y');
-                        } elseif ($carbonFrom) {
-                            $signatureDate = $carbonFrom->locale('id')->translatedFormat('d F Y');
-                        } else {
-                            $signatureDate = \Carbon\Carbon::now($timezone)->locale('id')->translatedFormat('d F Y');
-                        }
-                    @endphp
-                    <p>{{ \App\Models\Setting::get('bank_city', 'TASIKMALAYA') }}, {{ $signatureDate }}</p>
-                    <p>Guru Penanggung Jawab</p>
-                    <br><br><br><br>
-                    <p>( {{ strtoupper(\App\Models\Setting::get('teacher_responsible_name', '__________________________')) }} )</p>
-                </td>
-            </tr>
-        </table>
+            if ($carbonTo) {
+                $signatureDate = $carbonTo->locale('id')->translatedFormat('d F Y');
+            } elseif ($carbonFrom) {
+                $signatureDate = $carbonFrom->locale('id')->translatedFormat('d F Y');
+            } else {
+                $signatureDate = \Carbon\Carbon::now($timezone)->locale('id')->translatedFormat('d F Y');
+            }
+
+            $teacher1 = \App\Models\Setting::get('teacher_responsible_name', '__________________________');
+            $teacher2 = \App\Models\Setting::get('teacher_responsible_name_2', '');
+            $bankCity = \App\Models\Setting::get('bank_city', 'TASIKMALAYA');
+        @endphp
+
+        @if(!empty($teacher2))
+            <p style="text-align: right; margin-bottom: 10px;">{{ $bankCity }}, {{ $signatureDate }}</p>
+            <table class="footer-table">
+                <tr>
+                    <td style="width: 50%;">
+                        <p style="font-weight: bold;">Guru Penanggung Jawab 1</p>
+                        <br><br><br><br>
+                        <p>( {{ strtoupper($teacher1) }} )</p>
+                    </td>
+                    <td style="width: 50%;">
+                        <p style="font-weight: bold;">Guru Penanggung Jawab 2</p>
+                        <br><br><br><br>
+                        <p>( {{ strtoupper($teacher2) }} )</p>
+                    </td>
+                </tr>
+            </table>
+        @else
+            <table class="footer-table">
+                <tr>
+                    <td></td>
+                    <td>
+                        <p>{{ $bankCity }}, {{ $signatureDate }}</p>
+                        <p>Guru Penanggung Jawab</p>
+                        <br><br><br><br>
+                        <p>( {{ strtoupper($teacher1) }} )</p>
+                    </td>
+                </tr>
+            </table>
+        @endif
     </div>
 
     @if(!isset($isExcel))
