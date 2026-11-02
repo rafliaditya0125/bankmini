@@ -357,8 +357,8 @@
                     </td>
                     <td class="text-center">{{ $aksi }}</td>
                     <td class="text-center">{{ $petugasName }}</td>
-                    <td class="text-right">{{ $debit > 0 ? number_format($debit, 0, ',', '.') : '-' }}</td>
-                    <td class="text-right">{{ $kredit > 0 ? number_format($kredit, 0, ',', '.') : '-' }}</td>
+                    <td class="text-right">{{ $debit > 0 ? number_format($debit, 2, ',', '.') : '-' }}</td>
+                    <td class="text-right">{{ $kredit > 0 ? number_format($kredit, 2, ',', '.') : '-' }}</td>
                 </tr>
                 @empty
                 <tr>
@@ -379,17 +379,17 @@
                 @forelse($setoranByGroup as $group => $nominal)
                 <tr>
                     <td class="label">Setoran {{ $group }}</td>
-                    <td class="value">{{ number_format($nominal, 0, ',', '.') }}</td>
+                    <td class="value">{{ number_format($nominal, 2, ',', '.') }}</td>
                 </tr>
                 @empty
                 <tr>
                     <td class="label">Tidak ada setoran</td>
-                    <td class="value">0</td>
+                    <td class="value">0,00</td>
                 </tr>
                 @endforelse
                 <tr class="total">
                     <td class="label">TOTAL SETORAN KESELURUHAN (RP)</td>
-                    <td class="value">{{ number_format($totalSetoranKeseluruhan, 0, ',', '.') }}</td>
+                    <td class="value">{{ number_format($totalSetoranKeseluruhan, 2, ',', '.') }}</td>
                 </tr>
             </table>
 
@@ -402,17 +402,17 @@
                 @forelse($penarikByGroup as $group => $nominal)
                 <tr>
                     <td class="label">Penarikan {{ $group }}</td>
-                    <td class="value">{{ number_format($nominal, 0, ',', '.') }}</td>
+                    <td class="value">{{ number_format($nominal, 2, ',', '.') }}</td>
                 </tr>
                 @empty
                 <tr>
                     <td class="label">Tidak ada penarikan</td>
-                    <td class="value">0</td>
+                    <td class="value">0,00</td>
                 </tr>
                 @endforelse
                 <tr class="total">
                     <td class="label">TOTAL PENARIKAN KESELURUHAN (RP)</td>
-                    <td class="value">{{ number_format($totalPenarikKeseluruhan, 0, ',', '.') }}</td>
+                    <td class="value">{{ number_format($totalPenarikKeseluruhan, 2, ',', '.') }}</td>
                 </tr>
             </table>
 
@@ -421,7 +421,7 @@
             <table class="summary-table">
                 <tr>
                     <td class="label">Total Transfer (Informasi Saja)</td>
-                    <td class="value">{{ number_format($totalTransfer, 0, ',', '.') }}</td>
+                    <td class="value">{{ number_format($totalTransfer, 2, ',', '.') }}</td>
                 </tr>
                 <tr style="background-color: #fff; font-size: 9px;">
                     <td colspan="2" style="padding: 4px 8px; border: 1px solid #000;">
@@ -438,16 +438,16 @@
                 @endphp
                 <tr>
                     <td class="label">Total Setoran</td>
-                    <td class="value">{{ number_format($totalSetoranKeseluruhan, 0, ',', '.') }}</td>
+                    <td class="value">{{ number_format($totalSetoranKeseluruhan, 2, ',', '.') }}</td>
                 </tr>
                 <tr>
                     <td class="label">Total Penarikan</td>
-                    <td class="value">{{ number_format($totalPenarikKeseluruhan, 0, ',', '.') }}</td>
+                    <td class="value">{{ number_format($totalPenarikKeseluruhan, 2, ',', '.') }}</td>
                 </tr>
                 <tr class="total">
                     <td class="label">REKAPITULASI AKHIR / CASH FLOW (RP)</td>
                     <td class="value" style="color: {{ $cashFlow >= 0 ? '#000' : '#d32f2f' }};">
-                        {{ $cashFlow >= 0 ? '+' : '' }}{{ number_format($cashFlow, 0, ',', '.') }}
+                        {{ $cashFlow >= 0 ? '+' : '' }}{{ number_format($cashFlow, 2, ',', '.') }}
                     </td>
                 </tr>
             </table>

@@ -61,12 +61,12 @@
                         @foreach($data['neraca']['assets'] as $item)
                             <tr>
                                 <td style="border: none;">[{{ $item['code'] }}] {{ $item['name'] }}</td>
-                                <td style="border: none;" class="text-right">Rp {{ number_format($item['amount'], 0, ',', '.') }}</td>
+                                <td style="border: none;" class="text-right">Rp {{ number_format($item['amount'], 2, ',', '.') }}</td>
                             </tr>
                         @endforeach
                         <tr style="border-top: 1px solid #000;">
                             <td style="border: none;" class="font-bold">TOTAL AKTIVA</td>
-                            <td style="border: none;" class="text-right font-bold">Rp {{ number_format(array_sum(array_column($data['neraca']['assets'], 'amount')), 0, ',', '.') }}</td>
+                            <td style="border: none;" class="text-right font-bold">Rp {{ number_format(array_sum(array_column($data['neraca']['assets'], 'amount')), 2, ',', '.') }}</td>
                         </tr>
                     </table>
                 </td>
@@ -76,19 +76,19 @@
                         @foreach($data['neraca']['liabilities'] as $item)
                             <tr>
                                 <td style="border: none; padding-left: 15px;">[{{ $item['code'] }}] {{ $item['name'] }}</td>
-                                <td style="border: none;" class="text-right">Rp {{ number_format($item['amount'], 0, ',', '.') }}</td>
+                                <td style="border: none;" class="text-right">Rp {{ number_format($item['amount'], 2, ',', '.') }}</td>
                             </tr>
                         @endforeach
                         <tr><td style="border: none;" class="font-bold underline">EKUITAS</td></tr>
                         @foreach($data['neraca']['equity'] as $item)
                             <tr>
                                 <td style="border: none; padding-left: 15px;">[{{ $item['code'] }}] {{ $item['name'] }}</td>
-                                <td style="border: none;" class="text-right">Rp {{ number_format($item['amount'], 0, ',', '.') }}</td>
+                                <td style="border: none;" class="text-right">Rp {{ number_format($item['amount'], 2, ',', '.') }}</td>
                             </tr>
                         @endforeach
                         <tr style="border-top: 1px solid #000;">
                             <td style="border: none;" class="font-bold">TOTAL PASSIVA</td>
-                            <td style="border: none;" class="text-right font-bold">Rp {{ number_format(array_sum(array_column($data['neraca']['liabilities'], 'amount')) + array_sum(array_column($data['neraca']['equity'], 'amount')), 0, ',', '.') }}</td>
+                            <td style="border: none;" class="text-right font-bold">Rp {{ number_format(array_sum(array_column($data['neraca']['liabilities'], 'amount')) + array_sum(array_column($data['neraca']['equity'], 'amount')), 2, ',', '.') }}</td>
                         </tr>
                     </table>
                 </td>
@@ -111,29 +111,29 @@
             @foreach($data['laba_rugi']['revenue'] as $item)
                 <tr>
                     <td colspan="2">{{ $item['name'] }}</td>
-                    <td class="text-right">Rp {{ number_format($item['amount'], 0, ',', '.') }}</td>
+                    <td class="text-right">Rp {{ number_format($item['amount'], 2, ',', '.') }}</td>
                 </tr>
             @endforeach
             <tr class="font-bold">
                 <td colspan="2" class="text-right">TOTAL PENDAPATAN</td>
-                <td class="text-right">Rp {{ number_format(array_sum(array_column($data['laba_rugi']['revenue'], 'amount')), 0, ',', '.') }}</td>
+                <td class="text-right">Rp {{ number_format(array_sum(array_column($data['laba_rugi']['revenue'], 'amount')), 2, ',', '.') }}</td>
             </tr>
 
             <tr class="section-header"><td colspan="3">BEBAN</td></tr>
             @foreach($data['laba_rugi']['expenses'] as $item)
                 <tr>
                     <td colspan="2">{{ $item['name'] }}</td>
-                    <td class="text-right">Rp {{ number_format($item['amount'], 0, ',', '.') }}</td>
+                    <td class="text-right">Rp {{ number_format($item['amount'], 2, ',', '.') }}</td>
                 </tr>
             @endforeach
             <tr class="font-bold">
                 <td colspan="2" class="text-right">TOTAL BEBAN</td>
-                <td class="text-right">Rp {{ number_format(array_sum(array_column($data['laba_rugi']['expenses'], 'amount')), 0, ',', '.') }}</td>
+                <td class="text-right">Rp {{ number_format(array_sum(array_column($data['laba_rugi']['expenses'], 'amount')), 2, ',', '.') }}</td>
             </tr>
 
             <tr class="total-row">
                 <td colspan="2" class="text-right">LABA / RUGI BERSIH</td>
-                <td class="text-right">Rp {{ number_format(array_sum(array_column($data['laba_rugi']['revenue'], 'amount')) - array_sum(array_column($data['laba_rugi']['expenses'], 'amount')), 0, ',', '.') }}</td>
+                <td class="text-right">Rp {{ number_format(array_sum(array_column($data['laba_rugi']['revenue'], 'amount')) - array_sum(array_column($data['laba_rugi']['expenses'], 'amount')), 2, ',', '.') }}</td>
             </tr>
         </tbody>
     </table>

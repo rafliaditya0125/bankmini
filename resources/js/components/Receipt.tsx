@@ -251,10 +251,11 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
         return 'No. Transaksi';
     };
 
-    // Format nominal dengan pemisah ribuan titik dan desimal koma
+    // Format nominal dengan pemisah ribuan titik dan desimal koma (e.g. 50.000,00)
     const formatNominal = (value: number | string): string => {
         const num = typeof value === 'string' ? parseFloat(value) : value;
-        return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\./g, ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+        if (isNaN(num)) return '0,00';
+        return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
 
     return (

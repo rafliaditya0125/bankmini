@@ -7,17 +7,19 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format number/string to Rupiah format: Rp.XX.XXX (No space, dot after Rp)
+ * Format number/string to Rupiah format with 2 decimals: Rp.XX.XXX,00
  */
 export const formatRupiah = (amount: number | string): string => {
     const number = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(number)) return 'Rp.0';
-    
-    const formatted = Math.floor(number)
-        .toString()
-        .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        
-    return `Rp.${formatted}`;
+    if (isNaN(number)) return 'Rp 0,00';
+
+    const isNegative = number < 0;
+    const absNumber = Math.abs(number);
+    const parts = absNumber.toFixed(2).split('.');
+    const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const decimalPart = parts[1];
+
+    return `${isNegative ? '-' : ''}Rp ${integerPart},${decimalPart}`;
 };
 
 /**

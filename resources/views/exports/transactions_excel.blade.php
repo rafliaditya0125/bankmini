@@ -55,18 +55,18 @@
                 <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle;">{{ $row->kode_transaksi }}</td>
                 <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle;">{{ $deskripsi }}</td>
                 <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle;">{{ strtoupper($petugasName) }}</td>
-                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; mso-number-format: '\#\,\#\#0';">
-                    {{ $debit > 0 ? $debit : '' }}
+                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; mso-number-format: '\#\,\#\#0\.00';">
+                    {{ $debit > 0 ? number_format($debit, 2, ',', '.') : '' }}
                 </td>
-                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; mso-number-format: '\#\,\#\#0';">
-                    {{ $kredit > 0 ? $kredit : '' }}
+                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; mso-number-format: '\#\,\#\#0\.00';">
+                    {{ $kredit > 0 ? number_format($kredit, 2, ',', '.') : '' }}
                 </td>
             </tr>
             @endforeach
             <tr>
                 <td colspan="4" style="border: 2px solid #000000; padding: 8px; text-align: right; vertical-align: middle; font-weight: bold;">TOTAL</td>
-                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; mso-number-format: '\#\,\#\#0';">{{ $totalDebit }}</td>
-                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; mso-number-format: '\#\,\#\#0';">{{ $totalKredit }}</td>
+                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; mso-number-format: '\#\,\#\#0\.00';">{{ number_format($totalDebit, 2, ',', '.') }}</td>
+                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; mso-number-format: '\#\,\#\#0\.00';">{{ number_format($totalKredit, 2, ',', '.') }}</td>
             </tr>
         </tbody>
         <tfoot style="border: none;">

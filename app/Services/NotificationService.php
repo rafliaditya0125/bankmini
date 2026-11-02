@@ -67,7 +67,7 @@ class NotificationService
      */
     public static function sendTransactionNotification(int $userId, string $jenis, float $jumlah, string $kode): mixed
     {
-        $formattedJumlah = "Rp " . number_format($jumlah, 0, ',', '.');
+        $formattedJumlah = "Rp " . number_format($jumlah, 2, ',', '.');
         $title = "Transaksi " . ucfirst($jenis) . " Berhasil";
         $message = "Transaksi " . strtolower($jenis) . " sebesar " . $formattedJumlah . " dengan kode " . $kode . " telah berhasil diproses.";
 

@@ -72,7 +72,7 @@ class TransactionController extends Controller
                 'min:' . max(1000, $minDenomination),
                 function ($attribute, $value, $fail) use ($minDenomination) {
                     if ($value % $minDenomination !== 0) {
-                        $fail('Jumlah harus merupakan kelipatan dari Rp ' . number_format($minDenomination, 0, ',', '.'));
+                        $fail('Jumlah harus merupakan kelipatan dari Rp ' . number_format($minDenomination, 2, ',', '.'));
                     }
                 }
             ],
@@ -110,7 +110,7 @@ class TransactionController extends Controller
         try {
             $result = $this->transactionService->setor($validated, $this->getRole());
             return redirect()->route($this->getRolePrefix() . '.setor.index')
-                ->with('success', 'Setoran sebesar Rp ' . number_format($validated['jumlah'], 0, ',', '.') . ' ke rekening ' . $validated['nomor_rekening'] . ' berhasil diproses')
+                ->with('success', 'Setoran sebesar Rp ' . number_format($validated['jumlah'], 2, ',', '.') . ' ke rekening ' . $validated['nomor_rekening'] . ' berhasil diproses')
                 ->with('transaction', $result);
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal: ' . $e->getMessage());
@@ -157,7 +157,7 @@ class TransactionController extends Controller
                 'min:' . max($minWithdraw, $minDenomination),
                 function ($attribute, $value, $fail) use ($minDenomination) {
                     if ($value % $minDenomination !== 0) {
-                        $fail('Jumlah harus merupakan kelipatan dari Rp ' . number_format($minDenomination, 0, ',', '.'));
+                        $fail('Jumlah harus merupakan kelipatan dari Rp ' . number_format($minDenomination, 2, ',', '.'));
                     }
                 }
             ],
@@ -195,7 +195,7 @@ class TransactionController extends Controller
         try {
             $result = $this->transactionService->tarik($validated, $this->getRole());
             return redirect()->route($this->getRolePrefix() . '.tarik.index')
-                ->with('success', 'Penarikan sebesar Rp ' . number_format($validated['jumlah'], 0, ',', '.') . ' dari rekening ' . $validated['nomor_rekening'] . ' berhasil diproses')
+                ->with('success', 'Penarikan sebesar Rp ' . number_format($validated['jumlah'], 2, ',', '.') . ' dari rekening ' . $validated['nomor_rekening'] . ' berhasil diproses')
                 ->with('transaction', $result);
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal: ' . $e->getMessage());
@@ -245,7 +245,7 @@ class TransactionController extends Controller
         try {
             $result = $this->transactionService->transfer($validated, $this->getRole());
             return redirect()->route($this->getRolePrefix() . '.transfer.index')
-                ->with('success', 'Transfer sebesar Rp ' . number_format($validated['jumlah'], 0, ',', '.') . ' ke rekening ' . $validated['penerima_rekening'] . ' berhasil diproses')
+                ->with('success', 'Transfer sebesar Rp ' . number_format($validated['jumlah'], 2, ',', '.') . ' ke rekening ' . $validated['penerima_rekening'] . ' berhasil diproses')
                 ->with('transaction', $result);
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal: ' . $e->getMessage());
@@ -325,7 +325,7 @@ class TransactionController extends Controller
             $result = $this->transactionService->bayar($validated, $this->getRole());
             $targetName = $result['jenis_pembayaran'] ?? 'Pembayaran';
             return redirect()->route($this->getRolePrefix() . '.bayar.index')
-                ->with('success', 'Pembayaran sebesar Rp ' . number_format($validated['jumlah'], 0, ',', '.') . ' untuk ' . $targetName . ' berhasil diproses')
+                ->with('success', 'Pembayaran sebesar Rp ' . number_format($validated['jumlah'], 2, ',', '.') . ' untuk ' . $targetName . ' berhasil diproses')
                 ->with('transaction', $result);
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal: ' . $e->getMessage());
