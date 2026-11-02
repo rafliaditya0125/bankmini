@@ -196,6 +196,22 @@
             font-weight: bold;
             font-size: 10px;
         }
+        .signature-table-layout {
+            width: 100%;
+            border: none !important;
+            border-collapse: collapse !important;
+            margin-top: 8px;
+        }
+        .signature-table-layout td {
+            border: none !important;
+            padding: 0 10px;
+            vertical-align: top;
+            text-align: center;
+        }
+        .signature-table-layout p {
+            margin: 2px 0;
+            font-size: 10px;
+        }
         
         /* Print Styles */
         .no-print { 
@@ -223,10 +239,31 @@
             .no-print { display: none !important; }
             body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .container { max-width: 100%; }
-            table { page-break-inside: avoid; border-collapse: collapse !important; }
+            table { border-collapse: collapse !important; }
             th, td { border: 1px solid #000 !important; }
             .data-table th, .data-table td, .summary-table td, .signature-table th, .signature-table td {
                 border: 1px solid #000 !important;
+            }
+            .signature-table-layout, .signature-table-layout td {
+                border: none !important;
+            }
+            .data-table {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+            .data-table thead {
+                display: table-header-group;
+            }
+            .data-table tbody {
+                display: table-row-group;
+            }
+            .data-table tr {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            .summary-section, .signature-table, .signature-section {
+                page-break-inside: avoid;
+                break-inside: avoid;
             }
         }
     </style>
@@ -245,22 +282,90 @@
             <p>{{ \App\Models\Setting::get('address', 'JL. JEND. SUDIRMAN NO. 269, CIAMIS') }}</p>
         </div>
 
+        @php
+            $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            $dateFromVal = $date_from ?? request('date_from');
+            $dateToVal = $date_to ?? request('date_to');
+
+            $carbonFrom = null;
+            $carbonTo = null;
+
+            try {
+                if (!empty($dateFromVal)) {
+                    $carbonFrom = \Carbon\Carbon::parse($dateFromVal, $timezone)->startOfDay();
+                }
+            } catch (\Exception $e) {
+                $carbonFrom = null;
+            }
+
+            try {
+                if (!empty($dateToVal)) {
+                    $carbonTo = \Carbon\Carbon::parse($dateToVal, $timezone)->startOfDay();
+                }
+            } catch (\Exception $e) {
+                $carbonTo = null;
+            }
+
+            $today = \Carbon\Carbon::today($timezone);
+
+            if ($carbonFrom && $carbonTo) {
+                if ($carbonFrom->isSameDay($carbonTo)) {
+                    $formattedDate = $carbonFrom->locale('id')->translatedFormat('d F Y');
+                    if ($carbonFrom->isSameDay($today)) {
+                        $preambleDateText = "Pada hari ini, <strong>{$formattedDate}</strong>";
+                    } else {
+                        $preambleDateText = "Pada tanggal <strong>{$formattedDate}</strong>";
+                    }
+                } else {
+                    $formattedFrom = $carbonFrom->locale('id')->translatedFormat('d F Y');
+                    $formattedTo = $carbonTo->locale('id')->translatedFormat('d F Y');
+                    $preambleDateText = "Pada periode tanggal <strong>{$formattedFrom} s/d {$formattedTo}</strong>";
+                }
+            } elseif ($carbonFrom) {
+                $formattedFrom = $carbonFrom->locale('id')->translatedFormat('d F Y');
+                if ($carbonFrom->isSameDay($today)) {
+                    $preambleDateText = "Pada hari ini, <strong>{$formattedFrom}</strong>";
+                } else {
+                    $preambleDateText = "Mulai tanggal <strong>{$formattedFrom}</strong>";
+                }
+            } elseif ($carbonTo) {
+                $formattedTo = $carbonTo->locale('id')->translatedFormat('d F Y');
+                if ($carbonTo->isSameDay($today)) {
+                    $preambleDateText = "Pada hari ini, <strong>{$formattedTo}</strong>";
+                } else {
+                    $preambleDateText = "Sampai dengan tanggal <strong>{$formattedTo}</strong>";
+                }
+            } else {
+                $formattedToday = \Carbon\Carbon::now($timezone)->locale('id')->translatedFormat('d F Y');
+                $preambleDateText = "Pada hari ini, <strong>{$formattedToday}</strong>";
+            }
+
+            if ($carbonTo) {
+                $signatureDate = $carbonTo->locale('id')->translatedFormat('d F Y');
+            } elseif ($carbonFrom) {
+                $signatureDate = $carbonFrom->locale('id')->translatedFormat('d F Y');
+            } else {
+                $signatureDate = \Carbon\Carbon::now($timezone)->locale('id')->translatedFormat('d F Y');
+            }
+        @endphp
+
         <!-- Preamble -->
         <div class="preamble">
-            <p>Pada hari ini, <strong>{{ \Carbon\Carbon::now()->format('d F Y') }}</strong>, telah dilakukan audit dan rekapitulasi data transaksi keuangan pada unit <strong>{{ \App\Models\Setting::get('bank_name', 'EBANK SCHOOL') }}</strong>. Berdasarkan rekaman sistem elektronik, berikut adalah rincian transaksi yang telah divalidasi dan dinyatakan sah:</p>
+            <p>{!! $preambleDateText !!}, telah dilakukan audit dan rekapitulasi data transaksi keuangan pada unit <strong>{{ \App\Models\Setting::get('bank_name', 'EBANK SCHOOL') }}</strong>. Berdasarkan rekaman sistem elektronik, berikut adalah rincian transaksi yang telah divalidasi dan dinyatakan sah:</p>
         </div>
 
         <!-- Data Table -->
         <table class="data-table">
             <thead>
                 <tr>
-                    <th style="width: 14%;">KODE SLIP</th>
-                    <th style="width: 11%;">TANGGAL</th>
-                    <th style="width: 27%;">IDENTITAS NASABAH</th>
-                    <th style="width: 10%;">AKSI</th>
-                    <th style="width: 14%;">PETUGAS</th>
-                    <th style="width: 12%;">DEBIT</th>
-                    <th style="width: 12%;">KREDIT</th>
+                    <th style="width: 13%;">KODE SLIP</th>
+                    <th style="width: 10%;">TANGGAL</th>
+                    <th style="width: 24%;">IDENTITAS NASABAH</th>
+                    <th style="width: 9%;">AKSI</th>
+                    <th style="width: 12%;">PETUGAS</th>
+                    <th style="width: 11%;">DEBIT</th>
+                    <th style="width: 11%;">KREDIT</th>
+                    <th style="width: 10%;">KETERANGAN</th>
                 </tr>
             </thead>
             <tbody>
@@ -362,7 +467,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="text-center">Tidak ada data transaksi</td>
+                    <td colspan="8" class="text-center">Tidak ada data transaksi</td>
                 </tr>
                 @endforelse
             </tbody>
@@ -484,11 +589,34 @@
 
             <p class="closing-statement">Demikian Berita Acara Rekapitulasi Transaksi ini disusun secara otomatis oleh sistem perbankan sebagai dokumen pertanggungjawaban yang valid bagi pihak-pihak berkepentingan.</p>
 
+            @php
+                $teacher1 = \App\Models\Setting::get('teacher_responsible_name', 'GURU PENANGGUNG JAWAB');
+                $teacher2 = \App\Models\Setting::get('teacher_responsible_name_2', '');
+            @endphp
+
             <div class="signature-section">
-                <p>{{ strtoupper(\App\Models\Setting::get('bank_city', 'CIAMIS')) }}, {{ \Carbon\Carbon::now()->format('d F Y') }}</p>
-                <p style="margin-top: 8px; font-weight: bold;">GURU PENANGGUNG JAWAB</p>
-                <div class="signature-line"></div>
-                <p class="signature-name">( {{ strtoupper(\App\Models\Setting::get('teacher_responsible_name', 'GURU PENANGGUNG JAWAB')) }} )</p>
+                @if(!empty($teacher2))
+                    <p style="text-align: right; margin-bottom: 10px;">{{ strtoupper(\App\Models\Setting::get('bank_city', 'CIAMIS')) }}, {{ $signatureDate }}</p>
+                    <table class="signature-table-layout">
+                        <tr>
+                            <td style="width: 50%;">
+                                <p style="font-weight: bold;">GURU PENANGGUNG JAWAB 1</p>
+                                <div class="signature-line"></div>
+                                <p class="signature-name">( {{ strtoupper($teacher1) }} )</p>
+                            </td>
+                            <td style="width: 50%;">
+                                <p style="font-weight: bold;">GURU PENANGGUNG JAWAB 2</p>
+                                <div class="signature-line"></div>
+                                <p class="signature-name">( {{ strtoupper($teacher2) }} )</p>
+                            </td>
+                        </tr>
+                    </table>
+                @else
+                    <p>{{ strtoupper(\App\Models\Setting::get('bank_city', 'CIAMIS')) }}, {{ $signatureDate }}</p>
+                    <p style="margin-top: 8px; font-weight: bold;">GURU PENANGGUNG JAWAB</p>
+                    <div class="signature-line"></div>
+                    <p class="signature-name">( {{ strtoupper($teacher1) }} )</p>
+                @endif
             </div>
         </div>
     </div>

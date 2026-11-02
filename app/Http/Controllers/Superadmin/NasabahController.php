@@ -16,10 +16,38 @@ use Inertia\Inertia;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
 class NasabahController extends Controller
 {
     public function index(Request $request)
+    {
+        $query = $this->getFilteredQuery($request);
+
+        if ($request->input('export') === 'excel') {
+            return $this->export($request);
+        }
+
+        // Get filter options
+        $available_jurusan = Jurusan::orderBy('nama')->get();
+        $available_rombels = \App\Models\Rombel::with('jurusan')->orderBy('tingkat')->orderBy('nama')->get()->map(function ($rombel) {
+            return [
+                'id' => $rombel->id,
+                'nama' => $rombel->nama_kelas,
+                'jurusan_id' => $rombel->jurusan_id,
+                'tingkat' => $rombel->tingkat,
+            ];
+        });
+
+        return Inertia::render('superadmin/nasabah/Index', [
+            'nasabah' => $query->latest('updated_at')->paginate(15)->withQueryString(),
+            'filters' => $request->only(['search', 'status', 'tingkat', 'jurusan_id', 'rombel_id', 'user_type']),
+            'available_jurusan' => $available_jurusan,
+            'available_rombels' => $available_rombels
+        ]);
+    }
+
+    private function getFilteredQuery(Request $request)
     {
         $query = Nasabah::with(['user', 'jurusanRel', 'rombelRel', 'rombelRel.jurusan']);
 
@@ -68,22 +96,156 @@ class NasabahController extends Controller
             });
         }
 
-        // Get filter options
-        $available_jurusan = Jurusan::orderBy('nama')->get();
-        $available_rombels = \App\Models\Rombel::with('jurusan')->orderBy('tingkat')->orderBy('nama')->get()->map(function ($rombel) {
-            return [
-                'id' => $rombel->id,
-                'nama' => $rombel->nama_kelas,
-                'jurusan_id' => $rombel->jurusan_id,
-                'tingkat' => $rombel->tingkat,
-            ];
-        });
+        return $query;
+    }
 
-        return Inertia::render('superadmin/nasabah/Index', [
-            'nasabah' => $query->latest('updated_at')->paginate(15)->withQueryString(),
-            'filters' => $request->only(['search', 'status', 'tingkat', 'jurusan_id', 'rombel_id', 'user_type']),
-            'available_jurusan' => $available_jurusan,
-            'available_rombels' => $available_rombels
+    public function export(Request $request)
+    {
+        $query = $this->getFilteredQuery($request);
+        $nasabahs = $query->latest('updated_at')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Data Nasabah');
+
+        // Headers
+        $headers = [
+            'NO',
+            'NO. REKENING',
+            'NAMA NASABAH',
+            'TIPE',
+            'NIS / NIP',
+            'KELAS / ROMBEL',
+            'JURUSAN',
+            'SALDO',
+            'STATUS',
+            'TELEPON',
+            'ALAMAT',
+            'TANGGAL BUKA',
+        ];
+
+        $sheet->fromArray($headers, null, 'A1');
+
+        $rowNum = 2;
+        $totalSaldo = 0;
+
+        foreach ($nasabahs as $index => $item) {
+            $user = $item->user;
+            $userType = match ($user?->user_type) {
+                'siswa' => 'Siswa',
+                'guru' => 'Guru',
+                'kelas' => 'Kas Kelas',
+                'organisasi' => 'Organisasi',
+                'pembayaran' => 'Pembayaran',
+                default => ucfirst($user?->user_type ?? 'Lainnya')
+            };
+
+            $identifier = $user?->user_type === 'siswa'
+                ? ($user?->nis ?: '-')
+                : ($user?->user_type === 'guru' ? ($user?->nip ?: '-') : ($item->nomor_rekening ?: '-'));
+
+            $rombel = $item->rombelRel;
+            $namaKelas = $rombel ? $rombel->nama_kelas : ($item->jurusanRel ? $item->jurusanRel->kode . ' (Tanpa Kelas)' : '-');
+            $jurusan = $item->jurusanRel?->nama ?: ($rombel?->jurusan?->nama ?: '-');
+            $saldo = (float) $item->saldo;
+            $totalSaldo += $saldo;
+
+            $tanggalBuka = $item->tanggal_buka
+                ? $item->tanggal_buka->format('d/m/Y')
+                : ($item->created_at ? $item->created_at->format('d/m/Y') : '-');
+
+            $sheet->setCellValueExplicit("A{$rowNum}", $index + 1, DataType::TYPE_NUMERIC);
+            $sheet->setCellValueExplicit("B{$rowNum}", (string) $item->nomor_rekening, DataType::TYPE_STRING);
+            $sheet->setCellValue("C{$rowNum}", strtoupper($user?->name ?? '-'));
+            $sheet->setCellValue("D{$rowNum}", $userType);
+            $sheet->setCellValueExplicit("E{$rowNum}", (string) $identifier, DataType::TYPE_STRING);
+            $sheet->setCellValue("F{$rowNum}", $namaKelas);
+            $sheet->setCellValue("G{$rowNum}", $jurusan);
+            $sheet->setCellValueExplicit("H{$rowNum}", $saldo, DataType::TYPE_NUMERIC);
+            $sheet->setCellValue("I{$rowNum}", strtoupper($item->status ?? 'AKTIF'));
+            $sheet->setCellValueExplicit("J{$rowNum}", (string) ($user?->phone ?: '-'), DataType::TYPE_STRING);
+            $sheet->setCellValue("K{$rowNum}", $item->alamat ?: '-');
+            $sheet->setCellValue("L{$rowNum}", $tanggalBuka);
+
+            $rowNum++;
+        }
+
+        // Summary row (Total Saldo)
+        $lastRow = $rowNum;
+        $sheet->setCellValue("A{$lastRow}", 'TOTAL SALDO');
+        $sheet->mergeCells("A{$lastRow}:G{$lastRow}");
+        $sheet->setCellValueExplicit("H{$lastRow}", $totalSaldo, DataType::TYPE_NUMERIC);
+
+        // Header styling
+        $headerStyle = [
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 10,
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '059669'], // Emerald 600
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
+        ];
+        $sheet->getStyle('A1:L1')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(1)->setRowHeight(26);
+
+        // Border styling for whole table
+        $sheet->getStyle("A1:L{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+        // Alignments for data
+        if ($lastRow > 2) {
+            $sheet->getStyle("A2:A" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B2:B" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("D2:F" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("I2:I" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("L2:L" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        }
+
+        // Format Currency / Numbers for Saldo column
+        $sheet->getStyle("H2:H{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("H2:H{$lastRow}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+
+        // Format text columns to prevent scientific notation in Excel
+        $sheet->getStyle("B2:B{$lastRow}")->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+        $sheet->getStyle("E2:E{$lastRow}")->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+
+        // Total row style
+        $totalStyle = [
+            'font' => [
+                'bold' => true,
+                'size' => 10,
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'E2E8F0'], // Slate 200
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
+        ];
+        $sheet->getStyle("A{$lastRow}:L{$lastRow}")->applyFromArray($totalStyle);
+        $sheet->getStyle("H{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
+
+        // Auto-fit column widths
+        foreach (range('A', 'L') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'data_nasabah_' . date('Ymd_His') . '.xlsx';
+        $writer = new XlsxWriter($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0',
         ]);
     }
 

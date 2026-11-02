@@ -64,7 +64,7 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
         const limits: Record<string, number> = {
             bank_name: 255, bank_city: 100, address: 255, phone: 20,
             ip_whitelist: 255, ip_blacklist: 255, transaction_types: 255,
-            teacher_responsible_name: 255, db_host: 255, db_name: 255,
+            teacher_responsible_name: 255, teacher_responsible_name_2: 255, db_host: 255, db_name: 255,
             app_url: 255,
         };
         return limits[key] || 100;
@@ -433,8 +433,9 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
                             )}
 
                             {activeCategory === 'laporan' && (
-                                <div className="grid grid-cols-1 gap-6">
-                                    {renderInput('teacher_responsible_name', 'Nama Guru Penanggung Jawab')}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {renderInput('teacher_responsible_name', 'Nama Guru Penanggung Jawab 1')}
+                                    {renderInput('teacher_responsible_name_2', 'Nama Guru Penanggung Jawab 2 (Opsional)')}
                                 </div>
                             )}
 

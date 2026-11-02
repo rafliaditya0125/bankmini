@@ -553,6 +553,19 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         });
     };
 
+    const handleExportExcel = () => {
+        const params = new URLSearchParams();
+        if (search) params.set('search', search);
+        if (statusFilter !== 'all') params.set('status', statusFilter);
+        if (tingkatFilter !== 'all') params.set('tingkat', tingkatFilter);
+        if (jurusanFilter !== 'all') params.set('jurusan_id', jurusanFilter);
+        if (rombelFilter !== 'all') params.set('rombel_id', rombelFilter);
+        if (typeFilter !== 'all') params.set('user_type', typeFilter);
+        params.set('export', 'excel');
+
+        window.location.href = `/${rolePrefix}/nasabah?${params.toString()}`;
+    };
+
     return (
         <DashboardLayout
             header={
@@ -562,6 +575,16 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                         <p className="mt-1 text-sm text-slate-500">Manajemen data nasabah dan rekening</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={handleExportExcel}
+                            className="inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white border border-emerald-500 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] hover:bg-emerald-700 shadow-sm shadow-emerald-600/20 transition-all cursor-pointer"
+                            title="Ekspor Data Nasabah ke Excel sesuai Filter"
+                        >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Export Excel
+                        </button>
                         <button
                             onClick={() => setImportModalOpen(true)}
                             className="inline-flex items-center gap-2 rounded-full bg-emerald-50/70 text-emerald-700 border border-emerald-200/70 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] hover:bg-emerald-100/80 transition-all"
