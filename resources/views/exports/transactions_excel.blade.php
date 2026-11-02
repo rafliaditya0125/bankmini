@@ -19,6 +19,7 @@
                 <th rowspan="2" style="background-color: #FFFF00; border: 2px solid #000000; padding: 10px; font-weight: bold; text-align: center; vertical-align: middle;">DESKRIPSI</th>
                 <th rowspan="2" style="background-color: #FFFF00; border: 2px solid #000000; padding: 10px; font-weight: bold; text-align: center; vertical-align: middle;">NAMA PETUGAS</th>
                 <th colspan="2" style="background-color: #FFFF00; border: 2px solid #000000; padding: 10px; font-weight: bold; text-align: center; vertical-align: middle;">SALDO</th>
+                <th rowspan="2" style="background-color: #FFFF00; border: 2px solid #000000; padding: 10px; font-weight: bold; text-align: center; vertical-align: middle;">KETERANGAN</th>
             </tr>
             <tr>
                 <th style="background-color: #FFFF00; border: 2px solid #000000; padding: 10px; font-weight: bold; text-align: center; vertical-align: middle;">DEBIT</th>
@@ -61,17 +62,19 @@
                 <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; mso-number-format: '\#\,\#\#0';">
                     {{ $kredit > 0 ? $kredit : '' }}
                 </td>
+                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle;"></td>
             </tr>
             @endforeach
             <tr>
                 <td colspan="4" style="border: 2px solid #000000; padding: 8px; text-align: right; vertical-align: middle; font-weight: bold;">TOTAL</td>
                 <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; mso-number-format: '\#\,\#\#0';">{{ $totalDebit }}</td>
                 <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle; font-weight: bold; mso-number-format: '\#\,\#\#0';">{{ $totalKredit }}</td>
+                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle;"></td>
             </tr>
         </tbody>
         <tfoot style="border: none;">
-            <tr><td colspan="6" style="border: none;">&nbsp;</td></tr>
-            <tr><td colspan="6" style="border: none;">&nbsp;</td></tr>
+            <tr><td colspan="7" style="border: none;">&nbsp;</td></tr>
+            <tr><td colspan="7" style="border: none;">&nbsp;</td></tr>
             @php
                 $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
                 $dateFromVal = $date_from ?? request('date_from');
@@ -112,35 +115,32 @@
             <tr>
                 <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">&nbsp;</td>
                 <td style="border: none;">&nbsp;</td>
-                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">{{ \App\Models\Setting::get('bank_city', 'TASIKMALAYA') }}, {{ $signatureDate }}</td>
+                <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">{{ \App\Models\Setting::get('bank_city', 'TASIKMALAYA') }}, {{ $signatureDate }}</td>
             </tr>
             <tr>
                 <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">Guru Penanggung Jawab 1</td>
                 <td style="border: none;">&nbsp;</td>
-                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">Guru Penanggung Jawab 2</td>
+                <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">Guru Penanggung Jawab 2</td>
             </tr>
-            <tr><td colspan="6" style="border: none; height: 60px;">&nbsp;</td></tr>
+            <tr><td colspan="7" style="border: none; height: 60px;">&nbsp;</td></tr>
             <tr>
                 <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">( {{ strtoupper($teacher1) }} )</td>
                 <td style="border: none;">&nbsp;</td>
-                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">( {{ strtoupper($teacher2) }} )</td>
+                <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">( {{ strtoupper($teacher2) }} )</td>
             </tr>
             @else
             <tr>
-                <td colspan="3" style="border: none;">&nbsp;</td>
-                <td style="border: none;">&nbsp;</td>
-                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">{{ \App\Models\Setting::get('bank_city', 'TASIKMALAYA') }}, {{ $signatureDate }}</td>
+                <td colspan="4" style="border: none;">&nbsp;</td>
+                <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">{{ \App\Models\Setting::get('bank_city', 'TASIKMALAYA') }}, {{ $signatureDate }}</td>
             </tr>
             <tr>
-                <td colspan="3" style="border: none;">&nbsp;</td>
-                <td style="border: none;">&nbsp;</td>
-                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">Guru Penanggung Jawab</td>
+                <td colspan="4" style="border: none;">&nbsp;</td>
+                <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">Guru Penanggung Jawab</td>
             </tr>
-            <tr><td colspan="6" style="border: none; height: 60px;">&nbsp;</td></tr>
+            <tr><td colspan="7" style="border: none; height: 60px;">&nbsp;</td></tr>
             <tr>
-                <td colspan="3" style="border: none;">&nbsp;</td>
-                <td style="border: none;">&nbsp;</td>
-                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">( {{ strtoupper($teacher1) }} )</td>
+                <td colspan="4" style="border: none;">&nbsp;</td>
+                <td colspan="3" style="border: none; text-align: center; vertical-align: middle;">( {{ strtoupper($teacher1) }} )</td>
             </tr>
             @endif
         </tfoot>

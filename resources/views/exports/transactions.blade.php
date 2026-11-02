@@ -358,13 +358,14 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th style="width: 14%;">KODE SLIP</th>
-                    <th style="width: 11%;">TANGGAL</th>
-                    <th style="width: 27%;">IDENTITAS NASABAH</th>
-                    <th style="width: 10%;">AKSI</th>
-                    <th style="width: 14%;">PETUGAS</th>
-                    <th style="width: 12%;">DEBIT</th>
-                    <th style="width: 12%;">KREDIT</th>
+                    <th style="width: 13%;">KODE SLIP</th>
+                    <th style="width: 10%;">TANGGAL</th>
+                    <th style="width: 24%;">IDENTITAS NASABAH</th>
+                    <th style="width: 9%;">AKSI</th>
+                    <th style="width: 12%;">PETUGAS</th>
+                    <th style="width: 11%;">DEBIT</th>
+                    <th style="width: 11%;">KREDIT</th>
+                    <th style="width: 10%;">KETERANGAN</th>
                 </tr>
             </thead>
             <tbody>
@@ -463,10 +464,11 @@
                     <td class="text-center">{{ $petugasName }}</td>
                     <td class="text-right">{{ $debit > 0 ? number_format($debit, 0, ',', '.') : '-' }}</td>
                     <td class="text-right">{{ $kredit > 0 ? number_format($kredit, 0, ',', '.') : '-' }}</td>
+                    <td class="text-center"></td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="text-center">Tidak ada data transaksi</td>
+                    <td colspan="8" class="text-center">Tidak ada data transaksi</td>
                 </tr>
                 @endforelse
             </tbody>
