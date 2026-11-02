@@ -222,15 +222,14 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                                     <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Nasabah</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Tipe</th>
                                     <th className="px-6 py-4 text-right text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Jumlah</th>
-                                    <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Petugas</th>
-                                    <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Keterangan</th>
+                                    <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Info / Petugas</th>
                                     <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-[0.2em]">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {transactions.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="px-6 py-12 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
+                                        <td colSpan={7} className="px-6 py-12 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
                                             Tidak ada riwayat transaksi ditemukan
                                         </td>
                                     </tr>
@@ -281,9 +280,7 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                                                         (tx as any).petugas_nama || tx.petugas?.name || 'System'
                                                     )}
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-center text-xs text-slate-400">
-                                                -
+                                                <div className="text-[9px] font-semibold text-slate-400 uppercase tracking-tight line-clamp-1 max-w-32">{tx.keterangan || '-'}</div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-center">
                                                 <Dropdown
