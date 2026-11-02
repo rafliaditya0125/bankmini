@@ -49,6 +49,7 @@ class SettingSeeder extends Seeder
 
             // LAPORAN
             'teacher_responsible_name' => 'Guru Penanggung Jawab',
+            'teacher_responsible_name_2' => '',
 
             // SISTEM
             'maintenance_mode' => '0',

@@ -16,11 +16,11 @@ class TransaksiController extends Controller
         $query = $this->getQuery($request);
 
         if ($request->export === 'pdf') {
-            return $this->exportPdf($query->get());
+            return $this->exportPdf($query->get(), $request);
         }
 
         if ($request->export === 'excel') {
-            return $this->exportExcel($query->get());
+            return $this->exportExcel($query->get(), $request);
         }
 
         $transactions = $query->paginate(15)->through(function($tx) {
@@ -130,7 +130,7 @@ class TransaksiController extends Controller
         return $query;
     }
 
-    private function exportExcel($data)
+    private function exportExcel($data, Request $request = null)
     {
         $bankName = \App\Models\Setting::get('bank_name', 'Bank Mini');
         $filename = "laporan_transaksi_" . strtolower(str_replace(' ', '_', $bankName)) . "_" . date('YmdHis') . ".xls";
@@ -143,16 +143,26 @@ class TransaksiController extends Controller
             "Expires"             => "0"
         ];
 
+        $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+        $today = Carbon::today($timezone)->toDateString();
+
         return response()->view('exports.transactions_excel', [
             'data' => $data,
+            'date_from' => $request?->date_from ?? $today,
+            'date_to' => $request?->date_to ?? $today,
         ])->withHeaders($headers);
     }
 
-    private function exportPdf($data)
+    private function exportPdf($data, Request $request = null)
     {
+        $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+        $today = Carbon::today($timezone)->toDateString();
+
         return view('exports.transactions', [
             'data' => $data,
-            'title' => 'Laporan Transaksi ' . \App\Models\Setting::get('bank_name', 'Bank Mini')
+            'title' => 'Laporan Transaksi ' . \App\Models\Setting::get('bank_name', 'Bank Mini'),
+            'date_from' => $request?->date_from ?? $today,
+            'date_to' => $request?->date_to ?? $today,
         ]);
     }
 }

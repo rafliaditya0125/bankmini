@@ -61,8 +61,31 @@ class LaporanController extends Controller
 
             return view('exports.transactions', [
                 'data' => $transactions,
-                'title' => 'Laporan Transaksi ' . \App\Models\Setting::get('bank_name', 'Bank Mini')
+                'title' => 'Laporan Transaksi ' . \App\Models\Setting::get('bank_name', 'Bank Mini'),
+                'date_from' => $request->date_from,
+                'date_to' => $request->date_to,
             ]);
+        }
+
+        // Handle Excel export
+        if ($request->export === 'excel') {
+            $transactions = $query->with(['nasabah.rombelRel.jurusan'])->latest()->get();
+            $bankName = \App\Models\Setting::get('bank_name', 'Bank Mini');
+            $filename = "laporan_transaksi_" . strtolower(str_replace(' ', '_', $bankName)) . "_" . date('YmdHis') . ".xls";
+
+            $headers = [
+                "Content-type"        => "application/vnd.ms-excel",
+                "Content-Disposition" => "attachment; filename=$filename",
+                "Pragma"              => "no-cache",
+                "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+                "Expires"             => "0"
+            ];
+
+            return response()->view('exports.transactions_excel', [
+                'data' => $transactions,
+                'date_from' => $request->date_from,
+                'date_to' => $request->date_to,
+            ])->withHeaders($headers);
         }
 
         return Inertia::render('superadmin/Laporan', [

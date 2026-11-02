@@ -65,7 +65,39 @@
     </table>
 
     <div class="footer">
-        <p>{{ strtoupper(\App\Models\Setting::get('bank_city', 'TASIKMALAYA')) }}, {{ date('d F Y') }}</p>
+        @php
+            $tz = $timezone ?? \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            $dateFromVal = $date_from ?? request('date_from');
+            $dateToVal = $date_to ?? request('date_to');
+
+            $carbonFrom = null;
+            $carbonTo = null;
+
+            try {
+                if (!empty($dateFromVal)) {
+                    $carbonFrom = \Carbon\Carbon::parse($dateFromVal, $tz)->startOfDay();
+                }
+            } catch (\Exception $e) {
+                $carbonFrom = null;
+            }
+
+            try {
+                if (!empty($dateToVal)) {
+                    $carbonTo = \Carbon\Carbon::parse($dateToVal, $tz)->startOfDay();
+                }
+            } catch (\Exception $e) {
+                $carbonTo = null;
+            }
+
+            if ($carbonTo) {
+                $signatureDate = $carbonTo->locale('id')->translatedFormat('d F Y');
+            } elseif ($carbonFrom) {
+                $signatureDate = $carbonFrom->locale('id')->translatedFormat('d F Y');
+            } else {
+                $signatureDate = \Carbon\Carbon::now($tz)->locale('id')->translatedFormat('d F Y');
+            }
+        @endphp
+        <p>{{ strtoupper(\App\Models\Setting::get('bank_city', 'TASIKMALAYA')) }}, {{ $signatureDate }}</p>
     </div>
 </body>
 </html>
