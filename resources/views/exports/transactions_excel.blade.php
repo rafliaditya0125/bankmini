@@ -72,10 +72,42 @@
         <tfoot style="border: none;">
             <tr><td colspan="6" style="border: none;">&nbsp;</td></tr>
             <tr><td colspan="6" style="border: none;">&nbsp;</td></tr>
+            @php
+                $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+                $dateFromVal = $date_from ?? request('date_from');
+                $dateToVal = $date_to ?? request('date_to');
+
+                $carbonFrom = null;
+                $carbonTo = null;
+
+                try {
+                    if (!empty($dateFromVal)) {
+                        $carbonFrom = \Carbon\Carbon::parse($dateFromVal, $timezone)->startOfDay();
+                    }
+                } catch (\Exception $e) {
+                    $carbonFrom = null;
+                }
+
+                try {
+                    if (!empty($dateToVal)) {
+                        $carbonTo = \Carbon\Carbon::parse($dateToVal, $timezone)->startOfDay();
+                    }
+                } catch (\Exception $e) {
+                    $carbonTo = null;
+                }
+
+                if ($carbonTo) {
+                    $signatureDate = $carbonTo->locale('id')->translatedFormat('d F Y');
+                } elseif ($carbonFrom) {
+                    $signatureDate = $carbonFrom->locale('id')->translatedFormat('d F Y');
+                } else {
+                    $signatureDate = \Carbon\Carbon::now($timezone)->locale('id')->translatedFormat('d F Y');
+                }
+            @endphp
             <tr>
                 <td colspan="3" style="border: none;">&nbsp;</td>
                 <td style="border: none;">&nbsp;</td>
-                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">{{ \App\Models\Setting::get('bank_city', 'TASIKMALAYA') }}, {{ date('d F Y') }}</td>
+                <td colspan="2" style="border: none; text-align: center; vertical-align: middle;">{{ \App\Models\Setting::get('bank_city', 'TASIKMALAYA') }}, {{ $signatureDate }}</td>
             </tr>
             <tr>
                 <td colspan="3" style="border: none;">&nbsp;</td>

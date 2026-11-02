@@ -245,9 +245,76 @@
             <p>{{ \App\Models\Setting::get('address', 'JL. JEND. SUDIRMAN NO. 269, CIAMIS') }}</p>
         </div>
 
+        @php
+            $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            $dateFromVal = $date_from ?? request('date_from');
+            $dateToVal = $date_to ?? request('date_to');
+
+            $carbonFrom = null;
+            $carbonTo = null;
+
+            try {
+                if (!empty($dateFromVal)) {
+                    $carbonFrom = \Carbon\Carbon::parse($dateFromVal, $timezone)->startOfDay();
+                }
+            } catch (\Exception $e) {
+                $carbonFrom = null;
+            }
+
+            try {
+                if (!empty($dateToVal)) {
+                    $carbonTo = \Carbon\Carbon::parse($dateToVal, $timezone)->startOfDay();
+                }
+            } catch (\Exception $e) {
+                $carbonTo = null;
+            }
+
+            $today = \Carbon\Carbon::today($timezone);
+
+            if ($carbonFrom && $carbonTo) {
+                if ($carbonFrom->isSameDay($carbonTo)) {
+                    $formattedDate = $carbonFrom->locale('id')->translatedFormat('d F Y');
+                    if ($carbonFrom->isSameDay($today)) {
+                        $preambleDateText = "Pada hari ini, <strong>{$formattedDate}</strong>";
+                    } else {
+                        $preambleDateText = "Pada tanggal <strong>{$formattedDate}</strong>";
+                    }
+                } else {
+                    $formattedFrom = $carbonFrom->locale('id')->translatedFormat('d F Y');
+                    $formattedTo = $carbonTo->locale('id')->translatedFormat('d F Y');
+                    $preambleDateText = "Pada periode tanggal <strong>{$formattedFrom} s/d {$formattedTo}</strong>";
+                }
+            } elseif ($carbonFrom) {
+                $formattedFrom = $carbonFrom->locale('id')->translatedFormat('d F Y');
+                if ($carbonFrom->isSameDay($today)) {
+                    $preambleDateText = "Pada hari ini, <strong>{$formattedFrom}</strong>";
+                } else {
+                    $preambleDateText = "Mulai tanggal <strong>{$formattedFrom}</strong>";
+                }
+            } elseif ($carbonTo) {
+                $formattedTo = $carbonTo->locale('id')->translatedFormat('d F Y');
+                if ($carbonTo->isSameDay($today)) {
+                    $preambleDateText = "Pada hari ini, <strong>{$formattedTo}</strong>";
+                } else {
+                    $preambleDateText = "Sampai dengan tanggal <strong>{$formattedTo}</strong>";
+                }
+            } else {
+                $formattedToday = \Carbon\Carbon::now($timezone)->locale('id')->translatedFormat('d F Y');
+                $preambleDateText = "Pada hari ini, <strong>{$formattedToday}</strong>";
+            }
+
+            if ($carbonTo) {
+                $signatureDate = $carbonTo->locale('id')->translatedFormat('d F Y');
+            } elseif ($carbonFrom) {
+                $signatureDate = $carbonFrom->locale('id')->translatedFormat('d F Y');
+            } else {
+                $signatureDate = \Carbon\Carbon::now($timezone)->locale('id')->translatedFormat('d F Y');
+            }
+        @endphp
+
         <!-- Preamble -->
         <div class="preamble">
-            <p>Pada hari ini, <strong>{{ \Carbon\Carbon::now()->format('d F Y') }}</strong>, telah dilakukan audit dan rekapitulasi data transaksi keuangan pada unit <strong>{{ \App\Models\Setting::get('bank_name', 'EBANK SCHOOL') }}</strong>. Berdasarkan rekaman sistem elektronik, berikut adalah rincian transaksi yang telah divalidasi dan dinyatakan sah:</p>
+            <p>{!! $preambleDateText !!}, telah dilakukan audit dan rekapitulasi data transaksi keuangan pada unit <strong>{{ \App\Models\Setting::get('bank_name', 'EBANK SCHOOL') }}</strong>. Berdasarkan rekaman sistem elektronik, berikut adalah rincian transaksi yang telah divalidasi dan dinyatakan sah:</p>
         </div>
 
         <!-- Data Table -->
@@ -485,7 +552,7 @@
             <p class="closing-statement">Demikian Berita Acara Rekapitulasi Transaksi ini disusun secara otomatis oleh sistem perbankan sebagai dokumen pertanggungjawaban yang valid bagi pihak-pihak berkepentingan.</p>
 
             <div class="signature-section">
-                <p>{{ strtoupper(\App\Models\Setting::get('bank_city', 'CIAMIS')) }}, {{ \Carbon\Carbon::now()->format('d F Y') }}</p>
+                <p>{{ strtoupper(\App\Models\Setting::get('bank_city', 'CIAMIS')) }}, {{ $signatureDate }}</p>
                 <p style="margin-top: 8px; font-weight: bold;">GURU PENANGGUNG JAWAB</p>
                 <div class="signature-line"></div>
                 <p class="signature-name">( {{ strtoupper(\App\Models\Setting::get('teacher_responsible_name', 'GURU PENANGGUNG JAWAB')) }} )</p>
