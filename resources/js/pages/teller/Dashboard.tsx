@@ -69,7 +69,8 @@ export default function TellerDashboard(props: TellerDashboardProps) {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
-            minimumFractionDigits: 0,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
         }).format(amount);
     };
 
@@ -432,7 +433,7 @@ export default function TellerDashboard(props: TellerDashboardProps) {
                                         borderRadius: '8px',
                                         fontSize: '12px'
                                     }}
-                                    formatter={(value: number | undefined) => value ? formatRupiah(value) : 'Rp 0'}
+                                    formatter={(value: number | undefined) => value ? formatRupiah(value) : 'Rp 0,00'}
                                 />
                                 <Legend
                                     wrapperStyle={{ fontSize: '12px' }}

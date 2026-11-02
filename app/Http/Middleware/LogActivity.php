@@ -141,16 +141,16 @@ class LogActivity
         } elseif (str_contains($routeName, 'setor')) {
             $amount = $request->input('jumlah');
             $nasabah = $request->input('nomor_rekening');
-            return "Transaksi setor sebesar Rp " . number_format($amount, 0, ',', '.') . " untuk nasabah $nasabah";
+            return "Transaksi setor sebesar Rp " . number_format($amount, 2, ',', '.') . " untuk nasabah $nasabah";
         } elseif (str_contains($routeName, 'tarik')) {
             $amount = $request->input('jumlah');
             $nasabah = $request->input('nomor_rekening');
-            return "Transaksi tarik sebesar Rp " . number_format($amount, 0, ',', '.') . " untuk nasabah $nasabah";
+            return "Transaksi tarik sebesar Rp " . number_format($amount, 2, ',', '.') . " untuk nasabah $nasabah";
         } elseif (str_contains($routeName, 'transfer')) {
             $amount = $request->input('jumlah');
             $from = $request->input('nomor_rekening_pengirim');
             $to = $request->input('nomor_rekening_penerima');
-            return "Transfer sebesar Rp " . number_format($amount, 0, ',', '.') . " dari $from ke $to";
+            return "Transfer sebesar Rp " . number_format($amount, 2, ',', '.') . " dari $from ke $to";
         } elseif (str_contains($routeName, 'nasabah.store')) {
             $name = $request->input('name');
             $nomor = $request->input('nomor_rekening');

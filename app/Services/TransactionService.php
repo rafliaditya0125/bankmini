@@ -107,7 +107,7 @@ class TransactionService
 
             AuditLog::logActivity(
                 'setor',
-                "Transaksi setor sebesar Rp " . number_format($jumlah, 0, ',', '.') . " untuk nasabah " . $nasabah->nomor_rekening,
+                "Transaksi setor sebesar Rp " . number_format($jumlah, 2, ',', '.') . " untuk nasabah " . $nasabah->nomor_rekening,
                 'success',
                 Auth::id(),
                 Auth::user()->name,
@@ -189,7 +189,7 @@ class TransactionService
 
             AuditLog::logActivity(
                 'tarik',
-                "Transaksi tarik sebesar Rp " . number_format($jumlah, 0, ',', '.') . " untuk nasabah " . $nasabah->nomor_rekening,
+                "Transaksi tarik sebesar Rp " . number_format($jumlah, 2, ',', '.') . " untuk nasabah " . $nasabah->nomor_rekening,
                 'success',
                 Auth::id(),
                 Auth::user()->name,
@@ -281,7 +281,7 @@ class TransactionService
 
             AuditLog::logActivity(
                 'transfer',
-                "Transfer Rp " . number_format($jumlah, 0, ',', '.') . " dari " . $pengirim->nomor_rekening . " ke " . $penerima->nomor_rekening,
+                "Transfer Rp " . number_format($jumlah, 2, ',', '.') . " dari " . $pengirim->nomor_rekening . " ke " . $penerima->nomor_rekening,
                 'success',
                 Auth::id(),
                 Auth::user()->name,
@@ -383,7 +383,7 @@ class TransactionService
 
                 AuditLog::logActivity(
                     'bayar',
-                    "Pembayaran Rp " . number_format($jumlah, 0, ',', '.') . " (" . strtoupper($metodePembayaran) . ") dari " . $pembayar->nomor_rekening . " untuk kantong " . $walletType->name,
+                    "Pembayaran Rp " . number_format($jumlah, 2, ',', '.') . " (" . strtoupper($metodePembayaran) . ") dari " . $pembayar->nomor_rekening . " untuk kantong " . $walletType->name,
                     'success',
                     Auth::id(),
                     Auth::user()->name,
@@ -451,7 +451,7 @@ class TransactionService
 
             AuditLog::logActivity(
                 'bayar',
-                "Pembayaran Rp " . number_format($jumlah, 0, ',', '.') . " dari " . $pembayar->nomor_rekening . " untuk " . $penerima->user->name,
+                "Pembayaran Rp " . number_format($jumlah, 2, ',', '.') . " dari " . $pembayar->nomor_rekening . " untuk " . $penerima->user->name,
                 'success',
                 Auth::id(),
                 Auth::user()->name,

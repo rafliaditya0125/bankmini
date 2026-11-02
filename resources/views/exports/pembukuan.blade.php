@@ -48,10 +48,10 @@
                 <td style="text-align: left;">{{ $entry['deskripsi'] }}</td>
                 <td>{{ $entry['reff'] }}</td>
                 <td class="text-right">
-                    {{ $entry['debit'] > 0 ? number_format($entry['debit'], 0, ',', '.') : '-' }}
+                    {{ $entry['debit'] > 0 ? number_format($entry['debit'], 2, ',', '.') : '-' }}
                 </td>
                 <td class="text-right">
-                    {{ $entry['kredit'] > 0 ? number_format($entry['kredit'], 0, ',', '.') : '-' }}
+                    {{ $entry['kredit'] > 0 ? number_format($entry['kredit'], 2, ',', '.') : '-' }}
                 </td>
             </tr>
             @endforeach
@@ -60,8 +60,8 @@
         <tfoot>
             <tr style="font-weight: bold; background-color: #f9f9f9;">
                 <td colspan="4">TOTAL</td>
-                <td class="text-right">{{ number_format($totals['debit'], 0, ',', '.') }}</td>
-                <td class="text-right">{{ number_format($totals['kredit'], 0, ',', '.') }}</td>
+                <td class="text-right">{{ number_format($totals['debit'], 2, ',', '.') }}</td>
+                <td class="text-right">{{ number_format($totals['kredit'], 2, ',', '.') }}</td>
             </tr>
         </tfoot>
         @endif
