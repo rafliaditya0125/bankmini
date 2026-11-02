@@ -16,6 +16,8 @@
         .footer-table td { border: none; width: 50%; text-align: center; }
         @media print {
             .no-print { display: none; }
+            tr { page-break-inside: avoid; break-inside: avoid; }
+            thead { display: table-header-group; }
         }
     </style>
 </head>

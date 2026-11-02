@@ -223,10 +223,28 @@
             .no-print { display: none !important; }
             body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .container { max-width: 100%; }
-            table { page-break-inside: avoid; border-collapse: collapse !important; }
+            table { border-collapse: collapse !important; }
             th, td { border: 1px solid #000 !important; }
             .data-table th, .data-table td, .summary-table td, .signature-table th, .signature-table td {
                 border: 1px solid #000 !important;
+            }
+            .data-table {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+            .data-table thead {
+                display: table-header-group;
+            }
+            .data-table tbody {
+                display: table-row-group;
+            }
+            .data-table tr {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            .summary-section, .signature-table, .signature-section {
+                page-break-inside: avoid;
+                break-inside: avoid;
             }
         }
     </style>
