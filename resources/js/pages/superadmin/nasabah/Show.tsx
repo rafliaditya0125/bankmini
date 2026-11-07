@@ -441,7 +441,19 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                             {(tx as any).petugas_nama || tx.petugas?.name || tx.nama_petugas || '-'}
                                         </td>
                                         <td className="px-8 py-4 text-sm text-right font-black text-slate-900 tracking-tight">{formatRupiah(tx.jumlah)}</td>
-                                        <td className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date(tx.created_at).toLocaleString('id-ID')}</td>
+                                        <td className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                            {(() => {
+                                                const txAny = tx as any;
+                                                if (txAny.tanggal_transaksi) {
+                                                    const parts = txAny.tanggal_transaksi.split('-');
+                                                    if (parts.length === 3) {
+                                                        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                                                        return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + new Date(tx.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+                                                    }
+                                                }
+                                                return new Date(tx.created_at).toLocaleString('id-ID');
+                                            })()}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>

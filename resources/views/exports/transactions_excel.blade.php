@@ -49,9 +49,13 @@
                 if (empty($row->nama_petugas) && isset($row->petugas) && in_array($row->petugas->role, ['admin', 'superadmin'])) {
                     $petugasName = 'ADMIN';
                 }
+
+                $tanggalExcel = $row->tanggal_transaksi 
+                    ? \Carbon\Carbon::parse($row->tanggal_transaksi)->format('d/m/Y')
+                    : $row->created_at->format('d/m/Y');
             @endphp
             <tr>
-                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle;">{{ $row->created_at->format('d/m/Y') }}</td>
+                <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle;">{{ $tanggalExcel }}</td>
                 <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle;">{{ $row->kode_transaksi }}</td>
                 <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle;">{{ $deskripsi }}</td>
                 <td style="border: 2px solid #000000; padding: 8px; text-align: center; vertical-align: middle;">{{ strtoupper($petugasName) }}</td>

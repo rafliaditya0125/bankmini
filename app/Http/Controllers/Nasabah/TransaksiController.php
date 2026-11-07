@@ -24,15 +24,27 @@ class TransaksiController extends Controller
         $query = $this->getQuery($request, $nasabah->id);
 
         $transactions = $query->paginate(15)->through(function($tx) use ($nasabah) {
-            $noUrut = Transaksi::whereDate('created_at', $tx->created_at->toDateString())
+            $txDate = $tx->tanggal_transaksi ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->toDateString() : $tx->created_at->toDateString();
+            $noUrut = Transaksi::where(function($q) use ($txDate) {
+                    $q->whereDate('tanggal_transaksi', $txDate)
+                      ->orWhere(function($sq) use ($txDate) {
+                          $sq->whereNull('tanggal_transaksi')
+                             ->whereDate('created_at', $txDate);
+                      });
+                })
                 ->where('id', '<=', $tx->id)
                 ->distinct('kode_transaksi')
                 ->count('kode_transaksi');
 
             $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            $timeStr = $tx->created_at ? $tx->created_at->timezone($timezone)->format('H:i:s') : '00:00:00';
+            $formattedTanggal = $tx->tanggal_transaksi 
+                ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->format('d/m/Y') . ' ' . $timeStr
+                : $tx->created_at->timezone($timezone)->format('d/m/Y H:i:s');
+
             $data = $tx->toArray();
             $data['no_urut'] = $noUrut;
-            $data['tanggal'] = $tx->created_at->timezone($timezone)->format('d/m/Y H:i:s');
+            $data['tanggal'] = $formattedTanggal;
             $data['petugas'] = $tx->nama_petugas ?? $tx->user?->name ?? 'SYSTEM';
 
             // Untuk pembayaran yang masuk (nasabah ini adalah penerima)
@@ -114,10 +126,22 @@ class TransaksiController extends Controller
         }
 
         if ($request->from_date) {
-            $query->whereDate('created_at', '>=', $request->from_date);
+            $query->where(function($q) use ($request) {
+                $q->whereDate('tanggal_transaksi', '>=', $request->from_date)
+                  ->orWhere(function($sq) use ($request) {
+                      $sq->whereNull('tanggal_transaksi')
+                         ->whereDate('created_at', '>=', $request->from_date);
+                  });
+            });
         }
         if ($request->to_date) {
-            $query->whereDate('created_at', '<=', $request->to_date);
+            $query->where(function($q) use ($request) {
+                $q->whereDate('tanggal_transaksi', '<=', $request->to_date)
+                  ->orWhere(function($sq) use ($request) {
+                      $sq->whereNull('tanggal_transaksi')
+                         ->whereDate('created_at', '<=', $request->to_date);
+                  });
+            });
         }
 
         return $query;

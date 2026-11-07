@@ -116,6 +116,11 @@ class TransactionService
 
             NotificationService::sendTransactionNotification($nasabah->user_id, 'setor', $jumlah, $kodeTransaksi);
 
+            $timeStr = $transaksi->created_at ? $transaksi->created_at->format('H:i:s') : now()->format('H:i:s');
+            $tanggalFormatted = !empty($data['tanggal_transaksi'])
+                ? \Carbon\Carbon::parse($data['tanggal_transaksi'])->format('Y-m-d') . ' ' . $timeStr
+                : $transaksi->created_at->format('Y-m-d H:i:s');
+
             return [
                 'kode_transaksi' => $kodeTransaksi,
                 'no_urut' => $transaksi->id,
@@ -127,7 +132,8 @@ class TransactionService
                 'saldo_sesudah' => $saldoSesudah,
                 'jenis_transaksi' => 'setor',
                 'sub_jenis_transaksi' => $data['jenis_transaksi'] ?? null,
-                'tanggal' => $transaksi->created_at->format('Y-m-d H:i:s'),
+                'tanggal' => $tanggalFormatted,
+                'tanggal_transaksi' => $data['tanggal_transaksi'] ?? $transaksi->created_at->toDateString(),
                 'created_at' => $transaksi->created_at->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
@@ -198,6 +204,11 @@ class TransactionService
 
             NotificationService::sendTransactionNotification($nasabah->user_id, 'tarik', $jumlah, $kodeTransaksi);
 
+            $timeStr = $transaksi->created_at ? $transaksi->created_at->format('H:i:s') : now()->format('H:i:s');
+            $tanggalFormatted = !empty($data['tanggal_transaksi'])
+                ? \Carbon\Carbon::parse($data['tanggal_transaksi'])->format('Y-m-d') . ' ' . $timeStr
+                : $transaksi->created_at->format('Y-m-d H:i:s');
+
             return [
                 'kode_transaksi' => $kodeTransaksi,
                 'no_urut' => $transaksi->id,
@@ -209,7 +220,8 @@ class TransactionService
                 'saldo_sesudah' => $saldoSesudah,
                 'jenis_transaksi' => 'tarik',
                 'sub_jenis_transaksi' => $data['jenis_transaksi'] ?? null,
-                'tanggal' => $transaksi->created_at->format('Y-m-d H:i:s'),
+                'tanggal' => $tanggalFormatted,
+                'tanggal_transaksi' => $data['tanggal_transaksi'] ?? $transaksi->created_at->toDateString(),
                 'created_at' => $transaksi->created_at->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
@@ -294,6 +306,11 @@ class TransactionService
             // Ambil transaksi yang baru dibuat untuk mendapatkan ID
             $transaksiPengirim = Transaksi::where('kode_transaksi', $kodeTransaksi . '-S')->first();
 
+            $timeStr = $transaksiPengirim->created_at ? $transaksiPengirim->created_at->format('H:i:s') : now()->format('H:i:s');
+            $tanggalFormatted = !empty($data['tanggal_transaksi'])
+                ? \Carbon\Carbon::parse($data['tanggal_transaksi'])->format('Y-m-d') . ' ' . $timeStr
+                : $transaksiPengirim->created_at->format('Y-m-d H:i:s');
+
             return [
                 'kode_transaksi' => $kodeTransaksi,
                 'no_urut' => $transaksiPengirim->id,
@@ -308,7 +325,8 @@ class TransactionService
                 'saldo_sebelum' => $saldoSebelumPengirim,
                 'saldo_sesudah' => $saldoSesudahPengirim,
                 'jenis_transaksi' => 'transfer',
-                'tanggal' => $transaksiPengirim->created_at->format('Y-m-d H:i:s'),
+                'tanggal' => $tanggalFormatted,
+                'tanggal_transaksi' => $data['tanggal_transaksi'] ?? $transaksiPengirim->created_at->toDateString(),
                 'created_at' => $transaksiPengirim->created_at->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];
@@ -392,6 +410,11 @@ class TransactionService
 
                 NotificationService::sendTransactionNotification($pembayar->user_id, 'bayar', $jumlah, $kodeTransaksi);
 
+                $timeStr = $transaksi->created_at ? $transaksi->created_at->format('H:i:s') : now()->format('H:i:s');
+                $tanggalFormatted = !empty($data['tanggal_transaksi'])
+                    ? \Carbon\Carbon::parse($data['tanggal_transaksi'])->format('Y-m-d') . ' ' . $timeStr
+                    : $transaksi->created_at->format('Y-m-d H:i:s');
+
                 return [
                     'kode_transaksi' => $kodeTransaksi,
                     'no_urut' => $transaksi->id,
@@ -410,7 +433,8 @@ class TransactionService
                     'saldo_sesudah' => $saldoSesudah,
                     'saldo_kantong' => $targetWallet->balance,
                     'jenis_transaksi' => 'bayar',
-                    'tanggal' => $transaksi->created_at->format('Y-m-d H:i:s'),
+                    'tanggal' => $tanggalFormatted,
+                    'tanggal_transaksi' => $data['tanggal_transaksi'] ?? $transaksi->created_at->toDateString(),
                     'created_at' => $transaksi->created_at->toDateTimeString(),
                     'petugas' => $data['nama_petugas'],
                 ];
@@ -460,6 +484,11 @@ class TransactionService
 
             NotificationService::sendTransactionNotification($pembayar->user_id, 'bayar', $jumlah, $kodeTransaksi);
 
+            $timeStr = $transaksi->created_at ? $transaksi->created_at->format('H:i:s') : now()->format('H:i:s');
+            $tanggalFormatted = !empty($data['tanggal_transaksi'])
+                ? \Carbon\Carbon::parse($data['tanggal_transaksi'])->format('Y-m-d') . ' ' . $timeStr
+                : $transaksi->created_at->format('Y-m-d H:i:s');
+
             return [
                 'kode_transaksi' => $kodeTransaksi,
                 'no_urut' => $transaksi->id,
@@ -474,7 +503,8 @@ class TransactionService
                 'saldo_sebelum' => $saldoSebelumPembayar,
                 'saldo_sesudah' => $saldoSesudahPembayar,
                 'jenis_transaksi' => 'bayar',
-                'tanggal' => $transaksi->created_at->format('Y-m-d H:i:s'),
+                'tanggal' => $tanggalFormatted,
+                'tanggal_transaksi' => $data['tanggal_transaksi'] ?? $transaksi->created_at->toDateString(),
                 'created_at' => $transaksi->created_at->toDateTimeString(),
                 'petugas' => $data['nama_petugas'],
             ];

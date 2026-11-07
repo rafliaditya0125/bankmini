@@ -206,7 +206,17 @@ export default function NasabahTransaksi({ transactions, filters }: NasabahTrans
                                         <tr key={transaction.id} className="hover:bg-gray-50 transition-colors group">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-xs font-black text-gray-900 uppercase tracking-tight">
-                                                    {new Date(transaction.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    {(() => {
+                                                        const txAny = transaction as any;
+                                                        if (txAny.tanggal_transaksi) {
+                                                            const parts = txAny.tanggal_transaksi.split('-');
+                                                            if (parts.length === 3) {
+                                                                const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                                                                return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                                                            }
+                                                        }
+                                                        return new Date(transaction.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                                                    })()}
                                                 </div>
                                                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
                                                     {new Date(transaction.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB

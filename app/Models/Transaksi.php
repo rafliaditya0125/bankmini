@@ -82,6 +82,9 @@ class Transaksi extends Model
      */
     public static function generateKodeTransaksi($date = null): string
     {
+        if (is_string($date)) {
+            $date = \Carbon\Carbon::parse($date);
+        }
         $dateStr = $date ? $date->format('Ymd') : date('Ymd');
         $dateForQuery = $date ? $date->format('Y-m-d') : date('Y-m-d');
 
@@ -102,9 +105,21 @@ class Transaksi extends Model
         parent::boot();
 
         static::creating(function ($transaksi) {
+            $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+
+            if (!empty($transaksi->tanggal_transaksi) && !$transaksi->isDirty('created_at')) {
+                $time = now($timezone)->format('H:i:s');
+                $transaksi->created_at = \Carbon\Carbon::parse($transaksi->tanggal_transaksi . ' ' . $time, $timezone);
+            } elseif (empty($transaksi->tanggal_transaksi)) {
+                $date = $transaksi->created_at ?? now($timezone);
+                $transaksi->tanggal_transaksi = \Carbon\Carbon::parse($date)->toDateString();
+            }
+
             if (!$transaksi->kode_transaksi) {
-                // Use created_at if set, otherwise use current time
-                $date = $transaksi->created_at ?? now();
+                // Use tanggal_transaksi if set, otherwise created_at, otherwise current time
+                $date = $transaksi->tanggal_transaksi 
+                    ? \Carbon\Carbon::parse($transaksi->tanggal_transaksi)
+                    : ($transaksi->created_at ?? now($timezone));
                 $transaksi->kode_transaksi = self::generateKodeTransaksi($date);
             }
         });

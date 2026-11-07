@@ -27,17 +27,37 @@ class PembukuanController extends Controller
 
         $query = Transaksi::where('status', '!=', 'cancelled')
             ->with(['nasabah.user', 'nasabahTujuan.user'])
-            ->when($fromDate, fn($q) => $q->whereDate('created_at', '>=', $fromDate))
-            ->when($toDate, fn($q) => $q->whereDate('created_at', '<=', $toDate))
+            ->when($fromDate, fn($q) => $q->where(function($sq) use ($fromDate) {
+                $sq->whereDate('tanggal_transaksi', '>=', $fromDate)
+                   ->orWhere(function($ssq) use ($fromDate) {
+                       $ssq->whereNull('tanggal_transaksi')->whereDate('created_at', '>=', $fromDate);
+                   });
+            }))
+            ->when($toDate, fn($q) => $q->where(function($sq) use ($toDate) {
+                $sq->whereDate('tanggal_transaksi', '<=', $toDate)
+                   ->orWhere(function($ssq) use ($toDate) {
+                       $ssq->whereNull('tanggal_transaksi')->whereDate('created_at', '<=', $toDate);
+                   });
+            }))
             ->when($type === 'buku_besar', fn($q) => $q->whereNotNull('journal_code'))
-            ->latest();
+            ->orderByRaw('COALESCE(tanggal_transaksi, DATE(created_at)) DESC')->orderBy('id', 'desc');
 
         $transactions = $query->get();
         // Count unposted transactions within the current date filters
         $unpostedCount = Transaksi::where('status', '!=', 'cancelled')
             ->whereNull('journal_code')
-            ->when($fromDate, fn($q) => $q->whereDate('created_at', '>=', $fromDate))
-            ->when($toDate, fn($q) => $q->whereDate('created_at', '<=', $toDate))
+            ->when($fromDate, fn($q) => $q->where(function($sq) use ($fromDate) {
+                $sq->whereDate('tanggal_transaksi', '>=', $fromDate)
+                   ->orWhere(function($ssq) use ($fromDate) {
+                       $ssq->whereNull('tanggal_transaksi')->whereDate('created_at', '>=', $fromDate);
+                   });
+            }))
+            ->when($toDate, fn($q) => $q->where(function($sq) use ($toDate) {
+                $sq->whereDate('tanggal_transaksi', '<=', $toDate)
+                   ->orWhere(function($ssq) use ($toDate) {
+                       $ssq->whereNull('tanggal_transaksi')->whereDate('created_at', '<=', $toDate);
+                   });
+            }))
             ->count();
 
         $entries = $this->formatEntries($transactions, $type, $account);
@@ -68,9 +88,19 @@ class PembukuanController extends Controller
 
         $unposted = Transaksi::where('status', '!=', 'cancelled')
             ->whereNull('journal_code')
-            ->when($fromDate, fn($q) => $q->whereDate('created_at', '>=', $fromDate))
-            ->when($toDate, fn($q) => $q->whereDate('created_at', '<=', $toDate))
-            ->orderBy('created_at', 'asc')
+            ->when($fromDate, fn($q) => $q->where(function($sq) use ($fromDate) {
+                $sq->whereDate('tanggal_transaksi', '>=', $fromDate)
+                   ->orWhere(function($ssq) use ($fromDate) {
+                       $ssq->whereNull('tanggal_transaksi')->whereDate('created_at', '>=', $fromDate);
+                   });
+            }))
+            ->when($toDate, fn($q) => $q->where(function($sq) use ($toDate) {
+                $sq->whereDate('tanggal_transaksi', '<=', $toDate)
+                   ->orWhere(function($ssq) use ($toDate) {
+                       $ssq->whereNull('tanggal_transaksi')->whereDate('created_at', '<=', $toDate);
+                   });
+            }))
+            ->orderByRaw('COALESCE(tanggal_transaksi, DATE(created_at)) ASC')->orderBy('id', 'asc')
             ->get();
         
         if ($unposted->isEmpty()) {
@@ -153,7 +183,9 @@ class PembukuanController extends Controller
         $allEntries = [];
 
         foreach ($transactions as $tx) {
-            $date = $tx->created_at->format('d/m/Y');
+            $date = $tx->tanggal_transaksi 
+                ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->format('d/m/Y')
+                : $tx->created_at->format('d/m/Y');
             $noBukti = $tx->kode_transaksi;
             $amount = floatval($tx->jumlah);
             $journalCode = $tx->journal_code;

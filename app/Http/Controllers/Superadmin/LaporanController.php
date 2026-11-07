@@ -48,16 +48,30 @@ class LaporanController extends Controller
         }
 
         if ($request->date_from) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+            $query->where(function($q) use ($request) {
+                $q->whereDate('tanggal_transaksi', '>=', $request->date_from)
+                  ->orWhere(function($sq) use ($request) {
+                      $sq->whereNull('tanggal_transaksi')
+                         ->whereDate('created_at', '>=', $request->date_from);
+                  });
+            });
         }
 
         if ($request->date_to) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+            $query->where(function($q) use ($request) {
+                $q->whereDate('tanggal_transaksi', '<=', $request->date_to)
+                  ->orWhere(function($sq) use ($request) {
+                      $sq->whereNull('tanggal_transaksi')
+                         ->whereDate('created_at', '<=', $request->date_to);
+                  });
+            });
         }
+
+        $query->orderByRaw('COALESCE(tanggal_transaksi, DATE(created_at)) DESC')->orderBy('id', 'desc');
 
         // Handle PDF export
         if ($request->export === 'pdf') {
-            $transactions = $query->with(['nasabah.rombelRel.jurusan'])->latest()->get();
+            $transactions = $query->with(['nasabah.rombelRel.jurusan'])->get();
 
             return view('exports.transactions', [
                 'data' => $transactions,
@@ -69,7 +83,7 @@ class LaporanController extends Controller
 
         // Handle Excel export
         if ($request->export === 'excel') {
-            $transactions = $query->with(['nasabah.rombelRel.jurusan'])->latest()->get();
+            $transactions = $query->with(['nasabah.rombelRel.jurusan'])->get();
             $bankName = \App\Models\Setting::get('bank_name', 'Bank Mini');
             $filename = "laporan_transaksi_" . strtolower(str_replace(' ', '_', $bankName)) . "_" . date('YmdHis') . ".xls";
 
@@ -89,21 +103,33 @@ class LaporanController extends Controller
         }
 
         return Inertia::render('superadmin/Laporan', [
-            'transactions' => $query->latest()->paginate(15)->through(function(Transaksi $tx) {
+            'transactions' => $query->paginate(15)->through(function(Transaksi $tx) {
                 // Calculate no_urut for this specific transaction
-                // Based on counting distinct kode_transaksi on the same day up to this transaction's ID
-                $noUrut = Transaksi::whereDate('created_at', $tx->created_at->toDateString())
+                // Based on counting distinct kode_transaksi on the same transaction date up to this transaction's ID
+                $txDate = $tx->tanggal_transaksi ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->toDateString() : $tx->created_at->toDateString();
+                $noUrut = Transaksi::where(function($q) use ($txDate) {
+                        $q->whereDate('tanggal_transaksi', $txDate)
+                          ->orWhere(function($sq) use ($txDate) {
+                              $sq->whereNull('tanggal_transaksi')
+                                 ->whereDate('created_at', $txDate);
+                          });
+                    })
                     ->where('id', '<=', $tx->id)
                     ->distinct('kode_transaksi')
                     ->count('kode_transaksi');
 
                 $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+                $timeStr = $tx->created_at ? $tx->created_at->timezone($timezone)->format('H:i:s') : '00:00:00';
+                $formattedTanggal = $tx->tanggal_transaksi 
+                    ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->format('d/m/Y') . ' ' . $timeStr
+                    : $tx->created_at->timezone($timezone)->format('d/m/Y H:i:s');
+
                 $data = $tx->toArray();
                 $data['no_urut'] = $noUrut;
                 $data['nasabah_name'] = $tx->nasabah?->user?->name;
                 $data['nasabah_norek'] = $tx->nasabah?->nomor_rekening;
                 $data['nasabah_kelas'] = $tx->nasabah?->rombelRel?->nama_kelas;
-                $data['tanggal'] = $tx->created_at->timezone($timezone)->format('d/m/Y H:i:s');
+                $data['tanggal'] = $formattedTanggal;
                 $data['petugas_nama'] = $tx->nama_petugas ?? $tx->petugas?->name ?? 'SYSTEM';
 
                 if ($tx->jenis_transaksi === 'transfer') {

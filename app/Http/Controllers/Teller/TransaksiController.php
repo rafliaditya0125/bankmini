@@ -24,18 +24,30 @@ class TransaksiController extends Controller
         }
 
         $transactions = $query->paginate(15)->through(function($tx) {
-            $noUrut = Transaksi::whereDate('created_at', $tx->created_at->toDateString())
+            $txDate = $tx->tanggal_transaksi ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->toDateString() : $tx->created_at->toDateString();
+            $noUrut = Transaksi::where(function($q) use ($txDate) {
+                    $q->whereDate('tanggal_transaksi', $txDate)
+                      ->orWhere(function($sq) use ($txDate) {
+                          $sq->whereNull('tanggal_transaksi')
+                             ->whereDate('created_at', $txDate);
+                      });
+                })
                 ->where('id', '<=', $tx->id)
                 ->distinct('kode_transaksi')
                 ->count('kode_transaksi');
 
             $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+            $timeStr = $tx->created_at ? $tx->created_at->timezone($timezone)->format('H:i:s') : '00:00:00';
+            $formattedTanggal = $tx->tanggal_transaksi 
+                ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->format('d/m/Y') . ' ' . $timeStr
+                : $tx->created_at->timezone($timezone)->format('d/m/Y H:i:s');
+
             $data = $tx->toArray();
             $data['no_urut'] = $noUrut;
             $data['nasabah_name'] = $tx->nasabah?->user?->name;
             $data['nasabah_norek'] = $tx->nasabah?->nomor_rekening;
             $data['nasabah_kelas'] = $tx->nasabah?->rombelRel?->nama_kelas;
-            $data['tanggal'] = $tx->created_at->timezone($timezone)->format('d/m/Y H:i:s');
+            $data['tanggal'] = $formattedTanggal;
             $data['petugas_nama'] = $tx->nama_petugas ?? $tx->petugas?->name ?? 'SYSTEM';
 
             if ($tx->jenis_transaksi === 'transfer') {
@@ -99,8 +111,12 @@ class TransaksiController extends Controller
                 ->latest();
         }
 
-        // Tetap hanya untuk hari ini sesuai permintaan, tapi dukung timezone yang benar
-        $query->whereDate('created_at', Carbon::today($timezone));
+        // Tetap hanya untuk hari ini sesuai permintaan, tapi dukung timezone yang benar (termasuk yang diproses hari ini)
+        $today = Carbon::today($timezone);
+        $query->where(function($q) use ($today) {
+            $q->whereDate('created_at', $today)
+              ->orWhereDate('updated_at', $today);
+        });
 
         // Filter status: default hanya tampilkan yang valid / tidak dibatalkan
         $statusFilter = $request->status ?? 'valid';
