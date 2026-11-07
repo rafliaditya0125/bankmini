@@ -41,7 +41,15 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
     const normalized: ReceiptData = {
         kode_transaksi: transaction.kode_transaksi,
         no_urut: transaction.no_urut || transaction.id || '-',
-        tanggal: transaction.tanggal || transaction.created_at || new Date().toISOString(),
+        tanggal: (() => {
+            const txAny = transaction as any;
+            if (txAny.tanggal) return txAny.tanggal;
+            if (txAny.tanggal_transaksi) {
+                const timeStr = txAny.created_at ? new Date(txAny.created_at).toTimeString().split(' ')[0] : '00:00:00';
+                return `${txAny.tanggal_transaksi} ${timeStr}`;
+            }
+            return transaction.created_at || new Date().toISOString();
+        })(),
         jumlah: transaction.jumlah,
         jenis_transaksi: (transaction as any).is_incoming_payment ? 'terima_bayar' : transaction.jenis_transaksi,
         nasabah_name: (transaction.jenis_transaksi === 'transfer')

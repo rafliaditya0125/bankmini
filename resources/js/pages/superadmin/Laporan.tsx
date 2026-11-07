@@ -238,7 +238,16 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                                         <tr key={tx.id} className="hover:bg-slate-50/70 transition-colors group">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-xs font-semibold text-slate-900 uppercase tracking-tight">
-                                                    {new Date(tx.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    {(() => {
+                                                        if (tx.tanggal_transaksi) {
+                                                            const parts = tx.tanggal_transaksi.split('-');
+                                                            if (parts.length === 3) {
+                                                                const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                                                                return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                                                            }
+                                                        }
+                                                        return new Date(tx.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                                                    })()}
                                                 </div>
                                                 <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mt-0.5">
                                                     {new Date(tx.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
