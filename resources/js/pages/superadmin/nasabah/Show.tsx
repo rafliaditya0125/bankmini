@@ -1,10 +1,35 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import type { Nasabah, Transaksi, User } from '@/types';
 import { formatRupiah, formatRombelName } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
+import Receipt from '@/components/Receipt';
+
+export interface WalletMutationItem {
+    id: number;
+    kode_transaksi: string;
+    tanggal: string;
+    tanggal_transaksi: string;
+    created_at: string | null;
+    jenis_transaksi: string;
+    jenis_label: string;
+    metode_pembayaran?: string;
+    flow: 'in' | 'out';
+    jumlah: number;
+    saldo_sebelum: number;
+    saldo_sesudah: number;
+    keterangan: string;
+    nama_petugas: string;
+    status: string;
+    nasabah?: any;
+    nasabah_tujuan?: any;
+    nasabah_name?: string;
+    nasabah_norek?: string;
+    penerima_name?: string;
+    penerima_norek?: string;
+}
 
 interface WalletInfo {
     id: number;
@@ -16,7 +41,16 @@ interface WalletInfo {
         name: string;
         is_default: boolean;
         description?: string;
+        category?: string;
+        target_amount?: number;
     };
+    stats?: {
+        saldo_bulan_lalu: number;
+        setoran_bulan_ini: number;
+        penarikan_bulan_ini: number;
+        saldo_saat_ini: number;
+    };
+    mutasi?: WalletMutationItem[];
 }
 
 interface ShowNasabahProps {
@@ -34,6 +68,50 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
     const rolePrefix = page.props.auth.user.role === 'superadmin' ? 'superadmin' : 'admin';
     const [editOpen, setEditOpen] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [selectedWallet, setSelectedWallet] = useState<WalletInfo | null>(null);
+    const [showWalletModal, setShowWalletModal] = useState(false);
+    const [mutasiSearch, setMutasiSearch] = useState('');
+    const [mutasiFilter, setMutasiFilter] = useState<'all' | 'in' | 'out'>('all');
+    const [selectedReceiptTx, setSelectedReceiptTx] = useState<any>(null);
+    const [showReceiptModal, setShowReceiptModal] = useState(false);
+
+    const currentMonthName = useMemo(() => {
+        try {
+            return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(new Date());
+        } catch {
+            return 'Bulan Ini';
+        }
+    }, []);
+
+    const filteredMutasi = useMemo(() => {
+        if (!selectedWallet?.mutasi) return [];
+        return selectedWallet.mutasi.filter((item) => {
+            if (mutasiFilter !== 'all' && item.flow !== mutasiFilter) {
+                return false;
+            }
+            if (mutasiSearch.trim()) {
+                const query = mutasiSearch.toLowerCase().trim();
+                const matchKode = item.kode_transaksi?.toLowerCase().includes(query);
+                const matchJenis = item.jenis_label?.toLowerCase().includes(query) || item.jenis_transaksi?.toLowerCase().includes(query);
+                const matchKet = item.keterangan?.toLowerCase().includes(query);
+                const matchPetugas = item.nama_petugas?.toLowerCase().includes(query);
+                const matchTgl = item.tanggal?.toLowerCase().includes(query);
+                return matchKode || matchJenis || matchKet || matchPetugas || matchTgl;
+            }
+            return true;
+        });
+    }, [selectedWallet, mutasiFilter, mutasiSearch]);
+
+    const mutasiSummary = useMemo(() => {
+        if (!selectedWallet?.mutasi) return { total: 0, inCount: 0, outCount: 0 };
+        const inCount = selectedWallet.mutasi.filter(m => m.flow === 'in').length;
+        const outCount = selectedWallet.mutasi.filter(m => m.flow === 'out').length;
+        return {
+            total: selectedWallet.mutasi.length,
+            inCount,
+            outCount,
+        };
+    }, [selectedWallet]);
 
     const identifierLabel = nasabah.user.user_type === 'siswa' ? 'NIS' : nasabah.user.user_type === 'guru' ? 'NIP' : 'No. Rekening';
     const identifierValue = nasabah.user.user_type === 'siswa'
@@ -264,7 +342,9 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">Rincian Saldo</h3>
-                                <p className="text-[11px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Tabungan & kantong pembayaran.</p>
+                                <p className="text-[11px] font-medium text-slate-400 mt-1 uppercase tracking-wider">
+                                    Tabungan & kantong pembayaran • Klik kantong untuk mutasi & statistik lengkap
+                                </p>
                             </div>
                             <div className="h-14 w-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-inner">
                                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
@@ -274,15 +354,32 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                             {wallets.map((wallet) => (
                                 <div
                                     key={wallet.id}
-                                    className={`relative rounded-2xl border p-5 transition-all hover:shadow-md ${
+                                    onClick={() => {
+                                        setSelectedWallet(wallet);
+                                        setMutasiSearch('');
+                                        setMutasiFilter('all');
+                                        setShowWalletModal(true);
+                                    }}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            setSelectedWallet(wallet);
+                                            setMutasiSearch('');
+                                            setMutasiFilter('all');
+                                            setShowWalletModal(true);
+                                        }
+                                    }}
+                                    className={`group relative rounded-2xl border p-5 transition-all duration-200 cursor-pointer hover:shadow-lg hover:-translate-y-1 active:scale-[0.99] select-none text-left ${
                                         wallet.wallet_type.is_default
-                                            ? 'bg-emerald-50/60 border-emerald-100 hover:border-emerald-200'
-                                            : 'bg-slate-50/60 border-slate-100 hover:border-indigo-100'
+                                            ? 'bg-emerald-50/60 border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50/90'
+                                            : 'bg-slate-50/60 border-slate-100 hover:border-indigo-300 hover:bg-indigo-50/30'
                                     }`}
                                 >
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
-                                            <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${
+                                            <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${
                                                 wallet.wallet_type.is_default
                                                     ? 'bg-emerald-500/10 text-emerald-600'
                                                     : 'bg-indigo-500/10 text-indigo-600'
@@ -295,11 +392,16 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                             </div>
                                             <p className="text-[10px] font-black text-slate-700 uppercase tracking-wider">{wallet.wallet_type.name}</p>
                                         </div>
-                                        {wallet.wallet_type.is_default && (
-                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-600">Utama</span>
-                                        )}
+                                        <div className="flex items-center gap-1.5">
+                                            {wallet.wallet_type.is_default && (
+                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-600">Utama</span>
+                                            )}
+                                            <span className="text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all">
+                                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                                            </span>
+                                        </div>
                                     </div>
-                                    <p className={`text-lg font-black tracking-tight ${
+                                    <p className={`text-xl font-black tracking-tight ${
                                         wallet.wallet_type.is_default ? 'text-emerald-700' : 'text-slate-800'
                                     }`}>
                                         {formatRupiah(wallet.balance)}
@@ -318,6 +420,17 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                             </p>
                                         </div>
                                     )}
+                                    <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between text-[10px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors">
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <svg className="h-3.5 w-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                            </svg>
+                                            Statistik & Mutasi
+                                        </span>
+                                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 group-hover:underline flex items-center gap-0.5">
+                                            Buka Mutasi &rarr;
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -415,6 +528,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                 <tr>
                                     <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Kode Transaksi</th>
                                     <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Jenis</th>
+                                    <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Petugas</th>
                                     <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Nominal</th>
                                     <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Waktu Eksekusi</th>
                                 </tr>
@@ -422,7 +536,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                             <tbody className="divide-y divide-slate-100">
                                 {transactions.length === 0 && (
                                     <tr>
-                                        <td colSpan={4} className="px-8 py-12 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Belum ada catatan aktivitas</td>
+                                        <td colSpan={5} className="px-8 py-12 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Belum ada catatan aktivitas</td>
                                     </tr>
                                 )}
                                 {transactions.map(tx => (
@@ -574,6 +688,315 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                 message={confirmModal.message}
                 variant={confirmModal.variant}
             />
+
+            {/* Modal Detail Mutasi & Statistik Kantong */}
+            <Modal
+                show={showWalletModal}
+                onClose={() => setShowWalletModal(false)}
+                title={`MUTASI & STATISTIK • ${selectedWallet?.wallet_type?.name || 'KANTONG'}`}
+                description={`No. Rekening: ${selectedWallet?.wallet_number || '-'} • Nasabah: ${nasabah.user.name}`}
+                maxWidth="5xl"
+            >
+                <div className="p-6 md:p-8 space-y-6">
+                    {/* 4 Container Cards (Dashboard style) */}
+                    <div>
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Ringkasan Statistik Keuangan Kantong</h4>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                Periode: {currentMonthName}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Card 1: Saldo Bulan Lalu */}
+                            <div className="rounded-2xl bg-linear-to-br from-slate-50 to-white p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 shadow-inner shrink-0">
+                                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider truncate">Saldo Bulan Lalu</p>
+                                        <p className="mt-1 text-lg md:text-xl font-black text-slate-900 tracking-tight truncate">
+                                            {formatRupiah(selectedWallet?.stats?.saldo_bulan_lalu || 0)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 pt-2 border-t border-slate-100">
+                                    <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Saldo awal per 1 {currentMonthName}</p>
+                                </div>
+                            </div>
+
+                            {/* Card 2: Setoran Bulan Ini */}
+                            <div className="rounded-2xl bg-linear-to-br from-emerald-50/70 to-white p-5 border border-emerald-100 shadow-xs flex flex-col justify-between">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 shadow-inner shrink-0">
+                                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider truncate">Setoran Bulan Ini</p>
+                                        <p className="mt-1 text-lg md:text-xl font-black text-emerald-900 tracking-tight truncate">
+                                            {formatRupiah(selectedWallet?.stats?.setoran_bulan_ini || 0)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 pt-2 border-t border-emerald-50">
+                                    <p className="text-[10px] text-emerald-600/70 font-semibold uppercase tracking-wider">Total dana masuk bulan ini</p>
+                                </div>
+                            </div>
+
+                            {/* Card 3: Penarikan Bulan Ini */}
+                            <div className="rounded-2xl bg-linear-to-br from-rose-50/70 to-white p-5 border border-rose-100 shadow-xs flex flex-col justify-between">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 bg-rose-100 rounded-xl flex items-center justify-center text-rose-600 shadow-inner shrink-0">
+                                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-black text-rose-600 uppercase tracking-wider truncate">Penarikan Bulan Ini</p>
+                                        <p className="mt-1 text-lg md:text-xl font-black text-rose-900 tracking-tight truncate">
+                                            {formatRupiah(selectedWallet?.stats?.penarikan_bulan_ini || 0)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 pt-2 border-t border-rose-50">
+                                    <p className="text-[10px] text-rose-600/70 font-semibold uppercase tracking-wider">Total dana keluar bulan ini</p>
+                                </div>
+                            </div>
+
+                            {/* Card 4: Saldo Saat Ini */}
+                            <div className="rounded-2xl bg-linear-to-br from-indigo-50/70 to-white p-5 border border-indigo-100 shadow-xs flex flex-col justify-between">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="h-12 w-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 shadow-inner shrink-0">
+                                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-black text-indigo-600 uppercase tracking-wider truncate">Saldo Saat Ini</p>
+                                        <p className="mt-1 text-lg md:text-xl font-black text-indigo-950 tracking-tight truncate">
+                                            {formatRupiah(selectedWallet?.stats?.saldo_saat_ini ?? (selectedWallet?.balance || 0))}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="mt-3 pt-2 border-t border-indigo-50">
+                                    <p className="text-[10px] text-indigo-600/70 font-semibold uppercase tracking-wider">Saldo efektif kantong</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Section Mutasi */}
+                    <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs">
+                        {/* Toolbar */}
+                        <div className="p-4 md:p-5 bg-slate-50/50 border-b border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                            <div>
+                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">Daftar Mutasi Transaksi</h4>
+                                <p className="text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-wide">
+                                    Riwayat aktivitas mutasi saldo pada kantong ini
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* Search */}
+                                <div className="relative min-w-[200px]">
+                                    <input
+                                        type="text"
+                                        placeholder="Cari transaksi..."
+                                        value={mutasiSearch}
+                                        onChange={(e) => setMutasiSearch(e.target.value)}
+                                        className="w-full pl-8 pr-7 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                                    />
+                                    <svg className="h-4 w-4 text-slate-400 absolute left-2.5 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                    {mutasiSearch && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setMutasiSearch('')}
+                                            className="absolute right-2.5 top-1.5 text-slate-400 hover:text-slate-600 text-sm font-bold"
+                                        >
+                                            &times;
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Filter buttons */}
+                                <div className="flex items-center bg-slate-100 p-0.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                                    <button
+                                        type="button"
+                                        onClick={() => setMutasiFilter('all')}
+                                        className={`px-3 py-1.5 rounded-lg transition-all ${
+                                            mutasiFilter === 'all'
+                                                ? 'bg-white text-slate-900 shadow-xs'
+                                                : 'text-slate-500 hover:text-slate-800'
+                                        }`}
+                                    >
+                                        Semua ({mutasiSummary.total})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMutasiFilter('in')}
+                                        className={`px-3 py-1.5 rounded-lg transition-all ${
+                                            mutasiFilter === 'in'
+                                                ? 'bg-emerald-600 text-white shadow-xs'
+                                                : 'text-emerald-700 hover:text-emerald-900'
+                                        }`}
+                                    >
+                                        Masuk ({mutasiSummary.inCount})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMutasiFilter('out')}
+                                        className={`px-3 py-1.5 rounded-lg transition-all ${
+                                            mutasiFilter === 'out'
+                                                ? 'bg-rose-600 text-white shadow-xs'
+                                                : 'text-rose-700 hover:text-rose-900'
+                                        }`}
+                                    >
+                                        Keluar ({mutasiSummary.outCount})
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Table */}
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    <tr>
+                                        <th className="px-5 py-3.5">Waktu</th>
+                                        <th className="px-5 py-3.5">Kode Transaksi</th>
+                                        <th className="px-5 py-3.5">Jenis</th>
+                                        <th className="px-5 py-3.5">Keterangan / Petugas</th>
+                                        <th className="px-5 py-3.5 text-right">Mutasi</th>
+                                        <th className="px-5 py-3.5 text-right">Saldo Akhir</th>
+                                        <th className="px-5 py-3.5 text-center">Status</th>
+                                        <th className="px-5 py-3.5 text-center">Struk</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredMutasi.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                                                <div className="flex flex-col items-center justify-center">
+                                                    <div className="h-12 w-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-2">
+                                                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                                        </svg>
+                                                    </div>
+                                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                                        {mutasiSearch || mutasiFilter !== 'all' ? 'Tidak ada mutasi yang sesuai filter' : 'Belum ada mutasi transaksi pada kantong ini'}
+                                                    </p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredMutasi.map((item) => (
+                                            <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                                                <td className="px-5 py-3.5 whitespace-nowrap text-[11px] font-semibold text-slate-600">
+                                                    {item.tanggal}
+                                                </td>
+                                                <td className="px-5 py-3.5 whitespace-nowrap">
+                                                    <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                                                        {item.kode_transaksi}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3.5 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${
+                                                        item.flow === 'in'
+                                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                                            : 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                    }`}>
+                                                        {item.jenis_label}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    <p className="text-xs font-bold text-slate-800 max-w-xs truncate">{item.keterangan || '-'}</p>
+                                                    <p className="text-[10px] font-medium text-slate-400 mt-0.5">Petugas: {item.nama_petugas || '-'}</p>
+                                                </td>
+                                                <td className="px-5 py-3.5 whitespace-nowrap text-right">
+                                                    <span className={`text-xs font-black tracking-tight ${
+                                                        item.flow === 'in' ? 'text-emerald-600' : 'text-rose-600'
+                                                    }`}>
+                                                        {item.flow === 'in' ? '+' : '-'} {formatRupiah(item.jumlah)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3.5 whitespace-nowrap text-right text-xs font-black text-slate-900 tracking-tight">
+                                                    {formatRupiah(item.saldo_sesudah)}
+                                                </td>
+                                                <td className="px-5 py-3.5 whitespace-nowrap text-center">
+                                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
+                                                        item.status === 'valid'
+                                                            ? 'bg-emerald-100 text-emerald-700'
+                                                            : 'bg-rose-100 text-rose-700'
+                                                    }`}>
+                                                        {item.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3.5 whitespace-nowrap text-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedReceiptTx({
+                                                                ...item,
+                                                                nasabah_name: nasabah.user.name,
+                                                                nasabah_norek: selectedWallet?.wallet_number || nasabah.nomor_rekening,
+                                                                petugas: item.nama_petugas,
+                                                            });
+                                                            setShowReceiptModal(true);
+                                                        }}
+                                                        title="Lihat Struk"
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:text-emerald-700 bg-slate-100 hover:bg-emerald-50 rounded-lg transition-all"
+                                                    >
+                                                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                        </svg>
+                                                        Struk
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-500">
+                                Menampilkan {filteredMutasi.length} dari {selectedWallet?.mutasi?.length || 0} mutasi
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setShowWalletModal(false)}
+                                className="px-5 py-2 text-xs font-black uppercase tracking-widest text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-all shadow-xs"
+                            >
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Modal Bukti Transaksi / Struk */}
+            <Modal
+                show={showReceiptModal}
+                onClose={() => setShowReceiptModal(false)}
+                maxWidth="md"
+                title="DETAIL STRUK TRANSAKSI"
+                variant="dark"
+            >
+                <Receipt
+                    name={nasabah.user.name}
+                    transaction={selectedReceiptTx}
+                    onClose={() => setShowReceiptModal(false)}
+                    showPrint={true}
+                />
+            </Modal>
         </DashboardLayout>
     );
 }
