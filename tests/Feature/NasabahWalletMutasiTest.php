@@ -133,4 +133,68 @@ class NasabahWalletMutasiTest extends TestCase
             ->where('wallets.0.mutasi.1.flow', 'in')
         );
     }
+
+    public function test_can_export_wallet_mutasi_as_excel(): void
+    {
+        $this->actingAs($this->superadmin);
+
+        Transaksi::create([
+            'kode_transaksi' => 'TRX-SETOR-01',
+            'nasabah_id' => $this->nasabah->id,
+            'user_id' => $this->superadmin->id,
+            'jenis_transaksi' => 'setor',
+            'jumlah' => 200000,
+            'saldo_sebelum' => 250000,
+            'saldo_sesudah' => 450000,
+            'status' => 'completed',
+            'tanggal_transaksi' => now()->toDateString(),
+            'wallet_id' => $this->wallet->id,
+        ]);
+
+        $response = $this->get(route('superadmin.nasabah.mutasi-export', [
+            'nasabah' => $this->nasabah->id,
+            'wallet_id' => $this->wallet->id,
+            'format' => 'excel',
+        ]));
+
+        $response->assertStatus(200);
+        $this->assertTrue(str_contains(
+            $response->headers->get('content-type') ?? '',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ));
+        $this->assertTrue(str_contains(
+            $response->headers->get('content-disposition') ?? '',
+            'attachment;'
+        ));
+    }
+
+    public function test_can_export_wallet_mutasi_as_pdf(): void
+    {
+        $this->actingAs($this->superadmin);
+
+        Transaksi::create([
+            'kode_transaksi' => 'TRX-TARIK-01',
+            'nasabah_id' => $this->nasabah->id,
+            'user_id' => $this->superadmin->id,
+            'jenis_transaksi' => 'tarik',
+            'jumlah' => 50000,
+            'saldo_sebelum' => 350000,
+            'saldo_sesudah' => 300000,
+            'status' => 'completed',
+            'tanggal_transaksi' => now()->toDateString(),
+            'wallet_id' => $this->wallet->id,
+        ]);
+
+        $response = $this->get(route('superadmin.nasabah.mutasi-export', [
+            'nasabah' => $this->nasabah->id,
+            'wallet_id' => $this->wallet->id,
+            'format' => 'pdf',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertViewIs('exports.mutasi_wallet');
+        $response->assertSee('TRX-TARIK-01');
+        $response->assertSee('Budi Nasabah');
+        $response->assertSee('Rekening Koran');
+    }
 }

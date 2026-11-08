@@ -113,6 +113,30 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
         };
     }, [selectedWallet]);
 
+    const handleExportMutasi = (formatType: 'excel' | 'pdf') => {
+        if (!selectedWallet) return;
+        const url = new URL(`/${rolePrefix}/nasabah/${nasabah.id}/mutasi-export`, window.location.origin);
+        url.searchParams.set('wallet_id', String(selectedWallet.id));
+        url.searchParams.set('format', formatType);
+
+        if (formatType === 'pdf') {
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = url.toString();
+            document.body.appendChild(iframe);
+            iframe.onload = () => {
+                iframe.contentWindow?.print();
+                setTimeout(() => {
+                    if (document.body.contains(iframe)) {
+                        document.body.removeChild(iframe);
+                    }
+                }, 3000);
+            };
+        } else {
+            window.open(url.toString(), '_blank');
+        }
+    };
+
     const identifierLabel = nasabah.user.user_type === 'siswa' ? 'NIS' : nasabah.user.user_type === 'guru' ? 'NIP' : 'No. Rekening';
     const identifierValue = nasabah.user.user_type === 'siswa'
         ? nasabah.user.nis
@@ -860,6 +884,32 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                         Keluar ({mutasiSummary.outCount})
                                     </button>
                                 </div>
+
+                                {/* Export buttons */}
+                                <div className="flex items-center gap-1.5 sm:pl-1 sm:border-l sm:border-slate-200">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleExportMutasi('excel')}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider transition-all shadow-xs active:scale-95"
+                                        title="Download mutasi ke format Excel (.xlsx)"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        Excel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleExportMutasi('pdf')}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider transition-all shadow-xs active:scale-95"
+                                        title="Cetak Rekening Koran atau Simpan PDF"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                        </svg>
+                                        Cetak / PDF
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -966,17 +1016,39 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
                             <span className="text-[11px] font-bold text-slate-500">
                                 Menampilkan {filteredMutasi.length} dari {selectedWallet?.mutasi?.length || 0} mutasi
                             </span>
-                            <button
-                                type="button"
-                                onClick={() => setShowWalletModal(false)}
-                                className="px-5 py-2 text-xs font-black uppercase tracking-widest text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-all shadow-xs"
-                            >
-                                Tutup
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleExportMutasi('excel')}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all shadow-xs active:scale-95"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Export Excel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleExportMutasi('pdf')}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition-all shadow-xs active:scale-95"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                    </svg>
+                                    Cetak / PDF
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowWalletModal(false)}
+                                    className="px-5 py-1.5 text-xs font-black uppercase tracking-widest text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-all shadow-xs"
+                                >
+                                    Tutup
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
