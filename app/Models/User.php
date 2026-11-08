@@ -281,7 +281,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return match ($this->user_type) {
             'siswa' => $this->nis ?? $this->username,
-            'guru' => $this->nip ?? $this->username,
+            'karyawan', 'guru' => $this->nip ?? $this->username,
             default => $this->nasabah?->nomor_rekening ?? $this->username,
         };
     }

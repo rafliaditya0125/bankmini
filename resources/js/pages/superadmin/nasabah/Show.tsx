@@ -61,7 +61,7 @@ interface ShowNasabahProps {
     total_saldo: number;
 }
 
-type NasabahUserType = 'siswa' | 'kelas' | 'organisasi' | 'guru';
+type NasabahUserType = 'siswa' | 'kelas' | 'organisasi' | 'karyawan' | 'guru';
 
 export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, total_saldo }: ShowNasabahProps) {
     const page = usePage<any>();
@@ -137,10 +137,11 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
         }
     };
 
-    const identifierLabel = nasabah.user.user_type === 'siswa' ? 'NIS' : nasabah.user.user_type === 'guru' ? 'NIP' : 'No. Rekening';
+    const isKaryawan = nasabah.user.user_type === 'karyawan' || (nasabah.user.user_type as any) === 'guru';
+    const identifierLabel = nasabah.user.user_type === 'siswa' ? 'NIS' : isKaryawan ? 'NIP' : 'No. Rekening';
     const identifierValue = nasabah.user.user_type === 'siswa'
         ? nasabah.user.nis
-        : nasabah.user.user_type === 'guru'
+        : isKaryawan
             ? nasabah.user.nip
             : nasabah.nomor_rekening;
 
@@ -623,7 +624,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                 <option value="siswa">Siswa</option>
                                 <option value="kelas">Kelas</option>
                                 <option value="organisasi">Organisasi</option>
-                                <option value="guru">Guru</option>
+                                <option value="karyawan">Karyawan</option>
                             </select>
                         </div>
                         <div>
@@ -638,9 +639,9 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                 {errors.nis && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{errors.nis}</p>}
                             </div>
                         )}
-                        {data.user_type === 'guru' && (
+                        {(data.user_type === 'karyawan' || (data.user_type as any) === 'guru') && (
                             <div className="md:col-span-2">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NIP</label>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NIP (Nomor Induk Pegawai / Karyawan)</label>
                                 <input value={data.nip} onChange={e => setData('nip', e.target.value.replace(/\D/g, ''))} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl font-mono font-black" />
                                 {errors.nip && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{errors.nip}</p>}
                             </div>

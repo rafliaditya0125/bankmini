@@ -392,7 +392,7 @@
                         $identityClass = $rombel ? trim("{$rombel->nama_kelas}") : '';
                     } else {
                         $groupName = match($userType) {
-                            'guru' => 'Guru / Karyawan',
+                            'karyawan', 'guru' => 'Karyawan',
                             'kelas' => 'Tabungan Kas Kelas',
                             'organisasi' => 'Organisasi / Ekskul',
                             default => ucfirst($userType)

@@ -38,7 +38,7 @@ interface NasabahIndexProps {
     available_rombels: { id: number; nama: string; jurusan_id: number; tingkat: number }[];
 }
 
-type NasabahUserType = 'siswa' | 'kelas' | 'organisasi' | 'guru' | 'pembayaran';
+type NasabahUserType = 'siswa' | 'kelas' | 'organisasi' | 'karyawan' | 'guru' | 'pembayaran';
 
 export default function NasabahIndex({ nasabah, stats, filters, available_jurusan = [], available_rombels = [] }: NasabahIndexProps) {
     const { auth } = usePage<any>().props;
@@ -77,17 +77,18 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
 
     // Helper for input masking
     const [displaySaldoAwal, setDisplaySaldoAwal] = useState('');
-    const userTypeLabel: Record<NasabahUserType, string> = {
+    const userTypeLabel: Record<string, string> = {
         siswa: 'Siswa',
         kelas: 'Kelas',
         organisasi: 'Organisasi',
-        guru: 'Guru',
+        karyawan: 'Karyawan',
+        guru: 'Karyawan',
         pembayaran: 'Pembayaran',
     };
 
     const getIdentifier = (item: Nasabah & { user: User }) => {
         if (item.user.user_type === 'siswa') return item.user.nis;
-        if (item.user.user_type === 'guru') return item.user.nip;
+        if (item.user.user_type === 'karyawan' || item.user.user_type === 'guru') return item.user.nip;
         return item.nomor_rekening;
     };
 
@@ -290,7 +291,7 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
             if (!data.saldo_awal) return { valid: false, message: 'isi saldo awal' };
         } else if (data.user_type === 'organisasi') {
             if (!data.saldo_awal) return { valid: false, message: 'isi saldo awal' };
-        } else if (data.user_type === 'guru') {
+        } else if (data.user_type === 'karyawan' || (data.user_type as any) === 'guru') {
             if (!data.nip) return { valid: false, message: 'lengkapi semua data' };
         }
         return { valid: true, message: 'Buka Rekening' };
@@ -329,7 +330,7 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
         } else if (editData.user_type === 'kelas') {
             if (!editData.jurusan_id || editData.jurusan_id === '') return { valid: false, message: 'pilih jurusan' };
             if (!editData.rombel_id || editData.rombel_id === '') return { valid: false, message: 'pilih kelas' };
-        } else if (editData.user_type === 'guru') {
+        } else if (editData.user_type === 'karyawan' || (editData.user_type as any) === 'guru') {
             if (!editData.nip) return { valid: false, message: 'lengkapi semua data' };
         }
         return { valid: true, message: 'Simpan Perubahan' };
@@ -737,7 +738,7 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
                                 <option value="siswa">SISWA</option>
                                 <option value="kelas">KELAS</option>
                                 <option value="organisasi">ORGANISASI</option>
-                                <option value="guru">GURU</option>
+                                <option value="karyawan">KARYAWAN</option>
                             </select>
                         </div>
 
@@ -991,7 +992,7 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
                                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-semibold border uppercase tracking-[0.2em] ${
                                                     item.user.user_type === 'siswa'
                                                         ? 'bg-sky-50 text-sky-700 border-sky-200/70'
-                                                        : item.user.user_type === 'guru'
+                                                        : (item.user.user_type === 'karyawan' || item.user.user_type === 'guru')
                                                             ? 'bg-amber-50 text-amber-700 border-amber-200/70'
                                                             : 'bg-violet-50 text-violet-700 border-violet-200/70'
                                                 }`}>
@@ -1147,7 +1148,7 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
                                 <option value="siswa">Siswa</option>
                                 <option value="kelas">Kelas</option>
                                 <option value="organisasi">Organisasi</option>
-                                <option value="guru">Guru</option>
+                                <option value="karyawan">Karyawan</option>
                             </select>
                         </div>
                         <div>
@@ -1162,9 +1163,9 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
                                 {errors.nis && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{errors.nis}</p>}
                             </div>
                         )}
-                        {data.user_type === 'guru' && (
+                        {(data.user_type === 'karyawan' || (data.user_type as any) === 'guru') && (
                             <div className="md:col-span-2">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NIP (Nomor Induk Pegawai)</label>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NIP (Nomor Induk Pegawai / Karyawan)</label>
                                 <input type="text" value={data.nip} onChange={e => setData('nip', e.target.value.replace(/\D/g, ''))} maxLength={30} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-mono font-bold" required />
                                 {errors.nip && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{errors.nip}</p>}
                             </div>
@@ -1217,7 +1218,7 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Saldo Awal</label>
                             <div className="relative">
                                 <span className="absolute left-4 top-2.5 text-gray-400 font-black uppercase tracking-widest text-xs">Rp</span>
-                                <input type="text" value={displaySaldoAwal} onChange={handleSaldoAwalChange} maxLength={100} className="w-full pl-12 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-lg" placeholder="0" disabled={data.user_type === 'guru'} />
+                                <input type="text" value={displaySaldoAwal} onChange={handleSaldoAwalChange} maxLength={100} className="w-full pl-12 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-lg" placeholder="0" disabled={data.user_type === 'karyawan' || (data.user_type as any) === 'guru'} />
                             </div>
                         </div>
                     </div>
@@ -1290,7 +1291,7 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
                                 <option value="siswa">Siswa</option>
                                 <option value="kelas">Kelas</option>
                                 <option value="organisasi">Organisasi</option>
-                                <option value="guru">Guru</option>
+                                <option value="karyawan">Karyawan</option>
                                 <option value="pembayaran">Pembayaran</option>
                             </select>
                         </div>
@@ -1306,9 +1307,9 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
                                 {editErrors.nis && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{editErrors.nis}</p>}
                             </div>
                         )}
-                        {editData.user_type === 'guru' && (
+                        {(editData.user_type === 'karyawan' || (editData.user_type as any) === 'guru') && (
                             <div className="md:col-span-2">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NIP (Nomor Induk Pegawai)</label>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">NIP (Nomor Induk Pegawai / Karyawan)</label>
                                 <input type="text" value={editData.nip} onChange={e => setEditData('nip', e.target.value.replace(/\D/g, ''))} maxLength={30} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-mono font-bold" />
                                 {editErrors.nip && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{editErrors.nip}</p>}
                             </div>

@@ -160,7 +160,7 @@ class NasabahController extends Controller
             $user = $item->user;
             $userType = match ($user?->user_type) {
                 'siswa' => 'Siswa',
-                'guru' => 'Guru',
+                'karyawan', 'guru' => 'Karyawan',
                 'kelas' => 'Kas Kelas',
                 'organisasi' => 'Organisasi',
                 'pembayaran' => 'Pembayaran',
@@ -169,7 +169,7 @@ class NasabahController extends Controller
 
             $identifier = $user?->user_type === 'siswa'
                 ? ($user?->nis ?: '-')
-                : ($user?->user_type === 'guru' ? ($user?->nip ?: '-') : ($item->nomor_rekening ?: '-'));
+                : (in_array($user?->user_type, ['karyawan', 'guru']) ? ($user?->nip ?: '-') : ($item->nomor_rekening ?: '-'));
 
             $rombel = $item->rombelRel;
             $namaKelas = $rombel ? $rombel->nama_kelas : ($item->jurusanRel ? $item->jurusanRel->kode . ' (Tanpa Kelas)' : '-');
@@ -762,28 +762,29 @@ class NasabahController extends Controller
             'nomor_rekening' => 'required|string|max:50|unique:nasabah,nomor_rekening',
             'bank_type' => 'nullable|in:ebank,bjb',
             'phone' => 'nullable|string|max:20',
-            'user_type' => 'required|in:siswa,kelas,organisasi,guru',
+            'user_type' => 'required|in:siswa,kelas,organisasi,karyawan,guru',
             'nis' => 'required_if:user_type,siswa|nullable|string|max:20|regex:/^[0-9]+$/|unique:users,nis',
-            'nip' => 'required_if:user_type,guru|nullable|string|max:30|regex:/^[0-9]+$/|unique:users,nip',
+            'nip' => 'required_if:user_type,karyawan,guru|nullable|string|max:30|regex:/^[0-9]+$/|unique:users,nip',
             'jurusan_id' => 'required_if:user_type,siswa,kelas|nullable|exists:jurusans,id',
             'rombel_id' => 'required_if:user_type,siswa,kelas|nullable|exists:rombels,id',
             'alamat' => 'nullable|string|max:255',
-            'saldo_awal' => 'required_unless:user_type,guru|nullable|numeric|max:999999999999999|min:0',
+            'saldo_awal' => 'required_unless:user_type,karyawan,guru|nullable|numeric|max:999999999999999|min:0',
         ]);
 
-        $userType = $request->user_type;
+        $userType = $request->user_type === 'guru' ? 'karyawan' : $request->user_type;
         $isStudentType = in_array($userType, ['siswa', 'kelas'], true);
+        $isKaryawan = in_array($userType, ['karyawan', 'guru'], true);
         
         $nis = $userType === 'siswa' ? $request->nis : null;
-        $nip = $userType === 'guru' ? $request->nip : null;
+        $nip = $isKaryawan ? $request->nip : null;
         $rombelId = $isStudentType ? $request->rombel_id : null;
-        $saldoAwal = $userType === 'guru' ? 0 : ($request->saldo_awal ?? 0);
+        $saldoAwal = $isKaryawan ? 0 : ($request->saldo_awal ?? 0);
         $bankType = $request->input('bank_type', 'ebank') ?: 'ebank';
 
-        DB::transaction(function () use ($request, $nis, $nip, $rombelId, $saldoAwal, $isStudentType, $bankType) {
-            $loginIdentifier = match ($request->user_type) {
+        DB::transaction(function () use ($request, $userType, $nis, $nip, $rombelId, $saldoAwal, $isStudentType, $bankType) {
+            $loginIdentifier = match ($userType) {
                 'siswa' => $nis,
-                'guru' => $nip,
+                'karyawan', 'guru' => $nip,
                 default => $request->nomor_rekening,
             };
 
@@ -794,7 +795,7 @@ class NasabahController extends Controller
                 'password' => $loginIdentifier,
                 'role' => 'nasabah',
                 'phone' => $request->phone,
-                'user_type' => $request->user_type,
+                'user_type' => $userType,
                 'nis' => $nis,
                 'nip' => $nip,
                 'status' => 'active',
@@ -845,9 +846,9 @@ class NasabahController extends Controller
             'email' => 'required|email|max:255|unique:users,email,' . $nasabah->user_id,
             'nomor_rekening' => 'required|string|max:50|unique:nasabah,nomor_rekening,' . $nasabah->id,
             'bank_type' => 'nullable|in:ebank,bjb',
-            'user_type' => 'required|in:siswa,kelas,organisasi,guru,pembayaran',
+            'user_type' => 'required|in:siswa,kelas,organisasi,karyawan,guru,pembayaran',
             'nis' => 'required_if:user_type,siswa|nullable|string|max:20|regex:/^[0-9]+$/|unique:users,nis,' . $nasabah->user_id,
-            'nip' => 'required_if:user_type,guru|nullable|string|max:30|regex:/^[0-9]+$/|unique:users,nip,' . $nasabah->user_id,
+            'nip' => 'required_if:user_type,karyawan,guru|nullable|string|max:30|regex:/^[0-9]+$/|unique:users,nip,' . $nasabah->user_id,
             'phone' => 'nullable|string|max:20',
             'jurusan_id' => 'required_if:user_type,siswa,kelas|nullable|exists:jurusans,id',
             'rombel_id' => 'required_if:user_type,siswa,kelas|nullable|exists:rombels,id',
@@ -862,17 +863,18 @@ class NasabahController extends Controller
         
         $request->validate($rules);
 
-        $userType = $request->user_type;
+        $userType = $request->user_type === 'guru' ? 'karyawan' : $request->user_type;
         $isStudentType = in_array($userType, ['siswa', 'kelas'], true);
+        $isKaryawan = in_array($userType, ['karyawan', 'guru'], true);
 
         $nis = $userType === 'siswa' ? $request->nis : null;
-        $nip = $userType === 'guru' ? $request->nip : null;
+        $nip = $isKaryawan ? $request->nip : null;
         $rombelId = $isStudentType ? $request->rombel_id : null;
 
-        DB::transaction(function () use ($request, $nasabah, $nis, $nip, $rombelId, $isStudentType) {
-            $loginIdentifier = match ($request->user_type) {
+        DB::transaction(function () use ($request, $userType, $nasabah, $nis, $nip, $rombelId, $isStudentType) {
+            $loginIdentifier = match ($userType) {
                 'siswa' => $nis,
-                'guru' => $nip,
+                'karyawan', 'guru' => $nip,
                 default => $request->nomor_rekening,
             };
 
@@ -883,7 +885,7 @@ class NasabahController extends Controller
                 'nip' => $nip,
                 'username' => $loginIdentifier,
                 'phone' => $request->phone,
-                'user_type' => $request->user_type,
+                'user_type' => $userType,
                 'status' => $request->status === 'aktif' ? 'active' : 'inactive',
             ];
 
@@ -1282,8 +1284,10 @@ class NasabahController extends Controller
 
                         $norek = $norekInput ?: $identifier;
                         $nis   = $user_type === 'siswa' ? $identifier : null;
-                        $nip   = $user_type === 'guru'  ? $identifier : null;
-                        $validUserType = in_array($user_type, ['siswa', 'guru', 'kelas', 'organisasi', 'pembayaran']) ? $user_type : 'siswa';
+                        $nip   = in_array($user_type, ['karyawan', 'guru'], true) ? $identifier : null;
+                        $validUserType = in_array($user_type, ['siswa', 'karyawan', 'guru', 'kelas', 'organisasi', 'pembayaran'])
+                            ? ($user_type === 'guru' ? 'karyawan' : $user_type)
+                            : 'siswa';
 
                         $rawCandidates[] = [
                             'rowNum'     => $rowNum,

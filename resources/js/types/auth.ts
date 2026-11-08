@@ -5,7 +5,7 @@ export type User = {
     email: string;
     role: 'superadmin' | 'admin' | 'teller' | 'nasabah';
     phone?: string;
-    user_type?: 'guru' | 'siswa' | 'kelas' | 'organisasi';
+    user_type?: 'karyawan' | 'guru' | 'siswa' | 'kelas' | 'organisasi' | 'pembayaran';
     nis?: string;
     nip?: string;
     status: 'active' | 'inactive';
