@@ -36,6 +36,7 @@ export type Nasabah = {
     id: number;
     user_id: number;
     nomor_rekening: string;
+    bank_type?: 'ebank' | 'bjb';
     saldo: number;
     saldo_minimum: number;
     status: 'aktif' | 'nonaktif';

@@ -149,6 +149,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
     const { data, setData, put, processing, errors, reset } = useForm({
         name: nasabah.user.name || '',
         nomor_rekening: nasabah.nomor_rekening || '',
+        bank_type: (nasabah.bank_type || 'ebank') as 'ebank' | 'bjb',
         phone: nasabah.user.phone || '',
         user_type: (nasabah.user.user_type || 'siswa') as NasabahUserType,
         nis: nasabah.user.nis || '',
@@ -173,6 +174,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
         setData({
             name: nasabah.user.name || '',
             nomor_rekening: nasabah.nomor_rekening || '',
+            bank_type: (nasabah.bank_type || 'ebank') as 'ebank' | 'bjb',
             phone: nasabah.user.phone || '',
             user_type: (nasabah.user.user_type || 'siswa') as NasabahUserType,
             nis: nasabah.user.nis || '',
@@ -309,6 +311,13 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                     <div className="flex gap-2">
                                         <span className="px-4 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-widest bg-white/10 text-emerald-200 border-white/10 backdrop-blur-md">
                                             Nasabah
+                                        </span>
+                                        <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-widest backdrop-blur-md ${
+                                            nasabah.bank_type === 'bjb'
+                                                ? 'bg-blue-400/20 text-blue-200 border-blue-400/30'
+                                                : 'bg-emerald-400/20 text-emerald-200 border-emerald-400/30'
+                                        }`}>
+                                            {nasabah.bank_type === 'bjb' ? 'Bank BJB' : 'eBank'}
                                         </span>
                                         <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-widest backdrop-blur-md ${nasabah.status === 'aktif' ? 'bg-emerald-400/10 text-emerald-300 border-emerald-400/20' : 'bg-rose-400/10 text-rose-300 border-rose-400/20'}`}>
                                             {nasabah.status === 'aktif' ? 'Aktif' : 'Nonaktif'}
@@ -663,6 +672,14 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                 <option value="aktif">Akun Aktif</option>
                                 <option value="nonaktif">Nonaktif</option>
                             </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tipe Bank</label>
+                            <select value={data.bank_type} onChange={e => setData('bank_type', e.target.value as 'ebank' | 'bjb')} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl font-black text-xs uppercase tracking-widest">
+                                <option value="ebank">eBank (Bank Mini)</option>
+                                <option value="bjb">BJB (Bank BJB)</option>
+                            </select>
+                            {errors.bank_type && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{errors.bank_type}</p>}
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Alamat</label>

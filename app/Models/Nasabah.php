@@ -14,6 +14,7 @@ class Nasabah extends Model
     protected $fillable = [
         'user_id',
         'nomor_rekening',
+        'bank_type',
         'saldo',
         'saldo_minimum',
         'status',

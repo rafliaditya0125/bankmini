@@ -17,6 +17,14 @@ interface NasabahIndexProps {
         per_page: number;
         total: number;
     };
+    stats?: {
+        total_saldo: number;
+        total_saldo_ebank: number;
+        total_saldo_bjb: number;
+        count_total: number;
+        count_ebank: number;
+        count_bjb: number;
+    };
     filters: {
         search?: string;
         status?: string;
@@ -24,6 +32,7 @@ interface NasabahIndexProps {
         jurusan_id?: string;
         rombel_id?: string;
         user_type?: string;
+        bank_type?: string;
     };
     available_jurusan: { id: number; nama: string; kode: string }[];
     available_rombels: { id: number; nama: string; jurusan_id: number; tingkat: number }[];
@@ -31,7 +40,7 @@ interface NasabahIndexProps {
 
 type NasabahUserType = 'siswa' | 'kelas' | 'organisasi' | 'guru' | 'pembayaran';
 
-export default function NasabahIndex({ nasabah, filters, available_jurusan = [], available_rombels = [] }: NasabahIndexProps) {
+export default function NasabahIndex({ nasabah, stats, filters, available_jurusan = [], available_rombels = [] }: NasabahIndexProps) {
     const { auth } = usePage<any>().props;
     const rolePrefix = auth.user.role === 'superadmin' ? 'superadmin' : 'admin';
 
@@ -41,6 +50,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
     const [jurusanFilter, setJurusanFilter] = useState(filters.jurusan_id || 'all');
     const [rombelFilter, setRombelFilter] = useState(filters.rombel_id || 'all');
     const [typeFilter, setTypeFilter] = useState(filters.user_type || 'all');
+    const [bankTypeFilter, setBankTypeFilter] = useState(filters.bank_type || 'all');
 
     const [modalOpen, setModalOpen] = useState(false);
     const [promoteBatchModalOpen, setPromoteBatchModalOpen] = useState(false);
@@ -105,6 +115,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
             if (jurusanFilter !== 'all') queryParams.jurusan_id = jurusanFilter;
             if (rombelFilter !== 'all') queryParams.rombel_id = rombelFilter;
             if (typeFilter !== 'all') queryParams.user_type = typeFilter;
+            if (bankTypeFilter !== 'all') queryParams.bank_type = bankTypeFilter;
 
             // Only navigate if filters changed from prop values
             if (
@@ -113,7 +124,8 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                 tingkatFilter !== (filters.tingkat || 'all') ||
                 jurusanFilter !== (filters.jurusan_id || 'all') ||
                 rombelFilter !== (filters.rombel_id || 'all') ||
-                typeFilter !== (filters.user_type || 'all')
+                typeFilter !== (filters.user_type || 'all') ||
+                bankTypeFilter !== (filters.bank_type || 'all')
             ) {
                 setSelectedIds([]);
                 router.get(`/${rolePrefix}/nasabah`, queryParams, {
@@ -124,7 +136,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
             }
         }, 300);
         return () => clearTimeout(timeoutId);
-    }, [search, statusFilter, tingkatFilter, jurusanFilter, rombelFilter, typeFilter, rolePrefix, filters]);
+    }, [search, statusFilter, tingkatFilter, jurusanFilter, rombelFilter, typeFilter, bankTypeFilter, rolePrefix, filters]);
 
     // Sync state if props change externally
     useEffect(() => {
@@ -134,6 +146,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         setJurusanFilter(filters.jurusan_id || 'all');
         setRombelFilter(filters.rombel_id || 'all');
         setTypeFilter(filters.user_type || 'all');
+        setBankTypeFilter(filters.bank_type || 'all');
         setSelectedIds([]);
     }, [filters]);
 
@@ -253,6 +266,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         name: '',
         email: '',
         nomor_rekening: '',
+        bank_type: 'ebank' as 'ebank' | 'bjb',
         phone: '',
         user_type: 'siswa' as NasabahUserType,
         nis: '',
@@ -293,6 +307,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         name: '',
         email: '',
         nomor_rekening: '',
+        bank_type: 'ebank' as 'ebank' | 'bjb',
         phone: '',
         user_type: 'siswa' as NasabahUserType,
         nis: '',
@@ -515,6 +530,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         setEditData('nis', item.user.nis || '');
         setEditData('nip', item.user.nip || '');
         setEditData('nomor_rekening', item.nomor_rekening);
+        setEditData('bank_type', item.bank_type || 'ebank');
         setEditData('phone', item.user.phone || '');
         setEditData('alamat', item.alamat || '');
         setEditData('status', item.status as 'aktif' | 'nonaktif');
@@ -561,6 +577,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
         if (jurusanFilter !== 'all') params.set('jurusan_id', jurusanFilter);
         if (rombelFilter !== 'all') params.set('rombel_id', rombelFilter);
         if (typeFilter !== 'all') params.set('user_type', typeFilter);
+        if (bankTypeFilter !== 'all') params.set('bank_type', bankTypeFilter);
         params.set('export', 'excel');
 
         window.location.href = `/${rolePrefix}/nasabah?${params.toString()}`;
@@ -623,6 +640,72 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
             <Head title="Kelola Nasabah" />
 
             <div className="space-y-6">
+                {/* Stats Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Card: Saldo eBank */}
+                    <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 via-white to-white p-5 border border-emerald-100 shadow-sm flex items-center justify-between">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Saldo eBank</p>
+                            </div>
+                            <p className="mt-2 text-2xl font-black text-slate-900 tracking-tight">
+                                {formatRupiah(stats?.total_saldo_ebank ?? 0)}
+                            </p>
+                            <p className="mt-1 text-[11px] font-medium text-slate-400">
+                                {stats?.count_ebank ?? 0} rekening nasabah eBank
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-2xl bg-emerald-100/70 text-emerald-600 flex items-center justify-center shrink-0">
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    {/* Card: Saldo BJB */}
+                    <div className="rounded-2xl bg-gradient-to-br from-blue-500/10 via-white to-white p-5 border border-blue-100 shadow-sm flex items-center justify-between">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                                <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Saldo BJB</p>
+                            </div>
+                            <p className="mt-2 text-2xl font-black text-slate-900 tracking-tight">
+                                {formatRupiah(stats?.total_saldo_bjb ?? 0)}
+                            </p>
+                            <p className="mt-1 text-[11px] font-medium text-slate-400">
+                                {stats?.count_bjb ?? 0} rekening nasabah BJB
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-2xl bg-blue-100/70 text-blue-600 flex items-center justify-center shrink-0">
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    {/* Card: Total Seluruh Saldo */}
+                    <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 text-white shadow-sm flex items-center justify-between">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Total Seluruh Saldo</p>
+                            </div>
+                            <p className="mt-2 text-2xl font-black text-white tracking-tight">
+                                {formatRupiah(stats?.total_saldo ?? 0)}
+                            </p>
+                            <p className="mt-1 text-[11px] font-medium text-slate-300">
+                                {stats?.count_total ?? 0} total rekening nasabah
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-2xl bg-white/10 text-emerald-400 flex items-center justify-center shrink-0">
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Filters Section */}
                 <div className="bg-white/80 rounded-2xl border border-slate-200/70 p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
@@ -705,6 +788,22 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                             <p className="text-[9px] text-slate-400 mt-1 ml-1">
                                 {filteredRombels.length} kelas tersedia
                                 {(tingkatFilter !== 'all' || jurusanFilter !== 'all') && ' (terfilter)'}
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-semibold text-slate-400 uppercase ml-1 tracking-[0.2em]">Tipe Bank</label>
+                            <select
+                                value={bankTypeFilter}
+                                onChange={(e) => setBankTypeFilter(e.target.value)}
+                                className="w-full mt-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.2em] appearance-none bg-white focus:border-emerald-400 focus:ring-4 focus:ring-emerald-200/40 transition-all"
+                            >
+                                <option value="all">SEMUA BANK</option>
+                                <option value="ebank">EBANK (BANK MINI)</option>
+                                <option value="bjb">BJB (BANK BJB)</option>
+                            </select>
+                            <p className="text-[9px] text-slate-400 mt-1 ml-1">
+                                Filter berdasarkan tipe akun Bank
                             </p>
                         </div>
                     </div>
@@ -849,7 +948,16 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                                 />
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-xs font-mono font-semibold text-emerald-700 uppercase tracking-tighter">{item.nomor_rekening}</span>
+                                                <div className="flex flex-col gap-1 items-start">
+                                                    <span className="text-xs font-mono font-semibold text-emerald-700 uppercase tracking-tighter">{item.nomor_rekening}</span>
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                                        item.bank_type === 'bjb'
+                                                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                                    }`}>
+                                                        {item.bank_type === 'bjb' ? 'BJB' : 'eBank'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
@@ -996,6 +1104,7 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                             jurusan_id: jurusanFilter,
                             rombel_id: rombelFilter,
                             user_type: typeFilter,
+                            bank_type: bankTypeFilter,
                         }}
                         itemLabel="Nasabah"
                     />
@@ -1091,6 +1200,18 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-sm"
                             />
                             {errors.phone && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{errors.phone}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tipe Bank</label>
+                            <select
+                                value={data.bank_type}
+                                onChange={e => setData('bank_type', e.target.value as 'ebank' | 'bjb')}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-black text-xs uppercase tracking-widest"
+                            >
+                                <option value="ebank">eBank (Bank Mini)</option>
+                                <option value="bjb">BJB (Bank BJB)</option>
+                            </select>
+                            {errors.bank_type && <p className="text-[10px] text-red-500 mt-1 font-black uppercase tracking-widest">{errors.bank_type}</p>}
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Saldo Awal</label>
@@ -1195,6 +1316,18 @@ export default function NasabahIndex({ nasabah, filters, available_jurusan = [],
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">No. Telepon</label>
                             <input type="text" value={editData.phone} onChange={e => setEditData('phone', e.target.value.replace(/\D/g, ''))} maxLength={20} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-black text-sm" />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tipe Bank</label>
+                            <select
+                                value={editData.bank_type}
+                                onChange={e => setEditData('bank_type', e.target.value as 'ebank' | 'bjb')}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-black text-xs uppercase tracking-widest appearance-none bg-white"
+                            >
+                                <option value="ebank">eBank (Bank Mini)</option>
+                                <option value="bjb">BJB (Bank BJB)</option>
+                            </select>
+                            {editErrors.bank_type && <p className="text-[10px] text-rose-500 mt-1 font-black uppercase">{editErrors.bank_type}</p>}
                         </div>
                         {(editData.user_type === 'siswa' || editData.user_type === 'kelas') && (
                             <>
