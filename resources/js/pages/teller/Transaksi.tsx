@@ -401,6 +401,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                     transaction={selectedTransaction}
                     onClose={() => setShowReceiptModal(false)}
                     showPrint={['superadmin', 'admin', 'teller'].includes(auth.user.role)}
+                    showPassbookPrint={['superadmin', 'admin', 'teller'].includes(auth.user.role)}
                 />
             </Modal>
 

@@ -4,9 +4,11 @@ import { isSupported as isWebUSBSupported, printToPassbook, type PassbookTransac
 import { formatRombelName, formatTransactionCode } from '@/lib/utils';
 
 interface ReceiptData {
+    id?: number | string;
     kode_transaksi: string;
     no_urut: number | string;
     tanggal: string;
+    created_at?: string;
     jumlah: string | number;
     jenis_transaksi: string;
     nasabah_name: string;
@@ -32,6 +34,7 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
     const { school_name, bank_city, bank_address, bank_phone, bkk_bkm_display_format } = usePage<any>().props;
     const [passbookStatus, setPassbookStatus] = useState<'idle' | 'printing' | 'success' | 'error'>('idle');
     const [passbookError, setPassbookError] = useState<string | null>(null);
+    const [printLine, setPrintLine] = useState<number>(1);
 
     if (!transaction) return null;
 
@@ -126,6 +129,9 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                 saldo_sesudah: normalized.saldo_sesudah || 0,
                 keterangan: formatTransactionCode(normalized.kode_transaksi, bkk_bkm_display_format),
                 petugas: normalized.petugas,
+                baris: printLine,
+                line: printLine,
+                row: printLine,
             };
             await printToPassbook(passbookData);
             setPassbookStatus('success');
@@ -372,7 +378,75 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                     STRUK INI ADALAH BUKTI<br />TRANSAKSI YANG SAH
                 </div>
             </div>
-            <div className={`mt-8 grid grid-cols-1 ${canShowPassbook ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4 no-print px-6 pb-6`}>
+            {/* Pilihan Baris Cetak Buku Tabungan */}
+            {canShowPassbook && (
+                <div className="mx-6 mt-6 p-4 bg-slate-50 border-2 border-indigo-100 rounded-2xl no-print shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-200">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                </svg>
+                            </div>
+                            <div>
+                                <label className="text-[11px] font-black text-slate-900 uppercase tracking-wider block">
+                                    Pilih Baris Cetak Buku Tabungan
+                                </label>
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">
+                                    Cetak pada baris kosong di buku fisik (1 - 40)
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                Baris ke:
+                            </span>
+                            <div className="inline-flex items-center bg-white border-2 border-indigo-200 rounded-xl p-1 shadow-sm">
+                                <button
+                                    type="button"
+                                    onClick={() => setPrintLine((prev) => Math.max(1, prev - 1))}
+                                    disabled={printLine <= 1 || passbookStatus === 'printing'}
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition font-black text-base active:scale-95"
+                                    title="Kurangi baris"
+                                    aria-label="Kurangi baris"
+                                >
+                                    -
+                                </button>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={40}
+                                    value={printLine}
+                                    onFocus={(e) => e.target.select()}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value, 10);
+                                        if (isNaN(val)) {
+                                            setPrintLine(1);
+                                        } else {
+                                            setPrintLine(Math.min(40, Math.max(1, val)));
+                                        }
+                                    }}
+                                    disabled={passbookStatus === 'printing'}
+                                    className="w-14 text-center text-sm font-black text-indigo-950 border-none p-0 focus:ring-0 focus:outline-none"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setPrintLine((prev) => Math.min(40, prev + 1))}
+                                    disabled={printLine >= 40 || passbookStatus === 'printing'}
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition font-black text-base active:scale-95"
+                                    title="Tambah baris"
+                                    aria-label="Tambah baris"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className={`mt-4 grid grid-cols-1 ${canShowPassbook ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4 no-print px-6 pb-6`}>
                 {showPrint ? (
                     <button
                         onClick={onPrint || (() => window.print())}
@@ -409,7 +483,7 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                         {passbookStatus === 'printing' ? (
                             <>
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                Mencetak...
+                                Mencetak Baris {printLine}...
                             </>
                         ) : passbookStatus === 'success' ? (
                             <>
@@ -430,7 +504,7 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                 </svg>
-                                Cetak Buku
+                                Cetak Buku (Baris {printLine})
                             </>
                         )}
                     </button>
