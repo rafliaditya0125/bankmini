@@ -251,18 +251,143 @@ class NasabahController extends Controller
 
     public function show(Nasabah $nasabah)
     {
+        if (request()->filled('export') || request()->filled('format')) {
+            return $this->exportMutasi(request(), $nasabah);
+        }
+
         $nasabah->load(['user', 'rombelRel.jurusan', 'jurusanRel']);
         $transactions = Transaksi::where('nasabah_id', $nasabah->id)
+            ->with('petugas')
             ->latest()
             ->take(10)
             ->get();
 
-        // Load wallets with their types, non-default first (tabungan utama first)
+        $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+        $now = now($timezone);
+        $startOfMonth = $now->copy()->startOfMonth()->toDateString();
+        $endOfMonth = $now->copy()->endOfMonth()->toDateString();
+
+        // Load wallets with their types, default (tabungan utama) first
         $wallets = \App\Models\Wallet::where('nasabah_id', $nasabah->id)
             ->with('walletType')
             ->get()
             ->sortBy(fn($w) => $w->walletType?->is_default ? 0 : 1)
             ->values();
+
+        $enrichedWallets = $wallets->map(function ($wallet) use ($nasabah, $timezone, $startOfMonth, $endOfMonth) {
+            $isDefault = (bool) ($wallet->walletType?->is_default ?? false);
+
+            if ($isDefault) {
+                // Tabungan Utama: mencakup setor, tarik, transfer, bunga, biaya_admin,
+                // serta pembayaran yang dipotong dari tabungan utama milik nasabah ini
+                $txList = Transaksi::where('nasabah_id', $nasabah->id)
+                    ->with(['petugas', 'nasabah.user', 'nasabahTujuan.user'])
+                    ->where(function ($mainQ) use ($wallet) {
+                        $mainQ->where(function ($sq) use ($wallet) {
+                            $sq->where(function ($ssq) use ($wallet) {
+                                $ssq->where('wallet_id', $wallet->id)
+                                    ->orWhereNull('wallet_id');
+                            })->whereIn('jenis_transaksi', ['setor', 'tarik', 'transfer', 'bunga', 'biaya_admin']);
+                        })->orWhere(function ($sq) {
+                            $sq->where('jenis_transaksi', 'bayar')
+                               ->where('metode_pembayaran', 'potong_tabungan');
+                        });
+                    })
+                    ->orderByRaw('COALESCE(tanggal_transaksi, DATE(created_at)) DESC')
+                    ->orderBy('id', 'desc')
+                    ->get();
+            } else {
+                // Kantong Pembayaran tertentu milik nasabah ini
+                $txList = Transaksi::where('nasabah_id', $nasabah->id)
+                    ->with(['petugas', 'nasabah.user', 'nasabahTujuan.user'])
+                    ->where('wallet_id', $wallet->id)
+                    ->orderByRaw('COALESCE(tanggal_transaksi, DATE(created_at)) DESC')
+                    ->orderBy('id', 'desc')
+                    ->get();
+            }
+
+            $setoranBulanIni = 0;
+            $penarikanBulanIni = 0;
+
+            $mutasi = $txList->map(function ($tx) use ($nasabah, $wallet, $timezone, $isDefault, $startOfMonth, $endOfMonth, &$setoranBulanIni, &$penarikanBulanIni) {
+                $timeStr = $tx->created_at ? $tx->created_at->timezone($timezone)->format('H:i:s') : '00:00:00';
+                $tanggalFormatted = $tx->tanggal_transaksi 
+                    ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->format('d/m/Y') . ' ' . $timeStr
+                    : $tx->created_at->timezone($timezone)->format('d/m/Y H:i:s');
+                $tglOnly = $tx->tanggal_transaksi 
+                    ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->toDateString() 
+                    : $tx->created_at->timezone($timezone)->toDateString();
+
+                if ($tx->jenis_transaksi === 'tarik' || $tx->jenis_transaksi === 'biaya_admin') {
+                    $flow = 'out';
+                } elseif ($tx->jenis_transaksi === 'transfer') {
+                    $flow = (str_ends_with($tx->kode_transaksi, '-S') || $tx->saldo_sesudah < $tx->saldo_sebelum) ? 'out' : 'in';
+                } elseif ($tx->jenis_transaksi === 'bayar') {
+                    $flow = $isDefault ? 'out' : 'in';
+                } elseif ($tx->saldo_sesudah < $tx->saldo_sebelum) {
+                    $flow = 'out';
+                } else {
+                    $flow = 'in';
+                }
+
+                $jenisLabel = match($tx->jenis_transaksi) {
+                    'setor' => 'Setor Tunai',
+                    'tarik' => 'Penarikan Tunai',
+                    'transfer' => str_ends_with($tx->kode_transaksi, '-S') ? 'Transfer Keluar' : (str_ends_with($tx->kode_transaksi, '-R') ? 'Transfer Masuk' : 'Transfer Dana'),
+                    'bayar' => $isDefault ? 'Pembayaran (Potong Tabungan)' : 'Pembayaran Masuk',
+                    'bunga' => 'Bunga Tabungan',
+                    'biaya_admin' => 'Biaya Admin',
+                    default => ucfirst(str_replace('_', ' ', $tx->jenis_transaksi)),
+                };
+
+                // Hitung total mutasi bulan ini untuk transaksi yang valid (tidak dibatalkan)
+                if ($tx->status !== 'cancelled' && $tglOnly >= $startOfMonth && $tglOnly <= $endOfMonth) {
+                    if ($flow === 'in') {
+                        $setoranBulanIni += (float) $tx->jumlah;
+                    } else {
+                        $penarikanBulanIni += (float) $tx->jumlah;
+                    }
+                }
+
+                return [
+                    'id' => $tx->id,
+                    'kode_transaksi' => $tx->kode_transaksi,
+                    'tanggal' => $tanggalFormatted,
+                    'tanggal_transaksi' => $tglOnly,
+                    'created_at' => $tx->created_at ? $tx->created_at->toISOString() : null,
+                    'jenis_transaksi' => $tx->jenis_transaksi,
+                    'jenis_label' => $jenisLabel,
+                    'metode_pembayaran' => $tx->metode_pembayaran,
+                    'flow' => $flow,
+                    'jumlah' => (float) $tx->jumlah,
+                    'saldo_sebelum' => (float) $tx->saldo_sebelum,
+                    'saldo_sesudah' => (float) $tx->saldo_sesudah,
+                    'keterangan' => $tx->keterangan ?? '-',
+                    'nama_petugas' => $tx->nama_petugas ?? $tx->petugas?->name ?? 'SYSTEM',
+                    'status' => $tx->status ?? 'valid',
+                    'nasabah' => $tx->nasabah,
+                    'nasabah_tujuan' => $tx->nasabahTujuan,
+                    'nasabah_name' => $tx->nasabah?->user?->name ?? $nasabah->user?->name ?? '-',
+                    'nasabah_norek' => $wallet->wallet_number ?? $nasabah->nomor_rekening ?? '-',
+                    'penerima_name' => $tx->nasabahTujuan?->user?->name ?? '',
+                    'penerima_norek' => $tx->nasabahTujuan?->nomor_rekening ?? '',
+                ];
+            });
+
+            $saldoSaatIni = (float) $wallet->balance;
+            $saldoBulanLalu = max(0, $saldoSaatIni - $setoranBulanIni + $penarikanBulanIni);
+
+            $walletData = $wallet->toArray();
+            $walletData['stats'] = [
+                'saldo_bulan_lalu' => $saldoBulanLalu,
+                'setoran_bulan_ini' => $setoranBulanIni,
+                'penarikan_bulan_ini' => $penarikanBulanIni,
+                'saldo_saat_ini' => $saldoSaatIni,
+            ];
+            $walletData['mutasi'] = $mutasi->values()->all();
+
+            return $walletData;
+        });
 
         $totalSaldo = $wallets->sum(fn($w) => (float) $w->balance);
 
@@ -270,8 +395,326 @@ class NasabahController extends Controller
             'nasabah' => $nasabah,
             'transactions' => $transactions,
             'jurusans' => Jurusan::orderBy('nama')->get(),
-            'wallets' => $wallets,
+            'wallets' => $enrichedWallets,
             'total_saldo' => $totalSaldo,
+        ]);
+    }
+
+    public function exportMutasi(Request $request, Nasabah $nasabah)
+    {
+        $nasabah->load(['user', 'rombelRel.jurusan', 'jurusanRel']);
+
+        $walletId = $request->input('wallet_id');
+        $format = strtolower($request->input('format', $request->input('export', 'excel')));
+
+        $wallet = null;
+        if ($walletId) {
+            $wallet = \App\Models\Wallet::where('nasabah_id', $nasabah->id)
+                ->with('walletType')
+                ->find($walletId);
+        }
+
+        if (!$wallet) {
+            $wallet = \App\Models\Wallet::where('nasabah_id', $nasabah->id)
+                ->with('walletType')
+                ->get()
+                ->sortBy(fn($w) => $w->walletType?->is_default ? 0 : 1)
+                ->first();
+        }
+
+        $isDefault = (bool) ($wallet?->walletType?->is_default ?? true);
+
+        if ($isDefault) {
+            $txList = Transaksi::where('nasabah_id', $nasabah->id)
+                ->with(['petugas', 'nasabah.user', 'nasabahTujuan.user'])
+                ->where(function ($mainQ) use ($wallet) {
+                    $mainQ->where(function ($sq) use ($wallet) {
+                        $sq->where(function ($ssq) use ($wallet) {
+                            if ($wallet) {
+                                $ssq->where('wallet_id', $wallet->id)
+                                    ->orWhereNull('wallet_id');
+                            } else {
+                                $ssq->whereNull('wallet_id');
+                            }
+                        })->whereIn('jenis_transaksi', ['setor', 'tarik', 'transfer', 'bunga', 'biaya_admin']);
+                    })->orWhere(function ($sq) {
+                        $sq->where('jenis_transaksi', 'bayar')
+                           ->where('metode_pembayaran', 'potong_tabungan');
+                    });
+                })
+                ->orderByRaw('COALESCE(tanggal_transaksi, DATE(created_at)) DESC')
+                ->orderBy('id', 'desc')
+                ->get();
+        } else {
+            $txList = Transaksi::where('nasabah_id', $nasabah->id)
+                ->with(['petugas', 'nasabah.user', 'nasabahTujuan.user'])
+                ->where('wallet_id', $wallet->id)
+                ->orderByRaw('COALESCE(tanggal_transaksi, DATE(created_at)) DESC')
+                ->orderBy('id', 'desc')
+                ->get();
+        }
+
+        $timezone = \App\Models\Setting::get('timezone', 'Asia/Jakarta');
+        $now = now($timezone);
+        $startOfMonth = $now->copy()->startOfMonth()->toDateString();
+        $endOfMonth = $now->copy()->endOfMonth()->toDateString();
+
+        $setoranBulanIni = 0;
+        $penarikanBulanIni = 0;
+
+        $mutasi = $txList->map(function ($tx) use ($timezone, $isDefault, $startOfMonth, $endOfMonth, &$setoranBulanIni, &$penarikanBulanIni) {
+            $timeStr = $tx->created_at ? $tx->created_at->timezone($timezone)->format('H:i:s') : '00:00:00';
+            $tanggalFormatted = $tx->tanggal_transaksi 
+                ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->format('d/m/Y') . ' ' . $timeStr
+                : $tx->created_at->timezone($timezone)->format('d/m/Y H:i:s');
+            $tglOnly = $tx->tanggal_transaksi 
+                ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->toDateString() 
+                : $tx->created_at->timezone($timezone)->toDateString();
+
+            if ($tx->jenis_transaksi === 'tarik' || $tx->jenis_transaksi === 'biaya_admin') {
+                $flow = 'out';
+            } elseif ($tx->jenis_transaksi === 'transfer') {
+                $flow = (str_ends_with($tx->kode_transaksi, '-S') || $tx->saldo_sesudah < $tx->saldo_sebelum) ? 'out' : 'in';
+            } elseif ($tx->jenis_transaksi === 'bayar') {
+                $flow = $isDefault ? 'out' : 'in';
+            } elseif ($tx->saldo_sesudah < $tx->saldo_sebelum) {
+                $flow = 'out';
+            } else {
+                $flow = 'in';
+            }
+
+            $jenisLabel = match($tx->jenis_transaksi) {
+                'setor' => 'Setor Tunai',
+                'tarik' => 'Penarikan Tunai',
+                'transfer' => str_ends_with($tx->kode_transaksi, '-S') ? 'Transfer Keluar' : (str_ends_with($tx->kode_transaksi, '-R') ? 'Transfer Masuk' : 'Transfer Dana'),
+                'bayar' => $isDefault ? 'Pembayaran (Potong Tabungan)' : 'Pembayaran Masuk',
+                'bunga' => 'Bunga Tabungan',
+                'biaya_admin' => 'Biaya Admin',
+                default => ucfirst(str_replace('_', ' ', $tx->jenis_transaksi)),
+            };
+
+            if ($tx->status !== 'cancelled' && $tglOnly >= $startOfMonth && $tglOnly <= $endOfMonth) {
+                if ($flow === 'in') {
+                    $setoranBulanIni += (float) $tx->jumlah;
+                } else {
+                    $penarikanBulanIni += (float) $tx->jumlah;
+                }
+            }
+
+            return (object) [
+                'id' => $tx->id,
+                'kode_transaksi' => $tx->kode_transaksi,
+                'tanggal' => $tanggalFormatted,
+                'tanggal_transaksi' => $tglOnly,
+                'jenis_transaksi' => $tx->jenis_transaksi,
+                'jenis_label' => $jenisLabel,
+                'flow' => $flow,
+                'jumlah' => (float) $tx->jumlah,
+                'saldo_sebelum' => (float) $tx->saldo_sebelum,
+                'saldo_sesudah' => (float) $tx->saldo_sesudah,
+                'keterangan' => $tx->keterangan ?? '-',
+                'nama_petugas' => $tx->nama_petugas ?? $tx->petugas?->name ?? 'SYSTEM',
+                'status' => $tx->status ?? 'valid',
+            ];
+        });
+
+        $saldoSaatIni = (float) ($wallet?->balance ?? 0);
+        $saldoBulanLalu = max(0, $saldoSaatIni - $setoranBulanIni + $penarikanBulanIni);
+
+        $stats = [
+            'saldo_bulan_lalu' => $saldoBulanLalu,
+            'setoran_bulan_ini' => $setoranBulanIni,
+            'penarikan_bulan_ini' => $penarikanBulanIni,
+            'saldo_saat_ini' => $saldoSaatIni,
+        ];
+
+        if ($format === 'pdf') {
+            return view('exports.mutasi_wallet', [
+                'nasabah' => $nasabah,
+                'wallet' => $wallet,
+                'mutasi' => $mutasi,
+                'stats' => $stats,
+                'title' => 'Mutasi Rekening ' . ($wallet?->walletType?->name ?? 'Tabungan') . ' - ' . ($nasabah->user?->name ?? ''),
+            ]);
+        }
+
+        return $this->exportMutasiExcel($nasabah, $wallet, $mutasi, $stats);
+    }
+
+    private function exportMutasiExcel(Nasabah $nasabah, $wallet, $mutasi, array $stats)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Mutasi Rekening');
+
+        $bankName = \App\Models\Setting::get('bank_name', 'BANK MINI');
+        $walletName = $wallet?->walletType?->name ?? 'Tabungan Utama';
+        $walletNumber = $wallet?->wallet_number ?? $nasabah->nomor_rekening;
+
+        // Title Header
+        $sheet->setCellValue('A1', strtoupper($bankName) . ' - LAPORAN MUTASI KANTONG REKENING');
+        $sheet->mergeCells('A1:J1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('059669'));
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+        $sheet->setCellValue('A2', 'Dicetak pada: ' . date('d/m/Y H:i') . ' WIB');
+        $sheet->mergeCells('A2:J2');
+        $sheet->getStyle('A2')->getFont()->setItalic(true)->setSize(9)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+        $sheet->getStyle('A2')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+        // Nasabah & Wallet Meta
+        $sheet->setCellValue('A4', 'Nama Nasabah');
+        $sheet->setCellValue('B4', ': ' . strtoupper($nasabah->user?->name ?? '-'));
+        $sheet->setCellValue('A5', 'No. Rekening');
+        $sheet->setCellValueExplicit('B5', ': ' . $nasabah->nomor_rekening, DataType::TYPE_STRING);
+        $sheet->setCellValue('A6', 'Identitas (NIS/NIP)');
+        $sheet->setCellValueExplicit('B6', ': ' . ($nasabah->user?->nis ?? $nasabah->user?->nip ?? '-'), DataType::TYPE_STRING);
+        $sheet->setCellValue('A7', 'Kelas / Jurusan');
+        $sheet->setCellValue('B7', ': ' . ($nasabah->kelas ?? '-') . ($nasabah->jurusanRel ? ' / ' . $nasabah->jurusanRel->kode : ''));
+
+        $sheet->setCellValue('E4', 'Jenis Kantong');
+        $sheet->setCellValue('F4', ': ' . strtoupper($walletName));
+        $sheet->setCellValue('E5', 'No. Kantong');
+        $sheet->setCellValueExplicit('F5', ': ' . $walletNumber, DataType::TYPE_STRING);
+        $sheet->setCellValue('E6', 'Status Kantong');
+        $sheet->setCellValue('F6', ': ' . strtoupper($wallet?->status ?? 'AKTIF'));
+
+        // Box Ringkasan Statistik
+        $sheet->setCellValue('H4', 'Saldo Bulan Lalu');
+        $sheet->setCellValueExplicit('I4', $stats['saldo_bulan_lalu'], DataType::TYPE_NUMERIC);
+        $sheet->setCellValue('H5', 'Setoran Bulan Ini');
+        $sheet->setCellValueExplicit('I5', $stats['setoran_bulan_ini'], DataType::TYPE_NUMERIC);
+        $sheet->setCellValue('H6', 'Penarikan Bulan Ini');
+        $sheet->setCellValueExplicit('I6', $stats['penarikan_bulan_ini'], DataType::TYPE_NUMERIC);
+        $sheet->setCellValue('H7', 'Saldo Saat Ini');
+        $sheet->setCellValueExplicit('I7', $stats['saldo_saat_ini'], DataType::TYPE_NUMERIC);
+
+        $sheet->getStyle('I4:I7')->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('A4:A7')->getFont()->setBold(true)->setSize(9);
+        $sheet->getStyle('E4:E7')->getFont()->setBold(true)->setSize(9);
+        $sheet->getStyle('H4:H7')->getFont()->setBold(true)->setSize(9);
+        $sheet->getStyle('I7')->getFont()->setBold(true);
+
+        // Styling Box Ringkasan
+        $sheet->getStyle('H4:I7')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('F8FAFC');
+        $sheet->getStyle('H4:I7')->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+        // Table Header
+        $tableStartRow = 9;
+        $headers = [
+            'A' => 'NO',
+            'B' => 'WAKTU',
+            'C' => 'KODE TRANSAKSI',
+            'D' => 'JENIS TRANSAKSI',
+            'E' => 'KETERANGAN',
+            'F' => 'PETUGAS',
+            'G' => 'MUTASI MASUK (KREDIT)',
+            'H' => 'MUTASI KELUAR (DEBIT)',
+            'I' => 'SALDO AKHIR',
+            'J' => 'STATUS',
+        ];
+
+        foreach ($headers as $col => $title) {
+            $sheet->setCellValue("{$col}{$tableStartRow}", $title);
+        }
+
+        $headerStyle = [
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 9,
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '059669'],
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
+        ];
+        $sheet->getStyle("A{$tableStartRow}:J{$tableStartRow}")->applyFromArray($headerStyle);
+        $sheet->getRowDimension($tableStartRow)->setRowHeight(24);
+
+        $rowNum = $tableStartRow + 1;
+        $totalIn = 0;
+        $totalOut = 0;
+
+        foreach ($mutasi as $index => $item) {
+            $isFlowIn = $item->flow === 'in';
+            $masuk = $isFlowIn ? $item->jumlah : 0;
+            $keluar = !$isFlowIn ? $item->jumlah : 0;
+
+            if ($item->status !== 'cancelled') {
+                $totalIn += $masuk;
+                $totalOut += $keluar;
+            }
+
+            $sheet->setCellValueExplicit("A{$rowNum}", $index + 1, DataType::TYPE_NUMERIC);
+            $sheet->setCellValue("B{$rowNum}", $item->tanggal);
+            $sheet->setCellValueExplicit("C{$rowNum}", $item->kode_transaksi, DataType::TYPE_STRING);
+            $sheet->setCellValue("D{$rowNum}", $item->jenis_label);
+            $sheet->setCellValue("E{$rowNum}", $item->keterangan);
+            $sheet->setCellValue("F{$rowNum}", strtoupper($item->nama_petugas));
+            $sheet->setCellValueExplicit("G{$rowNum}", $masuk > 0 ? $masuk : 0, DataType::TYPE_NUMERIC);
+            $sheet->setCellValueExplicit("H{$rowNum}", $keluar > 0 ? $keluar : 0, DataType::TYPE_NUMERIC);
+            $sheet->setCellValueExplicit("I{$rowNum}", $item->saldo_sesudah, DataType::TYPE_NUMERIC);
+            $sheet->setCellValue("J{$rowNum}", strtoupper($item->status));
+
+            $rowNum++;
+        }
+
+        $lastDataRow = $rowNum - 1;
+
+        // Total row
+        $sheet->setCellValue("A{$rowNum}", 'TOTAL');
+        $sheet->mergeCells("A{$rowNum}:F{$rowNum}");
+        $sheet->setCellValueExplicit("G{$rowNum}", $totalIn, DataType::TYPE_NUMERIC);
+        $sheet->setCellValueExplicit("H{$rowNum}", $totalOut, DataType::TYPE_NUMERIC);
+        $sheet->setCellValueExplicit("I{$rowNum}", $stats['saldo_saat_ini'], DataType::TYPE_NUMERIC);
+        $sheet->setCellValue("J{$rowNum}", '');
+
+        $totalStyle = [
+            'font' => ['bold' => true, 'size' => 10],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'E2E8F0'],
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
+        ];
+        $sheet->getStyle("A{$rowNum}:J{$rowNum}")->applyFromArray($totalStyle);
+
+        // Borders
+        $sheet->getStyle("A{$tableStartRow}:J{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+        // Number Formatting
+        $sheet->getStyle("G" . ($tableStartRow + 1) . ":I{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("G" . ($tableStartRow + 1) . ":I{$rowNum}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+
+        // Alignments
+        if ($lastDataRow >= ($tableStartRow + 1)) {
+            $sheet->getStyle("A" . ($tableStartRow + 1) . ":A{$lastDataRow}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B" . ($tableStartRow + 1) . ":C{$lastDataRow}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("J" . ($tableStartRow + 1) . ":J{$lastDataRow}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        }
+
+        // Auto-fit column widths
+        foreach (range('A', 'J') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $cleanNorek = preg_replace('/[^A-Za-z0-9]/', '', $walletNumber);
+        $filename = "mutasi_{$cleanNorek}_" . date('Ymd_His') . ".xlsx";
+        $writer = new XlsxWriter($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0',
         ]);
     }
 

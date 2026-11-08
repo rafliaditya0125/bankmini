@@ -198,6 +198,7 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::get('/nasabah/template', [SuperadminNasabahController::class, 'downloadTemplate'])->name('nasabah.template');
     Route::get('/nasabah/rombel-list', [SuperadminNasabahController::class, 'downloadRombelList'])->name('nasabah.rombel-list');
     Route::get('/nasabah/export', [SuperadminNasabahController::class, 'export'])->name('nasabah.export');
+    Route::get('/nasabah/{nasabah}/mutasi-export', [SuperadminNasabahController::class, 'exportMutasi'])->name('nasabah.mutasi-export');
     Route::resource('nasabah', SuperadminNasabahController::class)->except(['edit']);
     Route::post('/nasabah/{nasabah}/promote', [SuperadminNasabahController::class, 'promote'])->name('nasabah.promote');
     Route::delete('/nasabah/{nasabah}/delete-rekening', [SuperadminNasabahController::class, 'deleteRekening'])->name('nasabah.delete-rekening');
@@ -293,6 +294,7 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     Route::get('/nasabah/template', [SuperadminNasabahController::class, 'downloadTemplate'])->name('nasabah.template');
     Route::get('/nasabah/rombel-list', [SuperadminNasabahController::class, 'downloadRombelList'])->name('nasabah.rombel-list');
     Route::get('/nasabah/export', [SuperadminNasabahController::class, 'export'])->name('nasabah.export');
+    Route::get('/nasabah/{nasabah}/mutasi-export', [SuperadminNasabahController::class, 'exportMutasi'])->name('nasabah.mutasi-export');
     Route::resource('nasabah', SuperadminNasabahController::class)->except(['edit']);
     Route::post('/nasabah/{nasabah}/promote', [SuperadminNasabahController::class, 'promote'])->name('nasabah.promote');
     Route::delete('/nasabah/{nasabah}/delete-rekening', [SuperadminNasabahController::class, 'deleteRekening'])->name('nasabah.delete-rekening');
