@@ -57,7 +57,7 @@ class ForceNasabahPasswordChange
     {
         return match ($user->user_type) {
             'siswa' => $user->nis ?? '',
-            'guru' => $user->nip ?? '',
+            'karyawan', 'guru' => $user->nip ?? '',
             default => $user->nasabah?->nomor_rekening ?? $user->username,
         };
     }

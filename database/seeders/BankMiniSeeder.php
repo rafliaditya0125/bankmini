@@ -91,7 +91,7 @@ class BankMiniSeeder extends Seeder
                 'name' => 'Sri Mulyani',
                 'username' => 'sri001',
                 'role' => 'nasabah',
-                'user_type' => 'guru',
+                'user_type' => 'karyawan',
                 'nip' => '198601012011012001',
                 'phone' => '081234567896',
                 'status' => 'active',

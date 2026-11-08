@@ -5,7 +5,7 @@ export type User = {
     email: string;
     role: 'superadmin' | 'admin' | 'teller' | 'nasabah';
     phone?: string;
-    user_type?: 'guru' | 'siswa' | 'kelas' | 'organisasi';
+    user_type?: 'karyawan' | 'guru' | 'siswa' | 'kelas' | 'organisasi' | 'pembayaran';
     nis?: string;
     nip?: string;
     status: 'active' | 'inactive';
@@ -36,6 +36,7 @@ export type Nasabah = {
     id: number;
     user_id: number;
     nomor_rekening: string;
+    bank_type?: 'ebank' | 'bjb';
     saldo: number;
     saldo_minimum: number;
     status: 'aktif' | 'nonaktif';

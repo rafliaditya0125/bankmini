@@ -32,14 +32,16 @@ class ProcessMonthlyFees extends Command
             'siswa' => (float) \App\Models\Setting::get('monthly_interest_rate_siswa', $defaultInterestRate),
             'kelas' => (float) \App\Models\Setting::get('monthly_interest_rate_kelas', $defaultInterestRate),
             'organisasi' => (float) \App\Models\Setting::get('monthly_interest_rate_organisasi', $defaultInterestRate),
-            'guru' => (float) \App\Models\Setting::get('monthly_interest_rate_guru', $defaultInterestRate),
+            'karyawan' => (float) \App\Models\Setting::get('monthly_interest_rate_karyawan', \App\Models\Setting::get('monthly_interest_rate_guru', $defaultInterestRate)),
+            'guru' => (float) \App\Models\Setting::get('monthly_interest_rate_karyawan', \App\Models\Setting::get('monthly_interest_rate_guru', $defaultInterestRate)),
         ];
 
         $adminFeeByType = [
             'siswa' => (int) \App\Models\Setting::get('monthly_admin_fee_siswa', $defaultAdminFee),
             'kelas' => (int) \App\Models\Setting::get('monthly_admin_fee_kelas', $defaultAdminFee),
             'organisasi' => (int) \App\Models\Setting::get('monthly_admin_fee_organisasi', $defaultAdminFee),
-            'guru' => (int) \App\Models\Setting::get('monthly_admin_fee_guru', $defaultAdminFee),
+            'karyawan' => (int) \App\Models\Setting::get('monthly_admin_fee_karyawan', \App\Models\Setting::get('monthly_admin_fee_guru', $defaultAdminFee)),
+            'guru' => (int) \App\Models\Setting::get('monthly_admin_fee_karyawan', \App\Models\Setting::get('monthly_admin_fee_guru', $defaultAdminFee)),
         ];
 
         $processDay = (int) \App\Models\Setting::get('monthly_process_day', 28);

@@ -46,7 +46,7 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
         const amountKeys = [
             'min_deposit', 'min_withdraw', 'max_transfer', 'daily_transfer_limit',
             'min_cash_denomination',
-            'monthly_admin_fee', 'monthly_admin_fee_siswa', 'monthly_admin_fee_kelas', 'monthly_admin_fee_organisasi', 'monthly_admin_fee_guru',
+            'monthly_admin_fee', 'monthly_admin_fee_siswa', 'monthly_admin_fee_kelas', 'monthly_admin_fee_organisasi', 'monthly_admin_fee_karyawan', 'monthly_admin_fee_guru',
             'saldo_awal', 'jumlah'
         ];
 
@@ -76,7 +76,7 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
         const amountKeys = [
             'min_deposit', 'min_withdraw', 'max_transfer', 'daily_transfer_limit',
             'min_cash_denomination',
-            'monthly_admin_fee', 'monthly_admin_fee_siswa', 'monthly_admin_fee_kelas', 'monthly_admin_fee_organisasi', 'monthly_admin_fee_guru'
+            'monthly_admin_fee', 'monthly_admin_fee_siswa', 'monthly_admin_fee_kelas', 'monthly_admin_fee_organisasi', 'monthly_admin_fee_karyawan', 'monthly_admin_fee_guru'
         ];
 
         const isAmount = amountKeys.includes(key);
@@ -423,8 +423,8 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
                                             {renderInput('monthly_admin_fee_kelas', 'Biaya Admin Kelas (Rp)', 'number')}
                                             {renderInput('monthly_interest_rate_organisasi', 'Bunga Bulanan Organisasi (%)', 'number', { step: '0.01' })}
                                             {renderInput('monthly_admin_fee_organisasi', 'Biaya Admin Organisasi (Rp)', 'number')}
-                                            {renderInput('monthly_interest_rate_guru', 'Bunga Bulanan Guru (%)', 'number', { step: '0.01' })}
-                                            {renderInput('monthly_admin_fee_guru', 'Biaya Admin Guru (Rp)', 'number')}
+                                            {renderInput('monthly_interest_rate_karyawan', 'Bunga Bulanan Karyawan (%)', 'number', { step: '0.01' })}
+                                            {renderInput('monthly_admin_fee_karyawan', 'Biaya Admin Karyawan (Rp)', 'number')}
                                             {renderInput('monthly_process_day', 'Tanggal Proses Bulanan (1-31)', 'number', { min: 1, max: 31 })}
                                             {renderInput('monthly_process_hour', 'Jam Proses Bulanan (0-23)', 'number', { min: 0, max: 23 })}
                                         </div>

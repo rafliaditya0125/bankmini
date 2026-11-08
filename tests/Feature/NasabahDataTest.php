@@ -26,6 +26,7 @@ class NasabahDataTest extends TestCase
             'password' => bcrypt('superadmin'),
             'role' => 'superadmin',
             'status' => 'active',
+            'email_verified_at' => now(),
         ]);
 
         // Create Jurusan and Rombel

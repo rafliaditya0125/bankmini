@@ -33,7 +33,7 @@ function testLogin($login, $password) {
     // Identifier check
     $identifier = match ($user->user_type) {
         'siswa' => $user->nis ?? $user->username,
-        'guru' => $user->nip ?? $user->username,
+        'karyawan', 'guru' => $user->nip ?? $user->username,
         default => $user->nasabah?->nomor_rekening ?? $user->username,
     };
     

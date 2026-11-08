@@ -28,6 +28,20 @@ class NasabahController extends Controller
             return $this->export($request);
         }
 
+        // Stats summary for saldo BJB & eBank containers
+        $stats = [
+            'total_saldo' => (float) Nasabah::sum('saldo'),
+            'total_saldo_ebank' => (float) Nasabah::where(function ($q) {
+                $q->where('bank_type', 'ebank')->orWhereNull('bank_type');
+            })->sum('saldo'),
+            'total_saldo_bjb' => (float) Nasabah::where('bank_type', 'bjb')->sum('saldo'),
+            'count_total' => Nasabah::count(),
+            'count_ebank' => Nasabah::where(function ($q) {
+                $q->where('bank_type', 'ebank')->orWhereNull('bank_type');
+            })->count(),
+            'count_bjb' => Nasabah::where('bank_type', 'bjb')->count(),
+        ];
+
         // Get filter options
         $available_jurusan = Jurusan::orderBy('nama')->get();
         $available_rombels = \App\Models\Rombel::with('jurusan')->orderBy('tingkat')->orderBy('nama')->get()->map(function ($rombel) {
@@ -41,7 +55,8 @@ class NasabahController extends Controller
 
         return Inertia::render('superadmin/nasabah/Index', [
             'nasabah' => $query->latest('updated_at')->paginate(15)->withQueryString(),
-            'filters' => $request->only(['search', 'status', 'tingkat', 'jurusan_id', 'rombel_id', 'user_type']),
+            'filters' => $request->only(['search', 'status', 'tingkat', 'jurusan_id', 'rombel_id', 'user_type', 'bank_type']),
+            'stats' => $stats,
             'available_jurusan' => $available_jurusan,
             'available_rombels' => $available_rombels
         ]);
@@ -96,6 +111,17 @@ class NasabahController extends Controller
             });
         }
 
+        if ($request->filled('bank_type') && $request->bank_type !== 'all') {
+            if ($request->bank_type === 'ebank') {
+                $query->where(function ($q) {
+                    $q->where('bank_type', 'ebank')
+                      ->orWhereNull('bank_type');
+                });
+            } else {
+                $query->where('bank_type', $request->bank_type);
+            }
+        }
+
         return $query;
     }
 
@@ -112,6 +138,7 @@ class NasabahController extends Controller
         $headers = [
             'NO',
             'NO. REKENING',
+            'TIPE BANK',
             'NAMA NASABAH',
             'TIPE',
             'NIS / NIP',
@@ -133,7 +160,7 @@ class NasabahController extends Controller
             $user = $item->user;
             $userType = match ($user?->user_type) {
                 'siswa' => 'Siswa',
-                'guru' => 'Guru',
+                'karyawan', 'guru' => 'Karyawan',
                 'kelas' => 'Kas Kelas',
                 'organisasi' => 'Organisasi',
                 'pembayaran' => 'Pembayaran',
@@ -142,7 +169,7 @@ class NasabahController extends Controller
 
             $identifier = $user?->user_type === 'siswa'
                 ? ($user?->nis ?: '-')
-                : ($user?->user_type === 'guru' ? ($user?->nip ?: '-') : ($item->nomor_rekening ?: '-'));
+                : (in_array($user?->user_type, ['karyawan', 'guru']) ? ($user?->nip ?: '-') : ($item->nomor_rekening ?: '-'));
 
             $rombel = $item->rombelRel;
             $namaKelas = $rombel ? $rombel->nama_kelas : ($item->jurusanRel ? $item->jurusanRel->kode . ' (Tanpa Kelas)' : '-');
@@ -156,16 +183,17 @@ class NasabahController extends Controller
 
             $sheet->setCellValueExplicit("A{$rowNum}", $index + 1, DataType::TYPE_NUMERIC);
             $sheet->setCellValueExplicit("B{$rowNum}", (string) $item->nomor_rekening, DataType::TYPE_STRING);
-            $sheet->setCellValue("C{$rowNum}", strtoupper($user?->name ?? '-'));
-            $sheet->setCellValue("D{$rowNum}", $userType);
-            $sheet->setCellValueExplicit("E{$rowNum}", (string) $identifier, DataType::TYPE_STRING);
-            $sheet->setCellValue("F{$rowNum}", $namaKelas);
-            $sheet->setCellValue("G{$rowNum}", $jurusan);
-            $sheet->setCellValueExplicit("H{$rowNum}", $saldo, DataType::TYPE_NUMERIC);
-            $sheet->setCellValue("I{$rowNum}", strtoupper($item->status ?? 'AKTIF'));
-            $sheet->setCellValueExplicit("J{$rowNum}", (string) ($user?->phone ?: '-'), DataType::TYPE_STRING);
-            $sheet->setCellValue("K{$rowNum}", $item->alamat ?: '-');
-            $sheet->setCellValue("L{$rowNum}", $tanggalBuka);
+            $sheet->setCellValueExplicit("C{$rowNum}", strtoupper($item->bank_type ?? 'EBANK'), DataType::TYPE_STRING);
+            $sheet->setCellValue("D{$rowNum}", strtoupper($user?->name ?? '-'));
+            $sheet->setCellValue("E{$rowNum}", $userType);
+            $sheet->setCellValueExplicit("F{$rowNum}", (string) $identifier, DataType::TYPE_STRING);
+            $sheet->setCellValue("G{$rowNum}", $namaKelas);
+            $sheet->setCellValue("H{$rowNum}", $jurusan);
+            $sheet->setCellValueExplicit("I{$rowNum}", $saldo, DataType::TYPE_NUMERIC);
+            $sheet->setCellValue("J{$rowNum}", strtoupper($item->status ?? 'AKTIF'));
+            $sheet->setCellValueExplicit("K{$rowNum}", (string) ($user?->phone ?: '-'), DataType::TYPE_STRING);
+            $sheet->setCellValue("L{$rowNum}", $item->alamat ?: '-');
+            $sheet->setCellValue("M{$rowNum}", $tanggalBuka);
 
             $rowNum++;
         }
@@ -173,8 +201,8 @@ class NasabahController extends Controller
         // Summary row (Total Saldo)
         $lastRow = $rowNum;
         $sheet->setCellValue("A{$lastRow}", 'TOTAL SALDO');
-        $sheet->mergeCells("A{$lastRow}:G{$lastRow}");
-        $sheet->setCellValueExplicit("H{$lastRow}", $totalSaldo, DataType::TYPE_NUMERIC);
+        $sheet->mergeCells("A{$lastRow}:H{$lastRow}");
+        $sheet->setCellValueExplicit("I{$lastRow}", $totalSaldo, DataType::TYPE_NUMERIC);
 
         // Header styling
         $headerStyle = [
@@ -192,28 +220,28 @@ class NasabahController extends Controller
                 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
             ],
         ];
-        $sheet->getStyle('A1:L1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:M1')->applyFromArray($headerStyle);
         $sheet->getRowDimension(1)->setRowHeight(26);
 
         // Border styling for whole table
-        $sheet->getStyle("A1:L{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $sheet->getStyle("A1:M{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
 
         // Alignments for data
         if ($lastRow > 2) {
             $sheet->getStyle("A2:A" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("B2:B" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("D2:F" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("I2:I" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle("L2:L" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B2:C" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("E2:G" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("J2:J" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("M2:M" . ($lastRow - 1))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
         }
 
         // Format Currency / Numbers for Saldo column
-        $sheet->getStyle("H2:H{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle("H2:H{$lastRow}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("I2:I{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("I2:I{$lastRow}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
 
         // Format text columns to prevent scientific notation in Excel
         $sheet->getStyle("B2:B{$lastRow}")->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
-        $sheet->getStyle("E2:E{$lastRow}")->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+        $sheet->getStyle("F2:F{$lastRow}")->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
 
         // Total row style
         $totalStyle = [
@@ -230,11 +258,11 @@ class NasabahController extends Controller
                 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
             ],
         ];
-        $sheet->getStyle("A{$lastRow}:L{$lastRow}")->applyFromArray($totalStyle);
-        $sheet->getStyle("H{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("A{$lastRow}:M{$lastRow}")->applyFromArray($totalStyle);
+        $sheet->getStyle("I{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
 
         // Auto-fit column widths
-        foreach (range('A', 'L') as $col) {
+        foreach (range('A', 'M') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -732,28 +760,31 @@ class NasabahController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
             'nomor_rekening' => 'required|string|max:50|unique:nasabah,nomor_rekening',
+            'bank_type' => 'nullable|in:ebank,bjb',
             'phone' => 'nullable|string|max:20',
-            'user_type' => 'required|in:siswa,kelas,organisasi,guru',
+            'user_type' => 'required|in:siswa,kelas,organisasi,karyawan,guru',
             'nis' => 'required_if:user_type,siswa|nullable|string|max:20|regex:/^[0-9]+$/|unique:users,nis',
-            'nip' => 'required_if:user_type,guru|nullable|string|max:30|regex:/^[0-9]+$/|unique:users,nip',
+            'nip' => 'required_if:user_type,karyawan,guru|nullable|string|max:30|regex:/^[0-9]+$/|unique:users,nip',
             'jurusan_id' => 'required_if:user_type,siswa,kelas|nullable|exists:jurusans,id',
             'rombel_id' => 'required_if:user_type,siswa,kelas|nullable|exists:rombels,id',
             'alamat' => 'nullable|string|max:255',
-            'saldo_awal' => 'required_unless:user_type,guru|nullable|numeric|max:999999999999999|min:0',
+            'saldo_awal' => 'required_unless:user_type,karyawan,guru|nullable|numeric|max:999999999999999|min:0',
         ]);
 
-        $userType = $request->user_type;
+        $userType = $request->user_type === 'guru' ? 'karyawan' : $request->user_type;
         $isStudentType = in_array($userType, ['siswa', 'kelas'], true);
+        $isKaryawan = in_array($userType, ['karyawan', 'guru'], true);
         
         $nis = $userType === 'siswa' ? $request->nis : null;
-        $nip = $userType === 'guru' ? $request->nip : null;
+        $nip = $isKaryawan ? $request->nip : null;
         $rombelId = $isStudentType ? $request->rombel_id : null;
-        $saldoAwal = $userType === 'guru' ? 0 : ($request->saldo_awal ?? 0);
+        $saldoAwal = $isKaryawan ? 0 : ($request->saldo_awal ?? 0);
+        $bankType = $request->input('bank_type', 'ebank') ?: 'ebank';
 
-        DB::transaction(function () use ($request, $nis, $nip, $rombelId, $saldoAwal, $isStudentType) {
-            $loginIdentifier = match ($request->user_type) {
+        DB::transaction(function () use ($request, $userType, $nis, $nip, $rombelId, $saldoAwal, $isStudentType, $bankType) {
+            $loginIdentifier = match ($userType) {
                 'siswa' => $nis,
-                'guru' => $nip,
+                'karyawan', 'guru' => $nip,
                 default => $request->nomor_rekening,
             };
 
@@ -764,7 +795,7 @@ class NasabahController extends Controller
                 'password' => $loginIdentifier,
                 'role' => 'nasabah',
                 'phone' => $request->phone,
-                'user_type' => $request->user_type,
+                'user_type' => $userType,
                 'nis' => $nis,
                 'nip' => $nip,
                 'status' => 'active',
@@ -786,6 +817,7 @@ class NasabahController extends Controller
             $nasabah = Nasabah::create([
                 'user_id' => $user->id,
                 'nomor_rekening' => $request->nomor_rekening,
+                'bank_type' => $bankType,
                 'saldo' => $saldoAwal,
                 'saldo_minimum' => 10000,
                 'jurusan_id' => $jurusanId,
@@ -813,9 +845,10 @@ class NasabahController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,' . $nasabah->user_id,
             'nomor_rekening' => 'required|string|max:50|unique:nasabah,nomor_rekening,' . $nasabah->id,
-            'user_type' => 'required|in:siswa,kelas,organisasi,guru,pembayaran',
+            'bank_type' => 'nullable|in:ebank,bjb',
+            'user_type' => 'required|in:siswa,kelas,organisasi,karyawan,guru,pembayaran',
             'nis' => 'required_if:user_type,siswa|nullable|string|max:20|regex:/^[0-9]+$/|unique:users,nis,' . $nasabah->user_id,
-            'nip' => 'required_if:user_type,guru|nullable|string|max:30|regex:/^[0-9]+$/|unique:users,nip,' . $nasabah->user_id,
+            'nip' => 'required_if:user_type,karyawan,guru|nullable|string|max:30|regex:/^[0-9]+$/|unique:users,nip,' . $nasabah->user_id,
             'phone' => 'nullable|string|max:20',
             'jurusan_id' => 'required_if:user_type,siswa,kelas|nullable|exists:jurusans,id',
             'rombel_id' => 'required_if:user_type,siswa,kelas|nullable|exists:rombels,id',
@@ -830,17 +863,18 @@ class NasabahController extends Controller
         
         $request->validate($rules);
 
-        $userType = $request->user_type;
+        $userType = $request->user_type === 'guru' ? 'karyawan' : $request->user_type;
         $isStudentType = in_array($userType, ['siswa', 'kelas'], true);
+        $isKaryawan = in_array($userType, ['karyawan', 'guru'], true);
 
         $nis = $userType === 'siswa' ? $request->nis : null;
-        $nip = $userType === 'guru' ? $request->nip : null;
+        $nip = $isKaryawan ? $request->nip : null;
         $rombelId = $isStudentType ? $request->rombel_id : null;
 
-        DB::transaction(function () use ($request, $nasabah, $nis, $nip, $rombelId, $isStudentType) {
-            $loginIdentifier = match ($request->user_type) {
+        DB::transaction(function () use ($request, $userType, $nasabah, $nis, $nip, $rombelId, $isStudentType) {
+            $loginIdentifier = match ($userType) {
                 'siswa' => $nis,
-                'guru' => $nip,
+                'karyawan', 'guru' => $nip,
                 default => $request->nomor_rekening,
             };
 
@@ -851,7 +885,7 @@ class NasabahController extends Controller
                 'nip' => $nip,
                 'username' => $loginIdentifier,
                 'phone' => $request->phone,
-                'user_type' => $request->user_type,
+                'user_type' => $userType,
                 'status' => $request->status === 'aktif' ? 'active' : 'inactive',
             ];
 
@@ -879,6 +913,7 @@ class NasabahController extends Controller
 
             $nasabah->update([
                 'nomor_rekening' => $request->nomor_rekening,
+                'bank_type' => $request->input('bank_type', $nasabah->bank_type ?? 'ebank') ?: 'ebank',
                 'jurusan_id' => $jurusanId,
                 'rombel_id' => $rombelId,
                 'alamat' => $request->alamat,
@@ -1203,6 +1238,17 @@ class NasabahController extends Controller
                         continue;
                     }
 
+                    $headerMap = array_flip($header);
+                    $colName = $headerMap['name'] ?? $headerMap['nama'] ?? 0;
+                    $colId = $headerMap['nis_or_nip'] ?? $headerMap['nis'] ?? $headerMap['nip'] ?? $headerMap['identifier'] ?? 1;
+                    $colNorek = $headerMap['norek'] ?? $headerMap['nomor_rekening'] ?? 2;
+                    $colUserType = $headerMap['user_type'] ?? $headerMap['tipe_pengguna'] ?? 3;
+                    $colBankType = $headerMap['bank_type'] ?? $headerMap['tipe_bank'] ?? null;
+                    $colRombel = $headerMap['rombel_id'] ?? $headerMap['rombel'] ?? ($colBankType !== null ? 5 : 4);
+                    $colPhone = $headerMap['phone'] ?? $headerMap['no_hp'] ?? $headerMap['telepon'] ?? ($colBankType !== null ? 6 : 5);
+                    $colAlamat = $headerMap['alamat'] ?? ($colBankType !== null ? 7 : 6);
+                    $colSaldo = $headerMap['saldo_awal'] ?? $headerMap['saldo'] ?? ($colBankType !== null ? 8 : 7);
+
                     // Remove header
                     array_shift($rows);
 
@@ -1214,14 +1260,21 @@ class NasabahController extends Controller
                             continue;
                         }
 
-                        $name       = isset($data[0]) ? trim((string)$data[0]) : '';
-                        $identifier = isset($data[1]) ? trim((string)$data[1]) : '';
-                        $norekInput = isset($data[2]) && trim((string)$data[2]) !== '' ? trim((string)$data[2]) : null;
-                        $user_type  = isset($data[3]) && trim((string)$data[3]) !== '' ? strtolower(trim((string)$data[3])) : 'siswa';
-                        $rombelId   = isset($data[4]) && trim((string)$data[4]) !== '' ? trim((string)$data[4]) : null;
-                        $phone      = isset($data[5]) && trim((string)$data[5]) !== '' ? trim((string)$data[5]) : null;
-                        $alamat     = isset($data[6]) && trim((string)$data[6]) !== '' ? trim((string)$data[6]) : null;
-                        $saldo_awal = isset($data[7]) && is_numeric($data[7]) ? (float)$data[7] : 0;
+                        $name       = isset($data[$colName]) ? trim((string)$data[$colName]) : '';
+                        $identifier = isset($data[$colId]) ? trim((string)$data[$colId]) : '';
+                        $norekInput = isset($data[$colNorek]) && trim((string)$data[$colNorek]) !== '' ? trim((string)$data[$colNorek]) : null;
+                        $user_type  = isset($data[$colUserType]) && trim((string)$data[$colUserType]) !== '' ? strtolower(trim((string)$data[$colUserType])) : 'siswa';
+                        $bank_type  = 'ebank';
+                        if ($colBankType !== null && isset($data[$colBankType])) {
+                            $rawBankType = strtolower(trim((string)$data[$colBankType]));
+                            if (in_array($rawBankType, ['bjb', 'ebank'])) {
+                                $bank_type = $rawBankType;
+                            }
+                        }
+                        $rombelId   = isset($data[$colRombel]) && trim((string)$data[$colRombel]) !== '' ? trim((string)$data[$colRombel]) : null;
+                        $phone      = isset($data[$colPhone]) && trim((string)$data[$colPhone]) !== '' ? trim((string)$data[$colPhone]) : null;
+                        $alamat     = isset($data[$colAlamat]) && trim((string)$data[$colAlamat]) !== '' ? trim((string)$data[$colAlamat]) : null;
+                        $saldo_awal = isset($data[$colSaldo]) && is_numeric($data[$colSaldo]) ? (float)$data[$colSaldo] : 0;
 
                         if (empty($name) || empty($identifier)) {
                             $failedCount++;
@@ -1231,8 +1284,10 @@ class NasabahController extends Controller
 
                         $norek = $norekInput ?: $identifier;
                         $nis   = $user_type === 'siswa' ? $identifier : null;
-                        $nip   = $user_type === 'guru'  ? $identifier : null;
-                        $validUserType = in_array($user_type, ['siswa', 'guru', 'kelas', 'organisasi', 'pembayaran']) ? $user_type : 'siswa';
+                        $nip   = in_array($user_type, ['karyawan', 'guru'], true) ? $identifier : null;
+                        $validUserType = in_array($user_type, ['siswa', 'karyawan', 'guru', 'kelas', 'organisasi', 'pembayaran'])
+                            ? ($user_type === 'guru' ? 'karyawan' : $user_type)
+                            : 'siswa';
 
                         $rawCandidates[] = [
                             'rowNum'     => $rowNum,
@@ -1240,6 +1295,7 @@ class NasabahController extends Controller
                             'identifier' => $identifier,
                             'norek'      => $norek,
                             'user_type'  => $validUserType,
+                            'bank_type'  => $bank_type,
                             'nis'        => $nis,
                             'nip'        => $nip,
                             'rombel_raw' => $rombelId,
@@ -1394,6 +1450,7 @@ class NasabahController extends Controller
                     $validCandidates[] = [
                         'identifier' => $c['identifier'],
                         'norek'      => $c['norek'],
+                        'bank_type'  => $c['bank_type'] ?? 'ebank',
                         'saldo_awal' => $c['saldo_awal'],
                         'jurusan_id' => $jurusanId,
                         'rombel_id'  => $validRombelId,
@@ -1422,6 +1479,7 @@ class NasabahController extends Controller
                         $nasabahToInsert[] = [
                             'user_id'        => $userId,
                             'nomor_rekening' => $vc['norek'],
+                            'bank_type'      => $vc['bank_type'] ?? 'ebank',
                             'saldo'          => $vc['saldo_awal'],
                             'saldo_minimum'  => 10000,
                             'jurusan_id'     => $vc['jurusan_id'],
@@ -1505,10 +1563,10 @@ class NasabahController extends Controller
         $sheet->setTitle('Template Nasabah');
 
         // Header
-        $sheet->fromArray(['name', 'nis_or_nip', 'norek', 'user_type', 'rombel_id', 'phone', 'alamat', 'saldo_awal'], null, 'A1');
+        $sheet->fromArray(['name', 'nis_or_nip', 'norek', 'user_type', 'bank_type', 'rombel_id', 'phone', 'alamat', 'saldo_awal'], null, 'A1');
         // Contoh data
-        $sheet->fromArray(['Budi Santoso', '2024001', '10002024001', 'siswa', '5', '08123456789', 'Jl. Merdeka No. 1', 50000], null, 'A2');
-        $sheet->fromArray(['Siti Aminah', '2024002', '10002024002', 'siswa', '8', '08987654321', 'Jl. Sudirman No. 10', 100000], null, 'A3');
+        $sheet->fromArray(['Budi Santoso', '2024001', '10002024001', 'siswa', 'ebank', '5', '08123456789', 'Jl. Merdeka No. 1', 50000], null, 'A2');
+        $sheet->fromArray(['Siti Aminah', '2024002', '10002024002', 'siswa', 'bjb', '8', '08987654321', 'Jl. Sudirman No. 10', 100000], null, 'A3');
 
         $writer = new XlsxWriter($spreadsheet);
 
