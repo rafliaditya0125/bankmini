@@ -2,7 +2,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useState, useMemo } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import type { Nasabah, Transaksi, User } from '@/types';
-import { formatRupiah, formatRombelName } from '@/lib/utils';
+import { formatRupiah, formatRombelName, useFormatTransactionCode } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import ConfirmModal from '@/components/ConfirmModal';
 import Receipt from '@/components/Receipt';
@@ -65,6 +65,7 @@ type NasabahUserType = 'siswa' | 'kelas' | 'organisasi' | 'karyawan' | 'guru';
 
 export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, total_saldo }: ShowNasabahProps) {
     const page = usePage<any>();
+    const formatKode = useFormatTransactionCode();
     const rolePrefix = page.props.auth.user.role === 'superadmin' ? 'superadmin' : 'admin';
     const [editOpen, setEditOpen] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -91,7 +92,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
             }
             if (mutasiSearch.trim()) {
                 const query = mutasiSearch.toLowerCase().trim();
-                const matchKode = item.kode_transaksi?.toLowerCase().includes(query);
+                const matchKode = item.kode_transaksi?.toLowerCase().includes(query) || formatKode(item.kode_transaksi)?.toLowerCase().includes(query);
                 const matchJenis = item.jenis_label?.toLowerCase().includes(query) || item.jenis_transaksi?.toLowerCase().includes(query);
                 const matchKet = item.keterangan?.toLowerCase().includes(query);
                 const matchPetugas = item.nama_petugas?.toLowerCase().includes(query);
@@ -575,7 +576,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                 )}
                                 {transactions.map(tx => (
                                     <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-8 py-4 text-xs font-mono font-black text-slate-700">{tx.kode_transaksi}</td>
+                                        <td className="px-8 py-4 text-xs font-mono font-black text-slate-700">{formatKode(tx.kode_transaksi)}</td>
                                         <td className="px-8 py-4">
                                             <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
                                                 tx.jenis_transaksi === 'setor' ? 'bg-emerald-50 text-emerald-700' :
@@ -970,7 +971,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                                 </td>
                                                 <td className="px-5 py-3.5 whitespace-nowrap">
                                                     <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-[11px]">
-                                                        {item.kode_transaksi}
+                                                        {formatKode(item.kode_transaksi)}
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-3.5 whitespace-nowrap">

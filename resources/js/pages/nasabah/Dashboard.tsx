@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import type { Nasabah, Transaksi, Wallet, WalletType } from '@/types';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, useFormatTransactionCode } from '@/lib/utils';
 
 interface NasabahDashboardProps {
     nasabah: Nasabah;
@@ -10,6 +10,7 @@ interface NasabahDashboardProps {
 }
 
 export default function NasabahDashboard({ nasabah, recent_transactions = [], wallets = [] }: NasabahDashboardProps) {
+    const formatKode = useFormatTransactionCode();
     const paymentWallets = wallets.filter((w) => w.wallet_type?.category === 'pembayaran');
 
     return (
@@ -201,7 +202,7 @@ export default function NasabahDashboard({ nasabah, recent_transactions = [], wa
                                                     </div>
                                                     <div>
                                                         <p className="text-sm font-black text-gray-900 uppercase tracking-tight">{tx.jenis_transaksi.replace('_', ' ')}</p>
-                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{tx.kode_transaksi} • {new Date(tx.created_at).toLocaleDateString('id-ID')}</p>
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{formatKode(tx.kode_transaksi)} • {new Date(tx.created_at).toLocaleDateString('id-ID')}</p>
                                                     </div>
                                                 </>
                                             );

@@ -1,7 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { useState, useEffect } from 'react';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, useFormatTransactionCode } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import Receipt from '@/components/Receipt';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
@@ -38,6 +38,7 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
     const [cancelReason, setCancelReason] = useState('');
     const [isCancelling, setIsCancelling] = useState(false);
     const { name } = usePage<any>().props;
+    const formatKode = useFormatTransactionCode();
 
     // Real-time search with debounce
     useEffect(() => {
@@ -254,7 +255,7 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-xs font-mono font-black text-emerald-600 uppercase tracking-tighter">{tx.kode_transaksi}</span>
+                                                <span className="text-xs font-mono font-black text-emerald-600 uppercase tracking-tighter">{formatKode(tx.kode_transaksi)}</span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm font-semibold text-slate-900 tracking-tight">
@@ -366,7 +367,7 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                         </div>
                         <div>
                             <h2 className="text-xl font-black uppercase tracking-tight">Batalkan Transaksi</h2>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-tight">Gunakan kode {selectedTransaction?.kode_transaksi} sebagai referensi</p>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-tight">Gunakan kode {formatKode(selectedTransaction?.kode_transaksi)} sebagai referensi</p>
                         </div>
                     </div>
 

@@ -135,12 +135,12 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
 
                     if (response.data?.exists) {
                         setBkmStatus('taken');
-                        setBkmStatusMessage(`Nomor BKM (${response.data?.kode_transaksi}) sudah digunakan.`);
+                        setBkmStatusMessage(`Nomor BKM (${formatTransactionCode(response.data?.kode_transaksi, bkk_bkm_display_format)}) sudah digunakan.`);
                         return;
                     }
 
                     setBkmStatus('available');
-                    setBkmStatusMessage(`Nomor BKM (${response.data?.kode_transaksi}) tersedia.`);
+                    setBkmStatusMessage(`Nomor BKM (${formatTransactionCode(response.data?.kode_transaksi, bkk_bkm_display_format)}) tersedia.`);
                 })
                 .catch(() => {
                     if (requestId !== bkmCheckRequest.current) {
@@ -335,7 +335,7 @@ export default function Setor({ nasabah, transactionTypes, bkkBkmMode }: SetorPa
                                                     <span>Kode: <strong className="font-mono font-black text-emerald-700">BKM{data.no_bkm.padStart(3, '0')}{bkmSuffix}</strong></span>
                                                     {bkk_bkm_display_format && bkk_bkm_display_format !== 'full' && (
                                                         <span className="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-mono">
-                                                            Tampil di struk: {formatTransactionCode(`BKM${data.no_bkm.padStart(3, '0')}${bkmSuffix}`, bkk_bkm_display_format)}
+                                                            Tampilan UI & struk: {formatTransactionCode(`BKM${data.no_bkm.padStart(3, '0')}${bkmSuffix}`, bkk_bkm_display_format)}
                                                         </span>
                                                     )}
                                                 </div>

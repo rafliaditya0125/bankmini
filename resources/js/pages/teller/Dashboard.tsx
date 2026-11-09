@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import type { Transaksi } from '@/types';
+import { useFormatTransactionCode } from '@/lib/utils';
 
 interface TellerDashboardProps {
     stats: {
@@ -47,6 +48,7 @@ interface TellerDashboardProps {
 }
 
 export default function TellerDashboard(props: TellerDashboardProps) {
+    const formatKode = useFormatTransactionCode();
     const { auth } = usePage<any>().props;
     const isAdmin = auth?.user?.role === 'admin';
     const dashboardLabel = isAdmin ? 'Dashboard Admin' : 'Dashboard Teller';
@@ -562,7 +564,7 @@ export default function TellerDashboard(props: TellerDashboardProps) {
                                     <tbody className="divide-y divide-gray-100">
                                         {recent_transactions.map((transaction) => (
                                             <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="py-3 text-sm font-medium text-gray-900">{transaction.kode_transaksi}</td>
+                                                <td className="py-3 text-sm font-medium text-gray-900">{formatKode(transaction.kode_transaksi)}</td>
                                                 <td className="py-3">
                                                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium capitalize ${
                                                         transaction.jenis_transaksi === 'setor' ? 'bg-emerald-100 text-emerald-700' :

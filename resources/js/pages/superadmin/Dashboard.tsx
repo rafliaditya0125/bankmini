@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import type { Nasabah, Transaksi, User as UserType } from '@/types';
+import { useFormatTransactionCode } from '@/lib/utils';
 
 interface SuperadminDashboardProps {
     stats: {
@@ -45,6 +46,7 @@ export default function SuperadminDashboard({
     monthly_chart_data,
     volume_trend_data
 }: SuperadminDashboardProps) {
+    const formatKode = useFormatTransactionCode();
     const [periodFilter, setPeriodFilter] = useState<'minggu' | 'bulan' | 'tahun'>('minggu');
     const [saldoFilter, setSaldoFilter] = useState<'minggu' | 'bulan' | 'tahun'>('minggu');
 
@@ -551,7 +553,7 @@ export default function SuperadminDashboard({
                                         <tbody className="divide-y divide-gray-100">
                                             {recent_transactions.map((transaction) => (
                                                 <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="py-3 text-sm font-medium text-gray-900">{transaction.kode_transaksi}</td>
+                                                    <td className="py-3 text-sm font-medium text-gray-900">{formatKode(transaction.kode_transaksi)}</td>
                                                     <td className="py-3">
                                                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium capitalize ${
                                                             transaction.jenis_transaksi === 'setor' ? 'bg-emerald-100 text-emerald-700' :
