@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, useFormatTransactionCode } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
 import Receipt from '@/components/Receipt';
@@ -36,6 +36,7 @@ export default function NasabahTransaksi({ transactions, filters }: NasabahTrans
     const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
     const [showReceiptModal, setShowReceiptModal] = useState(false);
     const { name, auth } = usePage<any>().props;
+    const formatKode = useFormatTransactionCode();
     const firstRender = useRef(true);
 
     useEffect(() => {
@@ -223,7 +224,7 @@ export default function NasabahTransaksi({ transactions, filters }: NasabahTrans
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-xs font-mono font-black text-emerald-600 uppercase tracking-tighter">{transaction.kode_transaksi}</span>
+                                                <span className="text-xs font-mono font-black text-emerald-600 uppercase tracking-tighter">{formatKode(transaction.kode_transaksi)}</span>
                                             </td>
                                             <td className="px-6 py-4 text-center whitespace-nowrap">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-black border uppercase tracking-widest ${

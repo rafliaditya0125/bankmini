@@ -1,6 +1,7 @@
 import type { ClassValue } from 'clsx';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { usePage } from '@inertiajs/react';
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -73,12 +74,14 @@ export const formatRombelName = (rombel: any): string => {
  */
 export const formatTransactionCode = (code: string | undefined | null, format: string = 'full'): string => {
     if (!code) return '';
-    if (!code.startsWith('BKM') && !code.startsWith('BKK')) {
-        return code;
+    const trimmed = String(code).trim();
+    const upper = trimmed.toUpperCase();
+    if (!upper.startsWith('BKM') && !upper.startsWith('BKK')) {
+        return trimmed;
     }
-    const parts = code.split('/');
+    const parts = trimmed.split('/');
     if (parts.length < 2) {
-        return code;
+        return trimmed;
     }
     if (format === 'number_only') {
         return parts[0];
@@ -86,5 +89,18 @@ export const formatTransactionCode = (code: string | undefined | null, format: s
     if (format === 'month') {
         return `${parts[0]}/${parts[1]}`;
     }
-    return code;
+    return trimmed;
+};
+
+/**
+ * Hook to get a formatting function using the current page's bkk_bkm_display_format prop
+ */
+export const useFormatTransactionCode = () => {
+    try {
+        const page = usePage<any>();
+        const format = page?.props?.bkk_bkm_display_format || 'full';
+        return (code: string | undefined | null) => formatTransactionCode(code, format);
+    } catch {
+        return (code: string | undefined | null) => formatTransactionCode(code, 'full');
+    }
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
-import { formatRupiah, formatRombelName } from '@/lib/utils';
+import { formatRupiah, formatRombelName, useFormatTransactionCode } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import Dropdown, { DropdownItem } from '@/components/Dropdown';
 import Receipt from '@/components/Receipt';
@@ -42,6 +42,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
     const [cancelReason, setCancelReason] = useState('');
     const [isCancelling, setIsCancelling] = useState(false);
     const { name, auth } = usePage<any>().props;
+    const formatKode = useFormatTransactionCode();
     const firstRender = useRef(true);
 
     useEffect(() => {
@@ -300,7 +301,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-xs font-mono font-black text-indigo-600 uppercase tracking-tighter">{transaction.kode_transaksi}</span>
+                                                <span className="text-xs font-mono font-black text-indigo-600 uppercase tracking-tighter">{formatKode(transaction.kode_transaksi)}</span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm font-black text-gray-900 tracking-tight">
@@ -416,7 +417,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                         </div>
                         <div>
                             <h2 className="text-xl font-black uppercase tracking-tight">Batalkan Transaksi</h2>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-tight">Gunakan kode {selectedTransaction?.kode_transaksi} sebagai referensi</p>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-tight">Gunakan kode {formatKode(selectedTransaction?.kode_transaksi)} sebagai referensi</p>
                         </div>
                     </div>
 

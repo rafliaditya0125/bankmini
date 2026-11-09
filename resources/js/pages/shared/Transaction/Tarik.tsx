@@ -135,12 +135,12 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
 
                     if (response.data?.exists) {
                         setBkkStatus('taken');
-                        setBkkStatusMessage(`Nomor BKK (${response.data?.kode_transaksi}) sudah digunakan.`);
+                        setBkkStatusMessage(`Nomor BKK (${formatTransactionCode(response.data?.kode_transaksi, bkk_bkm_display_format)}) sudah digunakan.`);
                         return;
                     }
 
                     setBkkStatus('available');
-                    setBkkStatusMessage(`Nomor BKK (${response.data?.kode_transaksi}) tersedia.`);
+                    setBkkStatusMessage(`Nomor BKK (${formatTransactionCode(response.data?.kode_transaksi, bkk_bkm_display_format)}) tersedia.`);
                 })
                 .catch(() => {
                     if (requestId !== bkkCheckRequest.current) {
@@ -345,7 +345,7 @@ export default function Tarik({ nasabah, transactionTypes, bkkBkmMode, minWithdr
                                                     <span>Kode: <strong className="font-mono font-black text-rose-700">BKK{data.no_bkk.padStart(3, '0')}{bkkSuffix}</strong></span>
                                                     {bkk_bkm_display_format && bkk_bkm_display_format !== 'full' && (
                                                         <span className="text-[9px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded font-mono">
-                                                            Tampil di struk: {formatTransactionCode(`BKK${data.no_bkk.padStart(3, '0')}${bkkSuffix}`, bkk_bkm_display_format)}
+                                                            Tampilan UI & struk: {formatTransactionCode(`BKK${data.no_bkk.padStart(3, '0')}${bkkSuffix}`, bkk_bkm_display_format)}
                                                         </span>
                                                     )}
                                                 </div>
