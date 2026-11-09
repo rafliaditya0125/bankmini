@@ -13,7 +13,28 @@ export default function Dropdown({ trigger, align = 'right', width = 'w-48', chi
     const menuRef = useRef<HTMLDivElement>(null);
     const [coords, setCoords] = useState({ top: 0, left: 0, right: 0 });
 
+    const updatePosition = () => {
+        if (dropdownRef.current) {
+            const rect = dropdownRef.current.getBoundingClientRect();
+            setCoords({
+                top: rect.bottom + window.scrollY,
+                left: rect.left + window.scrollX,
+                right: document.documentElement.clientWidth - rect.right,
+            });
+        }
+    };
+
     useEffect(() => {
+        if (!open) return;
+
+        updatePosition();
+
+        let rAFId: number | null = null;
+        const handleScrollOrResize = () => {
+            if (rAFId) cancelAnimationFrame(rAFId);
+            rAFId = requestAnimationFrame(updatePosition);
+        };
+
         const handleClickOutside = (event: MouseEvent) => {
             if (
                 (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) &&
@@ -23,30 +44,24 @@ export default function Dropdown({ trigger, align = 'right', width = 'w-48', chi
             }
         };
 
-        const handleScroll = () => {
-            if (open) setOpen(false);
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpen(false);
+            }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
-        window.addEventListener('scroll', handleScroll, true);
-        window.addEventListener('resize', handleScroll);
+        document.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('scroll', handleScrollOrResize, true);
+        window.addEventListener('resize', handleScrollOrResize);
 
         return () => {
+            if (rAFId) cancelAnimationFrame(rAFId);
             document.removeEventListener('mousedown', handleClickOutside);
-            window.removeEventListener('scroll', handleScroll, true);
-            window.removeEventListener('resize', handleScroll);
+            document.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('scroll', handleScrollOrResize, true);
+            window.removeEventListener('resize', handleScrollOrResize);
         };
-    }, [open]);
-
-    useEffect(() => {
-        if (open && dropdownRef.current) {
-            const rect = dropdownRef.current.getBoundingClientRect();
-            setCoords({
-                top: rect.bottom + window.scrollY,
-                left: rect.left + window.scrollX,
-                right: document.documentElement.clientWidth - rect.right,
-            });
-        }
     }, [open]);
 
     return (
