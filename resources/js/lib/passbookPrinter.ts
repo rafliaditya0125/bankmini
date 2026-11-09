@@ -13,6 +13,9 @@ export interface PassbookTransaction {
     saldo_sesudah: number | string;
     keterangan?: string;
     petugas?: string;
+    baris?: number;
+    line?: number;
+    row?: number;
 }
 
 const BRIDGE_URL = 'http://localhost:3001';

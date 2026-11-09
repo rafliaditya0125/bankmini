@@ -435,7 +435,7 @@ export default function Transfer({ pengirim, minWithdraw }: PageProps) {
                     transaction={lastTransaction}
                     onPrint={handlePrintReceipt}
                     onClose={handleCloseReceipt}
-                    showPassbookPrint={false}
+                    showPassbookPrint={true}
                 />
             </Modal>
 

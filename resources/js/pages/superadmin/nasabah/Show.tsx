@@ -1085,6 +1085,7 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                     transaction={selectedReceiptTx}
                     onClose={() => setShowReceiptModal(false)}
                     showPrint={true}
+                    showPassbookPrint={true}
                 />
             </Modal>
         </DashboardLayout>

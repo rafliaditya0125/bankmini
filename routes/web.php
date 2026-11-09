@@ -247,7 +247,6 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::get('/bayar', [SharedTransactionController::class, 'bayarIndex'])->name('bayar.index');
     Route::post('/bayar', [SharedTransactionController::class, 'bayarStore'])->name('bayar.store')->middleware('log');
 
-    Route::get('/audit-trail', [SuperadminAuditTrailController::class, 'index'])->name('audit-trail.index');
     Route::get('/laporan', [\App\Http\Controllers\Superadmin\LaporanController::class, 'index'])->middleware('throttle:dynamic_transaction')->name('laporan.index');
     Route::get('/transaksi', [\App\Http\Controllers\Superadmin\LaporanController::class, 'index'])->middleware('throttle:dynamic_transaction')->name('transaksi.index');
     Route::post('/transaksi/{id}/cancel', [SharedTransactionController::class, 'cancel'])->name('transaksi.cancel');

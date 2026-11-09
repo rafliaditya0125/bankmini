@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { formatRupiah } from '@/lib/utils';
 
 interface SavingsBookModalProps {
@@ -18,6 +18,7 @@ interface SavingsBookModalProps {
 
 export default function SavingsBookModal({ isOpen, onClose, transaction }: SavingsBookModalProps) {
     const bookRef = useRef<HTMLDivElement>(null);
+    const [printLine, setPrintLine] = useState<number>(1);
 
     if (!isOpen || !transaction) return null;
 
@@ -195,6 +196,14 @@ export default function SavingsBookModal({ isOpen, onClose, transaction }: Savin
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
+                                            {Array.from({ length: Math.max(0, printLine - 1) }).map((_, idx) => (
+                                                <tr key={`spacer-${idx}`} className="h-10 border-b border-gray-100">
+                                                    <td className="px-3 py-3 text-center text-transparent select-none">&nbsp;</td>
+                                                    <td className="px-3 py-3 text-center text-transparent select-none">&nbsp;</td>
+                                                    <td className="px-3 py-3 text-right text-transparent select-none">&nbsp;</td>
+                                                    <td className="px-3 py-3 text-right text-transparent select-none">&nbsp;</td>
+                                                </tr>
+                                            ))}
                                             <tr>
                                                 <td className="px-3 py-4 text-center">
                                                     <div className="text-[10px] font-black text-gray-900 uppercase">
@@ -249,6 +258,59 @@ export default function SavingsBookModal({ isOpen, onClose, transaction }: Savin
                                 </div>
                             </div>
 
+                            {/* Line Selector */}
+                            <div className="p-4 bg-slate-50 border-2 border-blue-100 rounded-2xl">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-900 uppercase tracking-wider block">
+                                            Pilih Baris Cetak Buku
+                                        </label>
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">
+                                            Cetak pada baris kosong di buku fisik (1 - 40)
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Baris:</span>
+                                        <div className="inline-flex items-center bg-white border-2 border-blue-200 rounded-xl p-1 shadow-sm">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPrintLine((prev) => Math.max(1, prev - 1))}
+                                                disabled={printLine <= 1}
+                                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition font-black text-sm"
+                                                title="Kurangi baris"
+                                            >
+                                                -
+                                            </button>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                max={40}
+                                                value={printLine}
+                                                onFocus={(e) => e.target.select()}
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value, 10);
+                                                    if (isNaN(val)) {
+                                                        setPrintLine(1);
+                                                    } else {
+                                                        setPrintLine(Math.min(40, Math.max(1, val)));
+                                                    }
+                                                }}
+                                                className="w-12 text-center text-xs font-black text-blue-900 border-none p-0 focus:ring-0 focus:outline-none"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setPrintLine((prev) => Math.min(40, prev + 1))}
+                                                disabled={printLine >= 40}
+                                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition font-black text-sm"
+                                                title="Tambah baris"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Action Buttons */}
                             <div className="flex flex-col gap-3">
                                 <button
@@ -258,7 +320,7 @@ export default function SavingsBookModal({ isOpen, onClose, transaction }: Savin
                                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                                     </svg>
-                                    Cetak Sekarang
+                                    Cetak Sekarang (Baris {printLine})
                                 </button>
                                 <button
                                     onClick={onClose}
