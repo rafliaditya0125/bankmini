@@ -53,9 +53,14 @@ class NasabahController extends Controller
             ];
         });
 
+        $perPage = max(1, min((int) $request->input('per_page', 15), 200));
+
         return Inertia::render('superadmin/nasabah/Index', [
-            'nasabah' => $query->latest('updated_at')->paginate(15)->withQueryString(),
-            'filters' => $request->only(['search', 'status', 'tingkat', 'jurusan_id', 'rombel_id', 'user_type', 'bank_type']),
+            'nasabah' => $query->latest('updated_at')->paginate($perPage)->withQueryString(),
+            'filters' => array_merge(
+                $request->only(['search', 'status', 'tingkat', 'jurusan_id', 'rombel_id', 'user_type', 'bank_type', 'per_page']),
+                ['per_page' => $perPage]
+            ),
             'stats' => $stats,
             'available_jurusan' => $available_jurusan,
             'available_rombels' => $available_rombels

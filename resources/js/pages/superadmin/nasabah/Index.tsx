@@ -117,6 +117,7 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
             if (rombelFilter !== 'all') queryParams.rombel_id = rombelFilter;
             if (typeFilter !== 'all') queryParams.user_type = typeFilter;
             if (bankTypeFilter !== 'all') queryParams.bank_type = bankTypeFilter;
+            if (filters.per_page) queryParams.per_page = filters.per_page;
 
             // Only navigate if filters changed from prop values
             if (

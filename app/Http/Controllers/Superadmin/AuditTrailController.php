@@ -33,7 +33,8 @@ class AuditTrailController extends Controller
         }
 
         // Apply pagination
-        $logs = $query->paginate(20)->withQueryString();
+        $perPage = max(1, min((int) $request->input('per_page', 20), 200));
+        $logs = $query->paginate($perPage)->withQueryString();
 
         return Inertia::render('superadmin/AuditTrail', [
             'logs' => [
@@ -49,6 +50,7 @@ class AuditTrailController extends Controller
                 'date_from' => $filters['date_from'],
                 'date_to' => $filters['date_to'],
                 'page' => $request->input('page'),
+                'per_page' => $perPage,
             ]
         ]);
     }

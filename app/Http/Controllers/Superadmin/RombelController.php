@@ -28,10 +28,15 @@ class RombelController extends Controller
             });
         }
         
+        $perPage = max(1, min((int) $request->input('per_page', 15), 200));
+
         return Inertia::render('superadmin/kelas/Index', [
-            'rombels' => $query->latest()->paginate(15)->withQueryString(),
+            'rombels' => $query->latest()->paginate($perPage)->withQueryString(),
             'jurusans' => Jurusan::orderBy('nama')->get(),
-            'filters' => $request->only(['search', 'jurusan_id']),
+            'filters' => array_merge(
+                $request->only(['search', 'jurusan_id', 'per_page']),
+                ['per_page' => $perPage]
+            ),
         ]);
     }
 

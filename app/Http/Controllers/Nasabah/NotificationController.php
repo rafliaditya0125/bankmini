@@ -10,12 +10,15 @@ class NotificationController extends Controller
 {
     public function index(Request $request)
     {
+        $perPage = max(1, min((int) $request->input('per_page', 20), 200));
+
         $notifications = $request->user()->notifications()
-            ->paginate(20)
+            ->paginate($perPage)
             ->withQueryString();
 
         return Inertia::render('nasabah/Notifications', [
             'notifications' => $notifications,
+            'filters' => ['per_page' => $perPage],
         ]);
     }
 

@@ -57,6 +57,7 @@ export default function TellerTransaksi({ transactions, filters }: TellerTransak
                 type,
                 status,
                 view_all: viewAll ? 'true' : 'false',
+                per_page: filters.per_page,
             }, {
                 preserveState: true,
                 preserveScroll: true,

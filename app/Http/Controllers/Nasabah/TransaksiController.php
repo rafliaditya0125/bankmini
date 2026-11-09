@@ -23,7 +23,9 @@ class TransaksiController extends Controller
 
         $query = $this->getQuery($request, $nasabah->id);
 
-        $transactions = $query->paginate(15)->through(function($tx) use ($nasabah) {
+        $perPage = max(1, min((int) $request->input('per_page', 15), 200));
+
+        $transactions = $query->paginate($perPage)->through(function($tx) use ($nasabah) {
             $txDate = $tx->tanggal_transaksi ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->toDateString() : $tx->created_at->toDateString();
             $noUrut = Transaksi::where(function($q) use ($txDate) {
                     $q->whereDate('tanggal_transaksi', $txDate)
@@ -99,7 +101,10 @@ class TransaksiController extends Controller
 
         return Inertia::render('nasabah/Transaksi', [
             'transactions' => $transactions,
-            'filters' => $request->only(['search', 'from_date', 'to_date']),
+            'filters' => array_merge(
+                $request->only(['search', 'from_date', 'to_date', 'per_page']),
+                ['per_page' => $perPage]
+            ),
         ]);
     }
 

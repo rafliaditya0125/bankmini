@@ -102,8 +102,10 @@ class LaporanController extends Controller
             ])->withHeaders($headers);
         }
 
+        $perPage = max(1, min((int) $request->input('per_page', 15), 200));
+
         return Inertia::render('superadmin/Laporan', [
-            'transactions' => $query->paginate(15)->through(function(Transaksi $tx) {
+            'transactions' => $query->paginate($perPage)->through(function(Transaksi $tx) {
                 // Calculate no_urut for this specific transaction
                 // Based on counting distinct kode_transaksi on the same transaction date up to this transaction's ID
                 $txDate = $tx->tanggal_transaksi ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->toDateString() : $tx->created_at->toDateString();
@@ -158,8 +160,8 @@ class LaporanController extends Controller
             })->withQueryString(),
             'reportFiles' => $archiveQuery->latest()->paginate(10, ['*'], 'report_page')->withQueryString(),
             'filters' => array_merge(
-                $request->only(['search', 'archive_search', 'jenis_transaksi', 'date_from', 'date_to']),
-                ['status' => $statusFilter]
+                $request->only(['search', 'archive_search', 'jenis_transaksi', 'date_from', 'date_to', 'per_page']),
+                ['status' => $statusFilter, 'per_page' => $perPage]
             ),
             'active_tab' => $request->tab ?? 'transaksi'
         ]);

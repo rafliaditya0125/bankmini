@@ -39,8 +39,9 @@ class KantongController extends Controller
             $query->where('is_active', false);
         }
 
+        $perPage = max(1, min((int) $request->input('per_page', 12), 200));
         $kantongList = $query->orderBy('id', 'asc')
-            ->paginate(12)
+            ->paginate($perPage)
             ->withQueryString();
 
         // Summary Stats (Strictly for payment pockets)
@@ -55,7 +56,10 @@ class KantongController extends Controller
 
         return Inertia::render('superadmin/kantong/Index', [
             'kantongList' => $kantongList,
-            'filters' => $request->only(['search', 'status']),
+            'filters' => array_merge(
+                $request->only(['search', 'status', 'per_page']),
+                ['per_page' => $perPage]
+            ),
             'stats' => [
                 'total_kantong' => $totalKantongAktif,
                 'total_dana' => (float) $totalDanaKantong,
@@ -182,8 +186,9 @@ class KantongController extends Controller
         }]);
 
         // Pagination
+        $perPage = max(1, min((int) $request->input('per_page', 15), 200));
         $nasabahs = $nasabahQuery->orderBy('id', 'asc')
-            ->paginate(15)
+            ->paginate($perPage)
             ->through(function ($nasabah) use ($kantong) {
                 $wallet = $nasabah->wallets->first();
                 $saldoKantong = $wallet ? (float) $wallet->balance : 0.0;
@@ -247,7 +252,10 @@ class KantongController extends Controller
                 'total_lunas' => $totalLunas,
                 'persentase_lunas' => $totalNasabah > 0 ? round(($totalLunas / $totalNasabah) * 100, 1) : 0,
             ],
-            'filters' => $request->only(['search', 'tingkat', 'rombel_id']),
+            'filters' => array_merge(
+                $request->only(['search', 'tingkat', 'rombel_id', 'per_page']),
+                ['per_page' => $perPage]
+            ),
             'rolePrefix' => $rolePrefix,
         ]);
     }
