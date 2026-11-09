@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import axios from 'axios';
 import { formatRupiah } from '@/lib/utils';
 
 interface SavingsBookModalProps {
@@ -13,16 +14,89 @@ interface SavingsBookModalProps {
         // For transfer - show sender's record
         nomor_rekening_pengirim?: string;
         nama_pengirim?: string;
+        baris_terakhir_buku?: number;
     } | null;
 }
 
+const calculateNextLine = (lastLine: number | null | undefined): number => {
+    const num = Number(lastLine ?? 0);
+    if (isNaN(num) || num < 1 || num >= 40) {
+        return 1;
+    }
+    return num + 1;
+};
+
 export default function SavingsBookModal({ isOpen, onClose, transaction }: SavingsBookModalProps) {
     const bookRef = useRef<HTMLDivElement>(null);
-    const [printLine, setPrintLine] = useState<number>(1);
+    const [printLine, setPrintLine] = useState<number>(() => calculateNextLine(transaction?.baris_terakhir_buku));
+    const [lineSaveStatus, setLineSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const isUserManualChange = useRef(false);
+    const saveDebounceTimeout = useRef<any>(null);
+
+    const accountNo = transaction?.nomor_rekening_pengirim || transaction?.nomor_rekening;
+
+    useEffect(() => {
+        if (!isOpen || !transaction) return;
+        isUserManualChange.current = false;
+
+        setPrintLine(calculateNextLine(transaction.baris_terakhir_buku));
+
+        if (accountNo) {
+            axios.get('/api/nasabah/baris-buku', {
+                params: { rekening: accountNo }
+            }).then((res) => {
+                if (!isUserManualChange.current && res.data?.next_baris) {
+                    setPrintLine(res.data.next_baris);
+                }
+            }).catch(() => {});
+        }
+
+        return () => {
+            if (saveDebounceTimeout.current) {
+                clearTimeout(saveDebounceTimeout.current);
+            }
+        };
+    }, [isOpen, accountNo]);
+
+    const persistLineToDatabase = async (line: number) => {
+        if (!accountNo) return;
+        try {
+            setLineSaveStatus('saving');
+            await axios.post('/api/nasabah/baris-buku', {
+                rekening: accountNo,
+                baris: line,
+            });
+            setLineSaveStatus('saved');
+            setTimeout(() => {
+                setLineSaveStatus((prev) => (prev === 'saved' ? 'idle' : prev));
+            }, 2500);
+        } catch (err) {
+            console.error('Gagal menyimpan baris buku ke database:', err);
+            setLineSaveStatus('idle');
+        }
+    };
+
+    const handleLineChange = (newLine: number) => {
+        const clamped = Math.min(40, Math.max(1, newLine));
+        isUserManualChange.current = true;
+        setPrintLine(clamped);
+
+        if (saveDebounceTimeout.current) {
+            clearTimeout(saveDebounceTimeout.current);
+        }
+        saveDebounceTimeout.current = setTimeout(() => {
+            persistLineToDatabase(clamped);
+        }, 400);
+    };
 
     if (!isOpen || !transaction) return null;
 
     const handlePrint = () => {
+        if (saveDebounceTimeout.current) {
+            clearTimeout(saveDebounceTimeout.current);
+        }
+        persistLineToDatabase(printLine);
+
         if (bookRef.current) {
             const printContent = bookRef.current.innerHTML;
             const printWindow = window.open('', '_blank', 'width=900,height=700');
@@ -262,9 +336,22 @@ export default function SavingsBookModal({ isOpen, onClose, transaction }: Savin
                             <div className="p-4 bg-slate-50 border-2 border-blue-100 rounded-2xl">
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
-                                        <label className="text-[10px] font-black text-slate-900 uppercase tracking-wider block">
-                                            Pilih Baris Cetak Buku
-                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <label className="text-[10px] font-black text-slate-900 uppercase tracking-wider block">
+                                                Pilih Baris Cetak Buku
+                                            </label>
+                                            {lineSaveStatus === 'saving' && (
+                                                <span className="text-[9px] font-bold text-blue-600 animate-pulse">Menyimpan...</span>
+                                            )}
+                                            {lineSaveStatus === 'saved' && (
+                                                <span className="text-[9px] font-black text-emerald-600 flex items-center gap-0.5">
+                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    Tersimpan
+                                                </span>
+                                            )}
+                                        </div>
                                         <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">
                                             Cetak pada baris kosong di buku fisik (1 - 40)
                                         </span>
@@ -274,7 +361,7 @@ export default function SavingsBookModal({ isOpen, onClose, transaction }: Savin
                                         <div className="inline-flex items-center bg-white border-2 border-blue-200 rounded-xl p-1 shadow-sm">
                                             <button
                                                 type="button"
-                                                onClick={() => setPrintLine((prev) => Math.max(1, prev - 1))}
+                                                onClick={() => handleLineChange(printLine - 1)}
                                                 disabled={printLine <= 1}
                                                 className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition font-black text-sm"
                                                 title="Kurangi baris"
@@ -290,16 +377,22 @@ export default function SavingsBookModal({ isOpen, onClose, transaction }: Savin
                                                 onChange={(e) => {
                                                     const val = parseInt(e.target.value, 10);
                                                     if (isNaN(val)) {
-                                                        setPrintLine(1);
+                                                        handleLineChange(1);
                                                     } else {
-                                                        setPrintLine(Math.min(40, Math.max(1, val)));
+                                                        handleLineChange(val);
+                                                    }
+                                                }}
+                                                onBlur={() => {
+                                                    if (saveDebounceTimeout.current) {
+                                                        clearTimeout(saveDebounceTimeout.current);
+                                                        persistLineToDatabase(printLine);
                                                     }
                                                 }}
                                                 className="w-12 text-center text-xs font-black text-blue-900 border-none p-0 focus:ring-0 focus:outline-none"
                                             />
                                             <button
                                                 type="button"
-                                                onClick={() => setPrintLine((prev) => Math.min(40, prev + 1))}
+                                                onClick={() => handleLineChange(printLine + 1)}
                                                 disabled={printLine >= 40}
                                                 className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition font-black text-sm"
                                                 title="Tambah baris"

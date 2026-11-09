@@ -1011,6 +1011,8 @@ export default function ShowNasabah({ nasabah, transactions, jurusans, wallets, 
                                                         onClick={() => {
                                                             setSelectedReceiptTx({
                                                                 ...item,
+                                                                nasabah: nasabah,
+                                                                nasabah_baris_terakhir_buku: nasabah.baris_terakhir_buku,
                                                                 nasabah_name: nasabah.user.name,
                                                                 nasabah_norek: selectedWallet?.wallet_number || nasabah.nomor_rekening,
                                                                 petugas: item.nama_petugas,
