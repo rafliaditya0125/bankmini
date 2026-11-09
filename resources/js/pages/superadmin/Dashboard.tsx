@@ -66,6 +66,14 @@ export default function SuperadminDashboard({
         }).format(new Date(date));
     };
 
+    const formatNumber = (amount: number | string) => {
+        const num = Number(amount || 0);
+        return new Intl.NumberFormat('id-ID', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(num);
+    };
+
     const nasabahAktif = recent_nasabah.filter(n => n.status === 'aktif').length;
 
     // Get real transaction chart data based on period filter
@@ -300,6 +308,7 @@ export default function SuperadminDashboard({
                                 <YAxis
                                     tick={{ fontSize: 12 }}
                                     stroke="#9ca3af"
+                                    tickFormatter={(value) => formatNumber(value)}
                                 />
                                 <Tooltip
                                     contentStyle={{
@@ -308,7 +317,7 @@ export default function SuperadminDashboard({
                                         borderRadius: '8px',
                                         fontSize: '12px'
                                     }}
-                                    formatter={(value: number | undefined) => value ? `${value} transaksi` : '0'}
+                                    formatter={(value: number | undefined) => `${formatNumber(value ?? 0)} transaksi`}
                                 />
                                 <Legend
                                     wrapperStyle={{ fontSize: '12px' }}
@@ -338,13 +347,13 @@ export default function SuperadminDashboard({
                             <div className="text-center">
                                 <p className="text-xs text-gray-500">Total Setor</p>
                                 <p className="text-sm font-bold text-emerald-600 mt-1">
-                                    {jumlahTransaksiData.reduce((sum, item) => sum + item.setor, 0)} transaksi
+                                    {formatNumber(jumlahTransaksiData.reduce((sum, item) => sum + item.setor, 0))} transaksi
                                 </p>
                             </div>
                             <div className="text-center">
                                 <p className="text-xs text-gray-500">Total Tarik</p>
                                 <p className="text-sm font-bold text-rose-600 mt-1">
-                                    {jumlahTransaksiData.reduce((sum, item) => sum + item.tarik, 0)} transaksi
+                                    {formatNumber(jumlahTransaksiData.reduce((sum, item) => sum + item.tarik, 0))} transaksi
                                 </p>
                             </div>
                         </div>

@@ -83,6 +83,14 @@ export default function TellerDashboard(props: TellerDashboardProps) {
         }).format(new Date(date));
     };
 
+    const formatNumber = (amount: number | string) => {
+        const num = Number(amount || 0);
+        return new Intl.NumberFormat('id-ID', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(num);
+    };
+
     // Jumlah Transaksi Chart Data (Setor & Tarik trend by period)
     const getTransactionDataByPeriod = () => {
         if (periodFilter === 'minggu') {
@@ -321,6 +329,7 @@ export default function TellerDashboard(props: TellerDashboardProps) {
                                 <YAxis
                                     tick={{ fontSize: 12 }}
                                     stroke="#9ca3af"
+                                    tickFormatter={(value) => formatNumber(value)}
                                 />
                                 <Tooltip
                                     contentStyle={{
@@ -329,7 +338,7 @@ export default function TellerDashboard(props: TellerDashboardProps) {
                                         borderRadius: '8px',
                                         fontSize: '12px'
                                     }}
-                                    formatter={(value: number | undefined) => value ? `${value} transaksi` : '0'}
+                                    formatter={(value: number | undefined) => `${formatNumber(value ?? 0)} transaksi`}
                                 />
                                 <Legend
                                     wrapperStyle={{ fontSize: '12px' }}
@@ -359,13 +368,13 @@ export default function TellerDashboard(props: TellerDashboardProps) {
                             <div className="text-center">
                                 <p className="text-xs text-gray-500">Total Setor</p>
                                 <p className="text-sm font-bold text-emerald-600 mt-1">
-                                    {jumlahTransaksiData.reduce((sum, item) => sum + item.setor, 0)} transaksi
+                                    {formatNumber(jumlahTransaksiData.reduce((sum, item) => sum + item.setor, 0))} transaksi
                                 </p>
                             </div>
                             <div className="text-center">
                                 <p className="text-xs text-gray-500">Total Tarik</p>
                                 <p className="text-sm font-bold text-rose-600 mt-1">
-                                    {jumlahTransaksiData.reduce((sum, item) => sum + item.tarik, 0)} transaksi
+                                    {formatNumber(jumlahTransaksiData.reduce((sum, item) => sum + item.tarik, 0))} transaksi
                                 </p>
                             </div>
                         </div>
