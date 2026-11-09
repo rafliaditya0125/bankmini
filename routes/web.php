@@ -256,6 +256,7 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     // Settings Routes for Admin
     Route::get('/pengaturan', [SuperadminPengaturanController::class, 'index'])->name('pengaturan.index');
     Route::post('/pengaturan', [SuperadminPengaturanController::class, 'store'])->name('pengaturan.store');
+    Route::post('/pengaturan/process-fees-now', [SuperadminPengaturanController::class, 'processFeesNow'])->name('pengaturan.process-fees-now');
 
     // Profile Routes
     Route::get('/profil', [SharedProfileController::class, 'index'])->name('profil.index');
@@ -355,6 +356,7 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     // Settings Routes
     Route::get('/pengaturan', [SuperadminPengaturanController::class, 'index'])->name('pengaturan.index');
     Route::post('/pengaturan', [SuperadminPengaturanController::class, 'store'])->name('pengaturan.store');
+    Route::post('/pengaturan/process-fees-now', [SuperadminPengaturanController::class, 'processFeesNow'])->name('pengaturan.process-fees-now');
     Route::post('/pengaturan/generate-report', [SuperadminPengaturanController::class, 'generateReport'])->name('pengaturan.generate-report');
     Route::get('/pengaturan/download-report/{filename}', [SuperadminPengaturanController::class, 'downloadReport'])->name('pengaturan.download-report');
 

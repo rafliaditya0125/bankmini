@@ -37,6 +37,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        \App\Services\MonthlyFeeService::checkAndProcessOpportunistically();
+
         $user = $request->user();
 
         return [
@@ -61,6 +63,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                'info' => fn () => $request->session()->get('info'),
                 'transaction' => fn () => $request->session()->get('transaction'),
                 'channel' => fn () => $request->session()->get('channel'),
                 'target_masked' => fn () => $request->session()->get('target_masked'),
