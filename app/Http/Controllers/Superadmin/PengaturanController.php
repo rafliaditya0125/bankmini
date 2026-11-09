@@ -50,6 +50,17 @@ class PengaturanController extends Controller
         return back()->with('success', 'Pengaturan berhasil disimpan');
     }
 
+    public function processFeesNow(Request $request)
+    {
+        $result = \App\Services\MonthlyFeeService::process(force: true);
+
+        if ($result['status'] === 'skipped') {
+            return back()->with('info', $result['message']);
+        }
+
+        return back()->with('success', $result['message']);
+    }
+
     private function getAllowedKeysForAdmin()
     {
         return [
@@ -62,6 +73,7 @@ class PengaturanController extends Controller
             'monthly_interest_rate_siswa', 'monthly_interest_rate_kelas', 'monthly_interest_rate_organisasi', 'monthly_interest_rate_karyawan', 'monthly_interest_rate_guru',
             'monthly_admin_fee_siswa', 'monthly_admin_fee_kelas', 'monthly_admin_fee_organisasi', 'monthly_admin_fee_karyawan', 'monthly_admin_fee_guru',
             'monthly_process_day', 'monthly_process_hour',
+            'monthly_fees_last_run_at', 'monthly_fees_last_completed_period',
             'min_cash_denomination', 'transaction_types', 'bkk_bkm_mode', 'bkk_bkm_display_format',
             // LAPORAN
             'teacher_responsible_name',
@@ -178,6 +190,9 @@ class PengaturanController extends Controller
             'monthly_admin_fee_karyawan' => (int) Setting::get('monthly_admin_fee_karyawan', Setting::get('monthly_admin_fee_guru', Setting::get('monthly_admin_fee', 5000))),
             'monthly_admin_fee_guru' => (int) Setting::get('monthly_admin_fee_karyawan', Setting::get('monthly_admin_fee_guru', Setting::get('monthly_admin_fee', 5000))),
             'monthly_process_day' => (int) Setting::get('monthly_process_day', 28),
+            'monthly_process_hour' => (int) Setting::get('monthly_process_hour', 0),
+            'monthly_fees_last_run_at' => Setting::get('monthly_fees_last_run_at', null),
+            'monthly_fees_last_completed_period' => Setting::get('monthly_fees_last_completed_period', null),
             'min_cash_denomination' => (int) Setting::get('min_cash_denomination', 100),
             'transaction_types' => Setting::get('transaction_types', 'Tunai, Transfer, Kliring, Cek / BG'),
             'bkk_bkm_mode' => Setting::get('bkk_bkm_mode', 'manual'),

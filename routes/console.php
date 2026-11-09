@@ -8,7 +8,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('app:process-monthly-fees')->daily();
+Schedule::command('app:process-monthly-fees')->everyMinute()->withoutOverlapping();
 Schedule::command('trusted-devices:prune')->daily();
 Schedule::command('telescope:prune --hours=48')->daily();
 

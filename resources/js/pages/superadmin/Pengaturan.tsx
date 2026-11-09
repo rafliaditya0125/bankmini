@@ -1,4 +1,4 @@
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { useState } from 'react';
 
@@ -10,6 +10,7 @@ interface PengaturanPageProps {
 export default function Pengaturan({ settings, reportHistory }: PengaturanPageProps) {
     const { auth } = usePage<any>().props;
     const role = auth.user.role;
+    const [processingFees, setProcessingFees] = useState(false);
 
     // Filter categories based on role
     const allCategories = [
@@ -35,6 +36,17 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         post(`/${role}/pengaturan`);
+    };
+
+    const handleProcessFeesNow = () => {
+        if (!confirm('Jalankan perhitungan bunga dan pemotongan biaya admin untuk bulan ini sekarang?')) {
+            return;
+        }
+        setProcessingFees(true);
+        router.post(`/${role}/pengaturan/process-fees-now`, {}, {
+            preserveScroll: true,
+            onFinish: () => setProcessingFees(false),
+        });
     };
 
 
@@ -80,7 +92,7 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
         ];
 
         const isAmount = amountKeys.includes(key);
-        const displayValue = isAmount ? formatDisplay(data[key], key) : data[key];
+        const displayValue = isAmount ? formatDisplay(data[key], key) : (data[key] ?? '');
         const maxLen = getMaxLengthForKey(key);
 
         return (
@@ -98,8 +110,10 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
                                 setData(key as any, parsed);
                             }
                         } else if (type === 'number') {
-                            // Plain numeric cleaning for non-amount number fields
-                            const cleaned = val.replace(/\D/g, '');
+                            const allowDecimal = Boolean(props.step || key.includes('rate'));
+                            const cleaned = allowDecimal
+                                ? val.replace(/[^\d.]/g, '').replace(/(\..*?)\..*/g, '$1')
+                                : val.replace(/\D/g, '');
                             setData(key as any, cleaned);
                         } else {
                             setData(key as any, val);
@@ -415,7 +429,29 @@ export default function Pengaturan({ settings, reportHistory }: PengaturanPagePr
                                         })()}
                                     </div>
                                     <div className="space-y-6 pt-8 border-t border-gray-50">
-                                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Sistem Bunga & Biaya Bulanan</h3>
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                            <div>
+                                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Sistem Bunga & Biaya Bulanan</h3>
+                                                <p className="text-xs text-gray-500 mt-0.5">
+                                                    {data.monthly_fees_last_run_at ? (
+                                                        <>Terakhir diproses: <span className="font-semibold text-slate-700">{data.monthly_fees_last_run_at}</span></>
+                                                    ) : (
+                                                        'Otomatis diproses setiap bulan sesuai tanggal dan jam yang ditentukan.'
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleProcessFeesNow}
+                                                disabled={processingFees}
+                                                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all disabled:opacity-50 cursor-pointer shrink-0"
+                                            >
+                                                <svg className={`w-4 h-4 ${processingFees ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                                <span>{processingFees ? 'Memproses...' : 'Proses Sekarang'}</span>
+                                            </button>
+                                        </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             {renderInput('monthly_interest_rate_siswa', 'Bunga Bulanan Siswa (%)', 'number', { step: '0.01' })}
                                             {renderInput('monthly_admin_fee_siswa', 'Biaya Admin Siswa (Rp)', 'number')}
