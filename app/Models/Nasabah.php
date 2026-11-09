@@ -15,6 +15,7 @@ class Nasabah extends Model
         'user_id',
         'nomor_rekening',
         'bank_type',
+        'baris_terakhir_buku',
         'saldo',
         'saldo_minimum',
         'status',
@@ -26,6 +27,7 @@ class Nasabah extends Model
     ];
 
     protected $casts = [
+        'baris_terakhir_buku' => 'integer',
         'saldo' => 'decimal:2',
         'saldo_minimum' => 'decimal:2',
         'tanggal_buka' => 'date',

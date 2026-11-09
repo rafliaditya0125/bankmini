@@ -29,9 +29,11 @@ class Transaksi extends Model
         'nama_petugas',
         'wallet_id',
         'metode_pembayaran',
+        'baris_cetak',
     ];
 
     protected $casts = [
+        'baris_cetak' => 'integer',
         'jumlah' => 'decimal:2',
         'saldo_sebelum' => 'decimal:2',
         'saldo_sesudah' => 'decimal:2',

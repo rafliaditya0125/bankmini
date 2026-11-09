@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
+import axios from 'axios';
 import { isSupported as isWebUSBSupported, printToPassbook, type PassbookTransaction } from '@/lib/passbookPrinter';
 import { formatRombelName, formatTransactionCode } from '@/lib/utils';
 
@@ -30,11 +31,36 @@ interface ReceiptProps {
     onClose?: () => void;
 }
 
+const calculateNextLine = (lastLine: number | null | undefined): number => {
+    const num = Number(lastLine ?? 0);
+    if (isNaN(num) || num < 1 || num >= 40) {
+        return 1;
+    }
+    return num + 1;
+};
+
+const getInitialLastLine = (tx: any): number => {
+    if (!tx) return 0;
+    if (tx.baris_terakhir_buku !== undefined && tx.baris_terakhir_buku !== null) {
+        return Number(tx.baris_terakhir_buku);
+    }
+    if (tx.nasabah_baris_terakhir_buku !== undefined && tx.nasabah_baris_terakhir_buku !== null) {
+        return Number(tx.nasabah_baris_terakhir_buku);
+    }
+    if (tx.nasabah?.baris_terakhir_buku !== undefined && tx.nasabah?.baris_terakhir_buku !== null) {
+        return Number(tx.nasabah.baris_terakhir_buku);
+    }
+    return 0;
+};
+
 export default function Receipt({ name, transaction, showPrint = true, showPassbookPrint = false, onPrint, onClose }: ReceiptProps) {
     const { school_name, bank_city, bank_address, bank_phone, bkk_bkm_display_format } = usePage<any>().props;
     const [passbookStatus, setPassbookStatus] = useState<'idle' | 'printing' | 'success' | 'error'>('idle');
     const [passbookError, setPassbookError] = useState<string | null>(null);
-    const [printLine, setPrintLine] = useState<number>(1);
+    const [printLine, setPrintLine] = useState<number>(() => calculateNextLine(getInitialLastLine(transaction)));
+    const [lineSaveStatus, setLineSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const isUserManualChange = useRef(false);
+    const saveDebounceTimeout = useRef<any>(null);
 
     if (!transaction) return null;
 
@@ -117,7 +143,78 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
         }
     };
 
+    useEffect(() => {
+        if (!transaction) return;
+        isUserManualChange.current = false;
+
+        const initialLast = getInitialLastLine(transaction);
+        setPrintLine(calculateNextLine(initialLast));
+
+        const norek = normalized.nasabah_norek;
+        if (norek && norek !== '-') {
+            axios.get('/api/nasabah/baris-buku', {
+                params: {
+                    rekening: norek,
+                    kode_transaksi: normalized.kode_transaksi,
+                    transaksi_id: typeof normalized.no_urut === 'number' ? normalized.no_urut : undefined,
+                }
+            }).then((res) => {
+                if (!isUserManualChange.current && res.data?.next_baris) {
+                    setPrintLine(res.data.next_baris);
+                }
+            }).catch(() => {
+                // Keep default calculated printLine
+            });
+        }
+
+        return () => {
+            if (saveDebounceTimeout.current) {
+                clearTimeout(saveDebounceTimeout.current);
+            }
+        };
+    }, [transaction?.kode_transaksi, normalized.nasabah_norek]);
+
+    const persistLineToDatabase = async (line: number) => {
+        const norek = normalized.nasabah_norek;
+        if (!norek || norek === '-') return;
+
+        try {
+            setLineSaveStatus('saving');
+            await axios.post('/api/nasabah/baris-buku', {
+                rekening: norek,
+                kode_transaksi: normalized.kode_transaksi,
+                transaksi_id: typeof normalized.no_urut === 'number' ? normalized.no_urut : undefined,
+                baris: line,
+            });
+            setLineSaveStatus('saved');
+            setTimeout(() => {
+                setLineSaveStatus((prev) => (prev === 'saved' ? 'idle' : prev));
+            }, 2500);
+        } catch (err) {
+            console.error('Gagal menyimpan baris buku ke database:', err);
+            setLineSaveStatus('idle');
+        }
+    };
+
+    const handleLineChange = (newLine: number) => {
+        const clamped = Math.min(40, Math.max(1, newLine));
+        isUserManualChange.current = true;
+        setPrintLine(clamped);
+
+        if (saveDebounceTimeout.current) {
+            clearTimeout(saveDebounceTimeout.current);
+        }
+        saveDebounceTimeout.current = setTimeout(() => {
+            persistLineToDatabase(clamped);
+        }, 400);
+    };
+
     const handlePrintPassbook = async () => {
+        if (saveDebounceTimeout.current) {
+            clearTimeout(saveDebounceTimeout.current);
+        }
+        persistLineToDatabase(printLine);
+
         setPassbookStatus('printing');
         setPassbookError(null);
         try {
@@ -389,9 +486,22 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                                 </svg>
                             </div>
                             <div>
-                                <label className="text-[11px] font-black text-slate-900 uppercase tracking-wider block">
-                                    Pilih Baris Cetak Buku Tabungan
-                                </label>
+                                <div className="flex items-center gap-2">
+                                    <label className="text-[11px] font-black text-slate-900 uppercase tracking-wider block">
+                                        Pilih Baris Cetak Buku Tabungan
+                                    </label>
+                                    {lineSaveStatus === 'saving' && (
+                                        <span className="text-[9px] font-bold text-indigo-600 animate-pulse">Menyimpan...</span>
+                                    )}
+                                    {lineSaveStatus === 'saved' && (
+                                        <span className="text-[9px] font-black text-emerald-600 flex items-center gap-0.5">
+                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Tersimpan
+                                        </span>
+                                    )}
+                                </div>
                                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">
                                     Cetak pada baris kosong di buku fisik (1 - 40)
                                 </span>
@@ -405,7 +515,7 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                             <div className="inline-flex items-center bg-white border-2 border-indigo-200 rounded-xl p-1 shadow-sm">
                                 <button
                                     type="button"
-                                    onClick={() => setPrintLine((prev) => Math.max(1, prev - 1))}
+                                    onClick={() => handleLineChange(printLine - 1)}
                                     disabled={printLine <= 1 || passbookStatus === 'printing'}
                                     className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition font-black text-base active:scale-95"
                                     title="Kurangi baris"
@@ -422,9 +532,15 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                                     onChange={(e) => {
                                         const val = parseInt(e.target.value, 10);
                                         if (isNaN(val)) {
-                                            setPrintLine(1);
+                                            handleLineChange(1);
                                         } else {
-                                            setPrintLine(Math.min(40, Math.max(1, val)));
+                                            handleLineChange(val);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        if (saveDebounceTimeout.current) {
+                                            clearTimeout(saveDebounceTimeout.current);
+                                            persistLineToDatabase(printLine);
                                         }
                                     }}
                                     disabled={passbookStatus === 'printing'}
@@ -432,7 +548,7 @@ export default function Receipt({ name, transaction, showPrint = true, showPassb
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => setPrintLine((prev) => Math.min(40, prev + 1))}
+                                    onClick={() => handleLineChange(printLine + 1)}
                                     disabled={printLine >= 40 || passbookStatus === 'printing'}
                                     className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition font-black text-base active:scale-95"
                                     title="Tambah baris"

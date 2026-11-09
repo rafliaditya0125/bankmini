@@ -128,6 +128,7 @@ class LaporanController extends Controller
                 $data['no_urut'] = $noUrut;
                 $data['nasabah_name'] = $tx->nasabah?->user?->name;
                 $data['nasabah_norek'] = $tx->nasabah?->nomor_rekening;
+                $data['nasabah_baris_terakhir_buku'] = (int) ($tx->nasabah?->baris_terakhir_buku ?? 0);
                 $data['nasabah_kelas'] = $tx->nasabah?->rombelRel?->nama_kelas;
                 $data['tanggal'] = $formattedTanggal;
                 $data['petugas_nama'] = $tx->nama_petugas ?? $tx->petugas?->name ?? 'SYSTEM';
