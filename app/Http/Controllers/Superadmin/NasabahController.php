@@ -7,6 +7,7 @@ use App\Models\Nasabah;
 use App\Models\User;
 use App\Models\Transaksi;
 use App\Models\AuditTrail;
+use App\Models\AuditLog;
 use App\Models\Jurusan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -1822,5 +1823,118 @@ class NasabahController extends Controller
         }
 
         return back()->with('success', $message);
+    }
+
+    /**
+     * Mass delete nasabah records matching active filters with strict confirmation and audit logging.
+     */
+    public function deleteFiltered(Request $request)
+    {
+        $request->validate([
+            'confirmation' => 'required|string',
+        ]);
+
+        if (trim($request->confirmation) !== 'HAPUS SEMUA') {
+            return back()->with('error', 'Teks konfirmasi tidak sesuai. Penghapusan dibatalkan demi keamanan.');
+        }
+
+        // Require at least one active filter to prevent accidental whole-database wipe
+        $hasFilter = $request->filled('search') ||
+            ($request->filled('tingkat') && $request->tingkat !== 'all') ||
+            ($request->filled('kelas') && $request->kelas !== 'all') ||
+            ($request->filled('jurusan_id') && $request->jurusan_id !== 'all') ||
+            ($request->filled('rombel_id') && $request->rombel_id !== 'all') ||
+            ($request->filled('status') && $request->status !== 'all') ||
+            ($request->filled('user_type') && $request->user_type !== 'all') ||
+            ($request->filled('bank_type') && $request->bank_type !== 'all');
+
+        if (!$hasFilter) {
+            return back()->with('error', 'Harap tentukan minimal satu filter (misalnya kelas atau jurusan) sebelum melakukan penghapusan massal.');
+        }
+
+        $query = $this->getFilteredQuery($request);
+        $nasabahs = $query->with('user')->get();
+
+        if ($nasabahs->isEmpty()) {
+            return back()->with('info', 'Tidak ada data nasabah yang sesuai dengan filter yang dipilih.');
+        }
+
+        $forceDeleteWithBalance = filter_var($request->input('force_delete_with_balance', false), FILTER_VALIDATE_BOOLEAN);
+        $deletedCount = 0;
+        $skippedCount = 0;
+
+        DB::transaction(function () use ($nasabahs, $forceDeleteWithBalance, &$deletedCount, &$skippedCount) {
+            foreach ($nasabahs as $nasabah) {
+                if (!$forceDeleteWithBalance && (float) $nasabah->saldo > 0) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                $userId = $nasabah->user_id;
+                $nasabah->forceDelete();
+                if ($userId) {
+                    DB::table('users')->where('id', $userId)->delete();
+                }
+                $deletedCount++;
+            }
+        });
+
+        // Build filter summary string for audit log
+        $filterDetails = [];
+        if ($request->filled('rombel_id') && $request->rombel_id !== 'all') {
+            $rombel = Rombel::find($request->rombel_id);
+            $filterDetails[] = "Kelas: " . ($rombel ? $rombel->nama_kelas : $request->rombel_id);
+        }
+        if ($request->filled('jurusan_id') && $request->jurusan_id !== 'all') {
+            $jurusan = Jurusan::find($request->jurusan_id);
+            $filterDetails[] = "Jurusan: " . ($jurusan ? $jurusan->nama : $request->jurusan_id);
+        }
+        if ($request->filled('tingkat') && $request->tingkat !== 'all') {
+            $filterDetails[] = "Tingkat: " . $request->tingkat;
+        } elseif ($request->filled('kelas') && $request->kelas !== 'all') {
+            $filterDetails[] = "Kelas: " . $request->kelas;
+        }
+        if ($request->filled('status') && $request->status !== 'all') {
+            $filterDetails[] = "Status: " . $request->status;
+        }
+        if ($request->filled('user_type') && $request->user_type !== 'all') {
+            $filterDetails[] = "Tipe: " . $request->user_type;
+        }
+        if ($request->filled('bank_type') && $request->bank_type !== 'all') {
+            $filterDetails[] = "Bank: " . strtoupper($request->bank_type);
+        }
+        if ($request->filled('search')) {
+            $filterDetails[] = "Pencarian: '" . $request->search . "'";
+        }
+
+        $filterSummary = !empty($filterDetails) ? implode(', ', $filterDetails) : 'Filter Kustom';
+        $currentUser = auth()->user();
+
+        // 1. Log to AuditTrail
+        AuditTrail::log(
+            "Hapus massal nasabah terfilter: {$deletedCount} nasabah dihapus permanen ({$skippedCount} dilewati). Filter: [{$filterSummary}]",
+            'Nasabah'
+        );
+
+        // 2. Log to AuditLog
+        AuditLog::logActivity(
+            'mass_delete_filtered_nasabah',
+            "Pengguna {$currentUser->name} ({$currentUser->role}) menghapus {$deletedCount} nasabah secara massal berdasarkan filter [{$filterSummary}]. Dilewati karena saldo: {$skippedCount}.",
+            'warning',
+            $currentUser->id,
+            $currentUser->name,
+            $currentUser->role
+        );
+
+        if ($deletedCount === 0 && $skippedCount > 0) {
+            return back()->with('error', "Semua {$skippedCount} nasabah yang terfilter masih memiliki sisa saldo dan tidak dihapus. Silakan tarik saldo terlebih dahulu atau centang opsi paksa hapus.");
+        }
+
+        $msg = "Berhasil menghapus {$deletedCount} nasabah secara permanen berdasarkan filter [{$filterSummary}].";
+        if ($skippedCount > 0) {
+            $msg .= " ({$skippedCount} nasabah dilewati karena masih memiliki saldo).";
+        }
+
+        return back()->with('success', $msg);
     }
 }

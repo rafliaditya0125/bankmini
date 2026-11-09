@@ -194,6 +194,7 @@ Route::middleware(['auth', 'role:admin', 'verified'])->prefix('admin')->name('ad
     Route::post('/nasabah/bulk-kelas', [SuperadminNasabahController::class, 'bulkUpdateKelas'])->name('nasabah.bulk-kelas');
     Route::post('/nasabah/bulk-status', [SuperadminNasabahController::class, 'bulkStatus'])->name('nasabah.bulk-status');
     Route::post('/nasabah/bulk-delete', [SuperadminNasabahController::class, 'bulkDelete'])->name('nasabah.bulk-delete');
+    Route::post('/nasabah/delete-filtered', [SuperadminNasabahController::class, 'deleteFiltered'])->name('nasabah.delete-filtered');
     Route::post('/nasabah/import', [SuperadminNasabahController::class, 'import'])->name('nasabah.import');
     Route::get('/nasabah/template', [SuperadminNasabahController::class, 'downloadTemplate'])->name('nasabah.template');
     Route::get('/nasabah/rombel-list', [SuperadminNasabahController::class, 'downloadRombelList'])->name('nasabah.rombel-list');
@@ -290,6 +291,7 @@ Route::middleware(['auth', 'role:superadmin', 'verified'])->prefix('superadmin')
     Route::post('/nasabah/bulk-kelas', [SuperadminNasabahController::class, 'bulkUpdateKelas'])->name('nasabah.bulk-kelas');
     Route::post('/nasabah/bulk-status', [SuperadminNasabahController::class, 'bulkStatus'])->name('nasabah.bulk-status');
     Route::post('/nasabah/bulk-delete', [SuperadminNasabahController::class, 'bulkDelete'])->name('nasabah.bulk-delete');
+    Route::post('/nasabah/delete-filtered', [SuperadminNasabahController::class, 'deleteFiltered'])->name('nasabah.delete-filtered');
     Route::post('/nasabah/import', [SuperadminNasabahController::class, 'import'])->name('nasabah.import');
     Route::get('/nasabah/template', [SuperadminNasabahController::class, 'downloadTemplate'])->name('nasabah.template');
     Route::get('/nasabah/rombel-list', [SuperadminNasabahController::class, 'downloadRombelList'])->name('nasabah.rombel-list');
