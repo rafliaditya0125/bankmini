@@ -1,7 +1,7 @@
 {
-    "name": "Ebank School",
-    "short_name": "Ebank School",
-    "description": "Aplikasi Pengelolaan Ebank School - SMK NEGERI 1 CIAMIS",
+    "name": "Bank Mini",
+    "short_name": "Bank Mini",
+    "description": "Aplikasi Pengelolaan Bank Mini - SMK NEGERI 1 CIAMIS",
     "theme_color": "#059669",
     "background_color": "#ffffff",
     "display": "standalone",

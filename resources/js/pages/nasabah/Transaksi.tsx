@@ -50,6 +50,7 @@ export default function NasabahTransaksi({ transactions, filters }: NasabahTrans
                 search,
                 from_date: fromDate,
                 to_date: toDate,
+                per_page: filters.per_page,
             }, {
                 preserveState: true,
                 preserveScroll: true,

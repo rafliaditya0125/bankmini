@@ -23,7 +23,9 @@ class TransaksiController extends Controller
             return $this->exportExcel($query->get(), $request);
         }
 
-        $transactions = $query->paginate(15)->through(function($tx) {
+        $perPage = max(1, min((int) $request->input('per_page', 15), 200));
+
+        $transactions = $query->paginate($perPage)->through(function($tx) {
             $txDate = $tx->tanggal_transaksi ? \Carbon\Carbon::parse($tx->tanggal_transaksi)->toDateString() : $tx->created_at->toDateString();
             $noUrut = Transaksi::where(function($q) use ($txDate) {
                     $q->whereDate('tanggal_transaksi', $txDate)
@@ -87,8 +89,8 @@ class TransaksiController extends Controller
         return Inertia::render('teller/Transaksi', [
             'transactions' => $transactions,
             'filters' => array_merge(
-                $request->only(['search', 'from_date', 'to_date', 'type']),
-                ['status' => $statusFilter]
+                $request->only(['search', 'from_date', 'to_date', 'type', 'per_page']),
+                ['status' => $statusFilter, 'per_page' => $perPage]
             ),
         ]);
     }

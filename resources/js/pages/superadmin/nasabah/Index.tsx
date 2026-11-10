@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import Modal from '@/components/Modal';
@@ -64,6 +64,10 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
     const [viewKelasModalOpen, setViewKelasModalOpen] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [deleteFilteredModalOpen, setDeleteFilteredModalOpen] = useState(false);
+    const [deleteFilteredConfirmText, setDeleteFilteredConfirmText] = useState('');
+    const [forceDeleteWithBalance, setForceDeleteWithBalance] = useState(false);
+    const [isDeletingFiltered, setIsDeletingFiltered] = useState(false);
 
     // Excluded students search states for batch promote
     const [excludedStudents, setExcludedStudents] = useState<{ id: number; name: string; identifier: string; rombel: string }[]>([]);
@@ -117,6 +121,7 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
             if (rombelFilter !== 'all') queryParams.rombel_id = rombelFilter;
             if (typeFilter !== 'all') queryParams.user_type = typeFilter;
             if (bankTypeFilter !== 'all') queryParams.bank_type = bankTypeFilter;
+            if (filters.per_page) queryParams.per_page = filters.per_page;
 
             // Only navigate if filters changed from prop values
             if (
@@ -261,6 +266,76 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
                 });
             }
         });
+    };
+
+    const hasActiveFilter = Boolean(
+        (search && search.trim() !== '') ||
+        (statusFilter && statusFilter !== 'all') ||
+        (tingkatFilter && tingkatFilter !== 'all') ||
+        (jurusanFilter && jurusanFilter !== 'all') ||
+        (rombelFilter && rombelFilter !== 'all') ||
+        (typeFilter && typeFilter !== 'all') ||
+        (bankTypeFilter && bankTypeFilter !== 'all')
+    );
+
+    const activeFilterLabels = useMemo(() => {
+        const labels: string[] = [];
+        if (rombelFilter && rombelFilter !== 'all') {
+            const r = available_rombels.find(item => String(item.id) === String(rombelFilter));
+            labels.push(`Kelas: ${r ? r.nama : rombelFilter}`);
+        }
+        if (jurusanFilter && jurusanFilter !== 'all') {
+            const j = available_jurusan.find(item => String(item.id) === String(jurusanFilter));
+            labels.push(`Jurusan: ${j ? j.nama : jurusanFilter}`);
+        }
+        if (tingkatFilter && tingkatFilter !== 'all') {
+            labels.push(`Tingkat ${tingkatFilter}`);
+        }
+        if (typeFilter && typeFilter !== 'all') {
+            labels.push(`Tipe: ${userTypeLabel[typeFilter] || typeFilter}`);
+        }
+        if (bankTypeFilter && bankTypeFilter !== 'all') {
+            labels.push(`Bank: ${bankTypeFilter === 'ebank' ? 'eBank' : bankTypeFilter.toUpperCase()}`);
+        }
+        if (statusFilter && statusFilter !== 'all') {
+            labels.push(`Status: ${statusFilter === 'aktif' ? 'Aktif' : 'Nonaktif'}`);
+        }
+        if (search && search.trim() !== '') {
+            labels.push(`Pencarian: "${search}"`);
+        }
+        return labels;
+    }, [search, statusFilter, tingkatFilter, jurusanFilter, rombelFilter, typeFilter, bankTypeFilter, available_jurusan, available_rombels]);
+
+    const handleDeleteFiltered = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (deleteFilteredConfirmText.trim() !== 'HAPUS SEMUA') return;
+
+        setIsDeletingFiltered(true);
+        router.post(
+            `/${rolePrefix}/nasabah/delete-filtered`,
+            {
+                confirmation: deleteFilteredConfirmText.trim(),
+                force_delete_with_balance: forceDeleteWithBalance,
+                search: search || '',
+                tingkat: tingkatFilter,
+                jurusan_id: jurusanFilter,
+                rombel_id: rombelFilter,
+                status: statusFilter,
+                user_type: typeFilter,
+                bank_type: bankTypeFilter,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setDeleteFilteredModalOpen(false);
+                    setDeleteFilteredConfirmText('');
+                    setForceDeleteWithBalance(false);
+                },
+                onFinish: () => {
+                    setIsDeletingFiltered(false);
+                },
+            }
+        );
     };
 
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -827,6 +902,53 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
                             ))}
                         </div>
                     </div>
+
+                    {/* Active Filter Mass Action Banner */}
+                    {hasActiveFilter && (
+                        <div className="mt-5 pt-4 border-t border-rose-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-rose-50/90 via-rose-50/50 to-amber-50/60 -mx-6 -mb-6 p-5 rounded-b-2xl border-t">
+                            <div className="flex items-start sm:items-center gap-3">
+                                <div className="p-2 rounded-xl bg-rose-100 text-rose-600 shrink-0">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="text-xs font-black text-rose-950 uppercase tracking-wider">
+                                            Filter Terpasang ({activeFilterLabels.length}):
+                                        </span>
+                                        <span className="text-xs font-semibold text-rose-700">
+                                            {activeFilterLabels.join(' • ')}
+                                        </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-600 mt-0.5">
+                                        Ditemukan <strong className="text-rose-900 font-bold">{nasabah.total}</strong> nasabah sesuai kriteria filter saat ini.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setDeleteFilteredConfirmText('');
+                                        setForceDeleteWithBalance(false);
+                                        setDeleteFilteredModalOpen(true);
+                                    }}
+                                    disabled={nasabah.total === 0}
+                                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm ${
+                                        nasabah.total === 0
+                                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                            : 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20 active:scale-95'
+                                    }`}
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Hapus Semua Data Terfilter ({nasabah.total})
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Bulk Action Bar */}
@@ -2033,6 +2155,124 @@ export default function NasabahIndex({ nasabah, stats, filters, available_jurusa
                                 </svg>
                             )}
                             {isUpdatingKelas ? 'Menyimpan...' : `Pindahkan (${selectedIds.length} Nasabah)`}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Modal Hapus Massal Nasabah Terfilter */}
+            <Modal
+                show={deleteFilteredModalOpen}
+                onClose={() => !isDeletingFiltered && setDeleteFilteredModalOpen(false)}
+                maxWidth="lg"
+            >
+                <form onSubmit={handleDeleteFiltered} className="p-6 space-y-5">
+                    {/* Header */}
+                    <div className="flex items-start gap-4">
+                        <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl shrink-0">
+                            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                                Hapus Semua Data Nasabah Terfilter
+                            </h3>
+                            <p className="text-xs text-rose-600 font-semibold mt-1">
+                                PERINGATAN: Tindakan ini bersifat PERMANEN dan akan menghapus seluruh data yang cocok dengan kriteria filter saat ini.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Filter Impact Card */}
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2 text-xs">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">
+                                Total Data Terdampak
+                            </span>
+                            <span className="font-black text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-full text-xs">
+                                {nasabah.total} Nasabah
+                            </span>
+                        </div>
+                        <div>
+                            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] block mb-1">
+                                Kriteria Filter Aktif:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                                {activeFilterLabels.map((lbl, idx) => (
+                                    <span key={idx} className="bg-white border border-slate-200 text-slate-700 font-bold px-2 py-1 rounded-lg text-[11px] shadow-sm">
+                                        {lbl}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                        <p className="text-[11px] text-slate-500 pt-1">
+                            Aksi ini akan dicatat ke dalam <strong>Audit Trail</strong> beserta detail akun yang melakukan penghapusan dan filter yang digunakan.
+                        </p>
+                    </div>
+
+                    {/* Balance Protection Option */}
+                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4">
+                        <label className="flex items-start gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={forceDeleteWithBalance}
+                                onChange={(e) => setForceDeleteWithBalance(e.target.checked)}
+                                className="mt-0.5 h-4 w-4 rounded border-amber-300 text-rose-600 focus:ring-rose-500"
+                            />
+                            <div className="text-xs">
+                                <span className="font-bold text-amber-900 block">
+                                    Paksa hapus nasabah yang masih memiliki saldo
+                                </span>
+                                <span className="text-[11px] text-amber-700 leading-relaxed block mt-0.5">
+                                    {forceDeleteWithBalance
+                                        ? '⚠️ PERINGATAN: Semua nasabah terfilter akan dihapus permanen, termasuk akun yang masih memiliki sisa saldo.'
+                                        : 'Direkomendasikan (Aman): Akun yang masih memiliki saldo > Rp 0 akan otomatis dilewati dan tidak dihapus.'}
+                                </span>
+                            </div>
+                        </label>
+                    </div>
+
+                    {/* Security Confirmation Input */}
+                    <div className="space-y-2">
+                        <label className="block text-xs font-bold text-slate-700">
+                            Konfirmasi Keamanan Ekstra
+                        </label>
+                        <p className="text-[11px] text-slate-500">
+                            Untuk melanjutkan, ketik teks <span className="font-mono font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">HAPUS SEMUA</span> di bawah ini:
+                        </p>
+                        <input
+                            type="text"
+                            value={deleteFilteredConfirmText}
+                            onChange={(e) => setDeleteFilteredConfirmText(e.target.value)}
+                            placeholder="Ketik 'HAPUS SEMUA' di sini"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs font-bold uppercase tracking-wider text-slate-900 focus:bg-white focus:ring-4 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all"
+                            autoComplete="off"
+                        />
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-100">
+                        <button
+                            type="button"
+                            onClick={() => setDeleteFilteredModalOpen(false)}
+                            disabled={isDeletingFiltered}
+                            className="px-5 py-2.5 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={deleteFilteredConfirmText.trim() !== 'HAPUS SEMUA' || isDeletingFiltered || nasabah.total === 0}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-rose-200 disabled:shadow-none disabled:cursor-not-allowed active:scale-95"
+                        >
+                            {isDeletingFiltered && (
+                                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                            )}
+                            {isDeletingFiltered ? 'Menghapus...' : `Hapus Permanen ${nasabah.total} Data`}
                         </button>
                     </div>
                 </form>

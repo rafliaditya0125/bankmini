@@ -55,7 +55,8 @@ export default function Laporan({ transactions, filters }: LaporanPageProps) {
                     jenis_transaksi: jenis,
                     status,
                     date_from: dateFrom,
-                    date_to: dateTo
+                    date_to: dateTo,
+                    per_page: filters.per_page,
                 }, {
                     preserveState: true,
                     preserveScroll: true,

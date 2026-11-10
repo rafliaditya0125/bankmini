@@ -44,9 +44,14 @@ class PetugasController extends Controller
             $query->where('status', $request->status);
         }
 
+        $perPage = max(1, min((int) $request->input('per_page', 10), 200));
+
         return Inertia::render('superadmin/petugas/Index', [
-            'petugas' => $query->latest('updated_at')->paginate(10)->withQueryString(),
-            'filters' => $request->only(['search', 'role', 'status'])
+            'petugas' => $query->latest('updated_at')->paginate($perPage)->withQueryString(),
+            'filters' => array_merge(
+                $request->only(['search', 'role', 'status', 'per_page']),
+                ['per_page' => $perPage]
+            ),
         ]);
     }
 
